@@ -1,0 +1,303 @@
+/*
+ * Rados Filesystem - A filesystem library based in librados
+ *
+ * Copyright (C) 2014 CERN, Switzerland
+ *
+ * Author: Joaquim Rocha <joaquim.rocha@cern.ch>
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 3 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Lesser General Public License at http://www.gnu.org/licenses/lgpl-3.0.txt
+ * for more details.
+ */
+
+#include "radosfscommon.h"
+#include "RadosFsDir.hh"
+#include "RadosFsDirPriv.hh"
+#include "RadosFsPriv.hh"
+
+RADOS_FS_BEGIN_NAMESPACE
+
+RadosFsDirPriv::RadosFsDirPriv(RadosFsDir *dirObj)
+  : dir(dirObj)
+{
+  updatePath();
+}
+
+RadosFsDirPriv::~RadosFsDirPriv()
+{}
+
+void
+RadosFsDirPriv::updatePath()
+{
+  const std::string &dirPath = dir->path();
+
+  parentDir = getParentDir(dirPath, 0);
+  dirInfo = dir->filesystem()->mPriv->getDirInfo(dirPath.c_str());
+  ioctx = dirInfo->ioctx();
+}
+
+int
+RadosFsDirPriv::makeDirsRecursively(rados_ioctx_t &ioctx,
+                                    const char *path,
+                                    uid_t uid,
+                                    gid_t gid)
+{
+  int index;
+  int ret = 0;
+  mode_t fileType;
+  struct stat buff;
+  const std::string dir = getDirPath(path);
+  const std::string parentDir = getParentDir(path, &index);
+
+  if (rados_stat(ioctx, dir.c_str(), 0, 0) == 0 || parentDir == "")
+    return 0;
+
+  if (!checkIfPathExists(ioctx, parentDir.c_str(), &fileType))
+  {
+    fileType = S_IFDIR;
+    ret = makeDirsRecursively(ioctx, parentDir.c_str(), uid, gid);
+  }
+
+  if (ret == 0)
+  {
+    if (fileType == S_IFREG)
+      return -ENOTDIR;
+
+    ret = genericStat(ioctx, parentDir.c_str(), &buff);
+
+    if (ret != 0)
+      return ret;
+
+    if (!statBuffHasPermission(buff, uid, gid, O_WRONLY | O_RDWR))
+      return -EACCES;
+
+    std::string dir = getDirPath(path);
+    ret = rados_write(ioctx, dir.c_str(), 0, 0, 0);
+
+    if (ret != 0)
+      return ret;
+
+    ret = setPermissionsXAttr(ioctx, dir.c_str(), buff.st_mode, uid, gid);
+
+    indexObject(ioctx, dir.c_str(), '+');
+  }
+
+  return ret;
+}
+
+RadosFsDir::RadosFsDir(RadosFs *radosFs, const std::string &path)
+  : RadosFsInfo(radosFs, getDirPath(path.c_str())),
+    mPriv(new RadosFsDirPriv(this))
+{}
+
+RadosFsDir::RadosFsDir(const RadosFsDir &otherDir)
+  : RadosFsInfo(otherDir),
+    mPriv(new RadosFsDirPriv(this))
+{}
+
+RadosFsDir::~RadosFsDir()
+{}
+
+RadosFsDir &
+RadosFsDir::operator=(const RadosFsDir &otherDir)
+{
+  if (this != &otherDir)
+  {
+    setPath(otherDir.path());
+  }
+
+  return *this;
+}
+
+std::string
+RadosFsDir::getParent(const std::string &path, int *pos)
+{
+  return getParentDir(path, pos);
+}
+
+int
+RadosFsDir::entryList(std::set<std::string> &entries)
+{
+  RadosFs *radosFs = filesystem();
+  uid_t uid = radosFs->uid();
+  gid_t gid = radosFs->gid();
+
+  if (!statBuffHasPermission(mPriv->dirInfo->statBuff, uid, gid, O_RDONLY))
+    return -EACCES;
+
+  const std::set<std::string> &contents = mPriv->dirInfo->contents();
+  entries.insert(contents.begin(), contents.end());
+
+  return 0;
+}
+
+int
+RadosFsDir::create(int mode,
+                   bool mkpath,
+                   int owner,
+                   int group)
+{
+  int ret;
+  mode_t fileType;
+  rados_ioctx_t ioctx = mPriv->ioctx;
+  const std::string dir = path();
+  RadosFs *radosFs = filesystem();
+
+  if (checkIfPathExists(ioctx, dir.c_str(), &fileType))
+  {
+    if (fileType == S_IFREG)
+      return -ENOTDIR;
+
+    if (mkpath)
+      return 0;
+
+    return -EEXIST;
+  }
+
+  uid_t uid = radosFs->uid();
+  gid_t gid = radosFs->gid();
+
+  if (owner < 0)
+    owner = uid;
+
+  if (group < 0)
+    group = gid;
+
+  mode_t permOctal = DEFAULT_MODE_DIR;
+
+  if (mode >= 0)
+    permOctal = mode | S_IFDIR;
+
+  if (mkpath)
+  {
+    ret = mPriv->makeDirsRecursively(ioctx, mPriv->parentDir.c_str(), uid, gid);
+
+    if (ret != 0)
+      return ret;
+  }
+
+  struct stat buff;
+  ret = genericStat(ioctx, mPriv->parentDir.c_str(), &buff);
+
+  if (ret != 0)
+    return ret;
+
+  if (!statBuffHasPermission(buff, uid, gid, O_WRONLY | O_RDWR))
+    return -EACCES;
+
+  ret = rados_write(ioctx, dir.c_str(), 0, 0, 0);
+
+  if (ret != 0)
+    return ret;
+
+  ret = setPermissionsXAttr(ioctx, dir.c_str(), permOctal, owner, group);
+
+  indexObject(ioctx, dir.c_str(), '+');
+
+  RadosFsInfo::update();
+
+  return 0;
+}
+
+int
+RadosFsDir::remove()
+{
+  int ret;
+  mode_t fileType;
+  struct stat buff;
+  const std::string &dirPath = path();
+  rados_ioctx_t ioctx = mPriv->ioctx;
+  RadosFs *radosFs = filesystem();
+
+  ret = genericStat(ioctx, mPriv->parentDir.c_str(), &buff);
+
+  if (ret != 0)
+    return -ENOENT;
+
+  if (!statBuffHasPermission(buff,
+                             radosFs->uid(),
+                             radosFs->gid(),
+                             O_WRONLY | O_RDWR))
+    return -EACCES;
+
+  if (!checkIfPathExists(ioctx, dirPath.c_str(), &fileType))
+    return -ENOENT;
+
+  if (fileType == S_IFREG)
+    return -ENOTDIR;
+
+  DirCache *info = mPriv->dirInfo.get();
+
+  info->update();
+
+  if (info->getEntry(0) != "")
+    return -ENOTEMPTY;
+
+  ret = rados_remove(ioctx, dirPath.c_str());
+
+  if (ret == 0)
+    indexObject(ioctx, dirPath.c_str(), '-');
+
+  RadosFsInfo::update();
+
+  return ret;
+}
+
+void
+RadosFsDir::update()
+{
+  RadosFsInfo::update();
+  mPriv->dirInfo->update();
+}
+
+int
+RadosFsDir::entry(int entryIndex, std::string &entry)
+{
+  RadosFs *radosFs = filesystem();
+  uid_t uid = radosFs->uid();
+  gid_t gid = radosFs->gid();
+
+  if (!statBuffHasPermission(mPriv->dirInfo->statBuff, uid, gid, O_RDONLY))
+    return -EACCES;
+
+  entry = mPriv->dirInfo->getEntry(entryIndex);
+
+  return 0;
+}
+
+void
+RadosFsDir::setPath(const std::string &path)
+{
+  RadosFsInfo::setPath(getDirPath(path.c_str()));
+
+  mPriv->updatePath();
+}
+
+bool
+RadosFsDir::isWritable()
+{
+  RadosFs *radosFs = filesystem();
+  uid_t uid = radosFs->uid();
+  gid_t gid = radosFs->gid();
+
+  return statBuffHasPermission(mPriv->dirInfo->statBuff, uid, gid, O_WRONLY);
+}
+
+bool
+RadosFsDir::isReadable()
+{
+  RadosFs *radosFs = filesystem();
+  uid_t uid = radosFs->uid();
+  gid_t gid = radosFs->gid();
+
+  return statBuffHasPermission(mPriv->dirInfo->statBuff, uid, gid, O_RDONLY);
+}
+
+RADOS_FS_END_NAMESPACE
