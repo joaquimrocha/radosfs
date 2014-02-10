@@ -16,25 +16,15 @@
 # Lesser General Public License at http://www.gnu.org/licenses/lgpl-3.0.txt
 # for more details.
 
-set( VERSION_MAJOR "0" )
-set( VERSION_MINOR "1" )
-set( VERSION_PATCH "0")
+find_package( GTest REQUIRED )
+find_package( LibRados REQUIRED )
 
-cmake_minimum_required( VERSION 2.6 )
-project( libradosfs )
+include_directories( ${PROJECT_SOURCE_DIR}/src ${GTEST_INCLUDE_DIRS} ${RADOS_INCLUDE_DIR} )
 
-enable_testing()
+add_executable( runTests tests.cc RadosFsTest.cc RadosFsTest.hh )
+target_link_libraries( runTests ${GTEST_LIB} ${RADOS_LIB} radosfs )
 
-set( CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/src ${PROJECT_SOURCE_DIR}/cmake
-     ${PROJECT_SOURCE_DIR}/test )
-
-set( CMAKE_INSTALL_PREFIX /usr )
-
-if( MacOSX )
-  set( LIB_INSTALL_DIR lib )
-else( MacOSX )
-  set( LIB_INSTALL_DIR lib64 )
-endif( MacOSX )
-
-add_subdirectory( src )
-add_subdirectory( test )
+add_test(
+    NAME runTests
+    COMMAND runTests
+)
