@@ -31,7 +31,9 @@ DirCache::DirCache(const std::string &dirpath, rados_ioctx_t ioctx)
     mIoctx(ioctx),
     mLastCachedSize(0),
     mLastReadByte(0)
-{}
+{
+  pthread_mutex_init(&mContentsMutex, 0);
+}
 
 DirCache::DirCache()
   : mPath(""),
@@ -40,7 +42,10 @@ DirCache::DirCache()
     mLastReadByte(0)
 {}
 
-DirCache::~DirCache() {};
+DirCache::~DirCache()
+{
+  pthread_mutex_destroy(&mContentsMutex);
+}
 
 void
 DirCache::parseContents(char *buff, int length)
@@ -71,6 +76,8 @@ DirCache::parseContents(char *buff, int length)
       entry.replace(index, 2, "\"");
     }
 
+    pthread_mutex_lock(&mContentsMutex);
+
     if (mContents.count(entry.c_str()) > 0)
     {
       if (line[0] == '-')
@@ -80,6 +87,8 @@ DirCache::parseContents(char *buff, int length)
     }
     else
       mContents.insert(entry);
+
+    pthread_mutex_unlock(&mContentsMutex);
   }
 }
 
@@ -114,15 +123,23 @@ DirCache::update()
 const std::string
 DirCache::getEntry(int index)
 {
+  std::string entry("");
+
+  pthread_mutex_lock(&mContentsMutex);
+
   const int size = (int) mContents.size();
 
-  if (index >= size)
-    return "";
+  if (index < size)
+  {
+    std::set<std::string>::iterator it = mContents.begin();
+    std::advance(it, index);
 
-  std::set<std::string>::iterator it = mContents.begin();
-  std::advance(it, index);
+    entry = *it;
+  }
 
-  return *it;
+  pthread_mutex_unlock(&mContentsMutex);
+
+  return entry;
 }
 
 RADOS_FS_END_NAMESPACE

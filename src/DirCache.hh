@@ -20,6 +20,7 @@
 #ifndef __DIR_INFO_HH__
 #define __DIR_INFO_HH__
 
+#include <pthread.h>
 #include <set>
 #include <string>
 #include <rados/librados.h>
@@ -51,6 +52,7 @@ private:
   std::set<std::string> mContents;
   uint64_t mLastCachedSize;
   int mLastReadByte;
+  pthread_mutex_t mContentsMutex;
 };
 
 RADOS_FS_END_NAMESPACE
