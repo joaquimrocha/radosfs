@@ -47,13 +47,35 @@ TEST_F(RadosFsTest, Pools)
 
   EXPECT_GT(allPools.size(), 0);
 
-  // Check if we have correctly added a pool to RadosFs
+  // Create a pool
 
-  AddPool();
+  const std::string poolName("test-pool");
+  const std::string poolPrefix("/");
+  const int poolSize(10);
 
-  std::vector<std::string> pools = radosFs.pools();
+  EXPECT_EQ(0, radosFs.addPool(poolName, poolPrefix, poolSize));
 
-  EXPECT_EQ(1, pools.size());
+  EXPECT_EQ(1, radosFs.pools().size());
+
+  // Check pool's name from prefix
+
+  EXPECT_EQ(poolName, radosFs.poolFromPrefix(poolPrefix));
+
+  // Check pool's prefix from name
+
+  EXPECT_EQ(poolPrefix, radosFs.poolPrefix(poolName));
+
+  // Check pool's size (it's MB) from name
+
+  EXPECT_EQ(poolSize * 1024 * 1024, radosFs.poolSize(poolName));
+
+  // Remove the pool
+
+  EXPECT_EQ(0, radosFs.removePool(poolName));
+
+  // Verify there are no pools now
+
+  EXPECT_EQ(0, radosFs.pools().size());
 }
 
 TEST_F(RadosFsTest, CreateDir)
