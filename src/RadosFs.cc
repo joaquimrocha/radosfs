@@ -33,12 +33,20 @@ RadosFsPriv::RadosFsPriv(RadosFs *radosFs)
 {
   uid = 0;
   gid = 0;
+
+  pthread_mutex_init(&poolMutex, 0);
+  pthread_mutex_init(&dirCacheMutex, 0);
+  pthread_mutex_init(&operationsMutex, 0);
 }
 
 RadosFsPriv::~RadosFsPriv()
 {
   if (radosCluster)
     rados_shutdown(radosCluster);
+
+  pthread_mutex_destroy(&poolMutex);
+  pthread_mutex_destroy(&dirCacheMutex);
+  pthread_mutex_destroy(&operationsMutex);
 }
 
 int
@@ -152,11 +160,15 @@ RadosFsPriv::addPool(const std::string &name,
   if (ret < 0)
     return ret;
 
+  pthread_mutex_lock(&poolMutex);
+
   poolMap[prefix.c_str()] = pool;
 
   // We keep a set to quickly look for the prefix though
   // in the future we could implement a trie for improved efficiency
   poolPrefixSet.insert(prefix.c_str());
+
+  pthread_mutex_unlock(&poolMutex);
 
   return ret;
 }
@@ -164,14 +176,23 @@ RadosFsPriv::addPool(const std::string &name,
 const RadosFsPool *
 RadosFsPriv::getPoolFromPath(const std::string &path)
 {
+  RadosFsPool *pool = 0;
+
+  pthread_mutex_lock(&poolMutex);
+
   std::set<std::string>::reverse_iterator it;
   for (it = poolPrefixSet.rbegin(); it != poolPrefixSet.rend(); it++)
   {
     if (path.compare(0, (*it).length(), *it) == 0)
-      return &poolMap[*it];
+    {
+      pool = &poolMap[*it];
+      break;
+    }
   }
 
+  pthread_mutex_unlock(&poolMutex);
 
+  return pool;
 }
 
 int
@@ -236,6 +257,10 @@ RadosFsPriv::getParentDir(const std::string &obj, int *pos)
 std::tr1::shared_ptr<DirCache>
 RadosFsPriv::getDirInfo(const char *path)
 {
+  std::tr1::shared_ptr<DirCache> cache;
+
+  pthread_mutex_lock(&dirCacheMutex);
+
   if (dirCache.count(path) == 0)
   {
     rados_ioctx_t ioctx;
@@ -248,29 +273,47 @@ RadosFsPriv::getDirInfo(const char *path)
     }
   }
 
-  return dirCache[path];
+  cache = dirCache[path];
+
+  pthread_mutex_unlock(&dirCacheMutex);
+
+  return cache;
 }
 
 std::tr1::shared_ptr<RadosFsIO>
 RadosFsPriv::getRadosFsIO(const std::string &path)
 {
-  if (operations.count(path) == 0)
-    return std::tr1::shared_ptr<RadosFsIO>();
+  std::tr1::shared_ptr<RadosFsIO> fsIO;
 
-  return operations[path].lock();
+  pthread_mutex_lock(&operationsMutex);
+
+  if (operations.count(path) != 0)
+    fsIO = operations[path].lock();
+
+  pthread_mutex_unlock(&operationsMutex);
+
+  return fsIO;
 }
 
 void
 RadosFsPriv::setRadosFsIO(std::tr1::shared_ptr<RadosFsIO> sharedFsIO)
 {
+  pthread_mutex_lock(&operationsMutex);
+
   operations[sharedFsIO->path()] = sharedFsIO;
+
+  pthread_mutex_unlock(&operationsMutex);
 }
 
 void
 RadosFsPriv::removeRadosFsIO(std::tr1::shared_ptr<RadosFsIO> sharedFsIO)
 {
+  pthread_mutex_lock(&operationsMutex);
+
   if (operations.count(sharedFsIO->path()))
     operations.erase(sharedFsIO->path());
+
+  pthread_mutex_unlock(&operationsMutex);
 }
 
 RadosFs::RadosFs()
@@ -302,6 +345,8 @@ RadosFs::addPool(const std::string &name,
 std::vector<std::string>
 RadosFs::pools() const
 {
+  pthread_mutex_lock(&mPriv->poolMutex);
+
   std::vector<std::string> pools;
 
   std::map<std::string, RadosFsPool>::iterator it;
@@ -309,6 +354,8 @@ RadosFs::pools() const
   {
     pools.push_back((*it).second.name);
   }
+
+  pthread_mutex_unlock(&mPriv->poolMutex);
 
   return pools;
 }
