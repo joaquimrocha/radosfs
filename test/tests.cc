@@ -42,6 +42,13 @@ TEST_F(RadosFsTest, UidAndGid)
 
 TEST_F(RadosFsTest, Pools)
 {
+  // Check if we have at least one pool in our Cluster (the one from the tests)
+  std::vector<std::string> allPools = radosFs.allPoolsInCluster();
+
+  EXPECT_GT(allPools.size(), 0);
+
+  // Check if we have correctly added a pool to RadosFs
+
   AddPool();
 
   std::vector<std::string> pools = radosFs.pools();
