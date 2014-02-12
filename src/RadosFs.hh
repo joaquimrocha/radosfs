@@ -23,8 +23,10 @@
 #include <string>
 #include <vector>
 
-namespace radosfs {
+#define RADOS_FS_BEGIN_NAMESPACE namespace radosfs {
+#define RADOS_FS_END_NAMESPACE }
 
+RADOS_FS_BEGIN_NAMESPACE
 
 class RadosFsPriv;
 class RadosFsFilePriv;
@@ -63,6 +65,6 @@ friend class RadosFsFilePriv;
 friend class RadosFsDirPriv;
 };
 
-}
+RADOS_FS_END_NAMESPACE
 
 #endif /* __RADOS_FS_HH__ */

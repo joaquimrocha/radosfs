@@ -25,7 +25,6 @@
 
 #include "RadosFs.hh"
 #include "RadosFsInfo.hh"
-#include "radosfsdefines.h"
 
 RADOS_FS_BEGIN_NAMESPACE
 
