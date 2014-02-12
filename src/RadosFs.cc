@@ -417,6 +417,29 @@ RadosFs::poolFromPrefix(const std::string &prefix) const
   return pool;
 }
 
+int
+RadosFs::poolSize(const std::string &pool) const
+{
+  int size = 0;
+
+  pthread_mutex_lock(&mPriv->poolMutex);
+
+  std::map<std::string, RadosFsPool>::iterator it;
+  for (it = mPriv->poolMap.begin(); it != mPriv->poolMap.end(); it++)
+  {
+    if ((*it).second.name == pool)
+    {
+      size = (*it).second.size;
+      break;
+    }
+  }
+
+  pthread_mutex_unlock(&mPriv->poolMutex);
+
+  return size;
+}
+
+
 void
 RadosFs::setIds(uid_t uid, gid_t gid)
 {

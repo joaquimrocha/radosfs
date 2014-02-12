@@ -51,6 +51,8 @@ public:
 
   std::string poolFromPrefix(const std::string &prefix) const;
 
+  int poolSize(const std::string &pool) const;
+
   void setIds(uid_t uid, gid_t gid);
 
   void getIds(uid_t *uid, gid_t *gid) const;
