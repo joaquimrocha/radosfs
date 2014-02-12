@@ -402,6 +402,21 @@ RadosFs::poolPrefix(const std::string &pool) const
   return prefix;
 }
 
+std::string
+RadosFs::poolFromPrefix(const std::string &prefix) const
+{
+  std::string pool("");
+
+  pthread_mutex_lock(&mPriv->poolMutex);
+
+  if (mPriv->poolMap.count(prefix) > 0)
+    pool = mPriv->poolMap[prefix].name;
+
+  pthread_mutex_unlock(&mPriv->poolMutex);
+
+  return pool;
+}
+
 void
 RadosFs::setIds(uid_t uid, gid_t gid)
 {
