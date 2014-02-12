@@ -171,25 +171,7 @@ RadosFsPriv::getPoolFromPath(const std::string &path)
       return &poolMap[*it];
   }
 
-  return 0;
-}
 
-void
-RadosFsPriv::initIoctxInPools()
-{
-  std::map<std::string, RadosFsPool>::iterator it = mPoolMap.begin();
-
-  while (it != mPoolMap.end())
-  {
-    const std::string &key = (*it).first;
-    RadosFsPool &pool = (*it).second;
-    int res = rados_ioctx_create(mRadosCluster, pool.name.c_str(), &pool.ioctx);
-
-    it++;
-
-    if (res != 0)
-      mPoolMap.erase(key);
-  }
 }
 
 int
