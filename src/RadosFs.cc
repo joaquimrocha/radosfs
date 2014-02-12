@@ -342,6 +342,26 @@ RadosFs::addPool(const std::string &name,
   return mPriv->addPool(name, prefix, size);
 }
 
+int
+RadosFs::removePool(const std::string &name)
+{
+  int ret = -ENOENT;
+  const std::string &prefix = poolPrefix(name);
+
+  pthread_mutex_lock(&mPriv->poolMutex);
+
+  if (mPriv->poolMap.count(prefix) > 0)
+  {
+    mPriv->poolMap.erase(prefix);
+    mPriv->poolPrefixSet.erase(prefix);
+    ret = 0;
+  }
+
+  pthread_mutex_unlock(&mPriv->poolMutex);
+
+  return ret;
+}
+
 std::vector<std::string>
 RadosFs::pools() const
 {

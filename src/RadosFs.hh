@@ -43,6 +43,8 @@ public:
 
   int addPool(const std::string &name, const std::string &prefix, int size = 0);
 
+  int removePool(const std::string &name);
+
   std::vector<std::string> pools() const;
 
   std::string poolPrefix(const std::string &pool) const;
