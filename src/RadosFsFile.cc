@@ -31,7 +31,6 @@ RADOS_FS_BEGIN_NAMESPACE
 RadosFsFilePriv::RadosFsFilePriv(RadosFsFile *fsFile,
                                  RadosFsFile::OpenMode mode)
   : fsFile(fsFile),
-    isFile(true),
     permissions(RadosFsFile::MODE_NONE),
     mode(mode)
 {
@@ -63,7 +62,6 @@ RadosFsFilePriv::updatePath()
 
   ioctx = pool->ioctx;
   ret = genericStat(ioctx, fsFile->path().c_str(), &statBuff);
-  exists = ret == 0;
 
   updatePermissions();
 
@@ -83,10 +81,10 @@ RadosFsFilePriv::updatePath()
 int
 RadosFsFilePriv::verifyExistanceAndType()
 {
-  if (!exists)
+  if (!fsFile->exists())
     return -ENOENT;
 
-  if (!isFile)
+  if (!fsFile->isFile())
     return -EISDIR;
 
   return 0;
@@ -97,7 +95,6 @@ RadosFsFilePriv::updatePermissions()
 {
   struct stat buff;
   permissions = RadosFsFile::MODE_NONE;
-  exists = false;
 
   int ret = genericStat(ioctx, parentDir.c_str(), &buff);
 
@@ -115,19 +112,14 @@ RadosFsFilePriv::updatePermissions()
   bool canReadParent =
       statBuffHasPermission(buff, uid, gid, O_RDONLY);
 
-  mode_t fileType;
-  if (checkIfPathExists(ioctx, fsFile->path().c_str(), &fileType))
-  {
-    exists = true;
-    isFile = fileType == S_IFREG;
-  }
+  fsFile->RadosFsInfo::update();
 
-  if (!isFile)
+  if (fsFile->exists() && !fsFile->isFile())
     return;
 
   if (canWriteParent && (mode & RadosFsFile::MODE_WRITE))
   {
-    if (!exists || statBuffHasPermission(statBuff, uid, gid, O_WRONLY))
+    if (!fsFile->exists() || statBuffHasPermission(statBuff, uid, gid, O_WRONLY))
       permissions =
           (RadosFsFile::OpenMode) (permissions | RadosFsFile::MODE_WRITE);
   }
@@ -232,13 +224,13 @@ RadosFsFile::create(int mode)
 
   // we don't allow object names that end in a path separator
   const std::string filePath = path();
-  if (!mImpl->isFile ||
+  if ((exists() && !isFile()) ||
       (filePath != "" && filePath[filePath.length() - 1] == PATH_SEP))
     return -EISDIR;
 
   // if the file exists we do not return an error;
   // we should check if this is desired behavior
-  if (mImpl->exists)
+  if (exists())
     return 0;
 
   if ((mPriv->permissions & RadosFsFile::MODE_WRITE) == 0)
@@ -292,7 +284,6 @@ RadosFsFile::remove()
   {
     ret = rados_remove(ioctx, filePath);
     indexObject(ioctx, filePath, '-');
-    mImpl->exists = false;
   }
   else
     return -EACCES;

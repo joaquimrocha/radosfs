@@ -48,9 +48,7 @@ public:
   RadosFsFile *fsFile;
   rados_ioctx_t ioctx;
   struct stat statBuff;
-  bool exists;
   std::string parentDir;
-  bool isFile;
   RadosFsFile::OpenMode permissions;
   RadosFsFile::OpenMode mode;
   std::tr1::shared_ptr<RadosFsIO> radosFsIO;
