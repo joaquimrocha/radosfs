@@ -409,10 +409,10 @@ RadosFs::allPoolsInCluster() const
   char *currentPool = poolList;
   std::vector<std::string> poolVector;
 
-  while (currentPool != '\0')
+  while (strlen(currentPool) != 0)
   {
     poolVector.push_back(currentPool);
-    currentPool += strlen(currentPool);
+    currentPool += strlen(currentPool) + 1;
   }
 
   return poolVector;
