@@ -360,6 +360,28 @@ RadosFs::pools() const
   return pools;
 }
 
+std::string
+RadosFs::poolPrefix(const std::string &pool) const
+{
+  std::string prefix("");
+
+  pthread_mutex_lock(&mPriv->poolMutex);
+
+  std::map<std::string, RadosFsPool>::iterator it;
+  for (it = mPriv->poolMap.begin(); it != mPriv->poolMap.end(); it++)
+  {
+    if ((*it).second.name == pool)
+    {
+      prefix = (*it).first;
+      break;
+    }
+  }
+
+  pthread_mutex_unlock(&mPriv->poolMutex);
+
+  return prefix;
+}
+
 void
 RadosFs::setIds(uid_t uid, gid_t gid)
 {

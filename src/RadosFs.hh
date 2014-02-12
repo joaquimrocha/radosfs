@@ -45,6 +45,8 @@ public:
 
   std::vector<std::string> pools() const;
 
+  std::string poolPrefix(const std::string &pool) const;
+
   void setIds(uid_t uid, gid_t gid);
 
   void getIds(uid_t *uid, gid_t *gid) const;
