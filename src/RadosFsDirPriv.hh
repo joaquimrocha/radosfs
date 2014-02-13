@@ -43,6 +43,10 @@ public:
 
   void updatePath(void);
 
+  bool updateDirInfoPtr(void);
+
+  int updateIoctx(void);
+
   RadosFsDir *dir;
   struct stat statBuff;
   std::string parentDir;

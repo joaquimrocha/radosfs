@@ -33,6 +33,8 @@ DirCache::DirCache(const std::string &dirpath, rados_ioctx_t ioctx)
     mLastReadByte(0)
 {
   pthread_mutex_init(&mContentsMutex, 0);
+
+  genericStat(mIoctx, mPath.c_str(), &statBuff);
 }
 
 DirCache::DirCache()
