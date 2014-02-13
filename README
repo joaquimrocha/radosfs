@@ -1,0 +1,8 @@
+Rados Filesystem - A filesystem library based in librados
+==========================================================
+
+This library offers a simple interface for file operations on top of a Rados
+Cluster.
+
+It is published under the terms of the LGPLv3 license:
+  http://www.gnu.org/licenses/gpl-3.0.html
