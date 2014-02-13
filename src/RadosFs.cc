@@ -498,4 +498,33 @@ RadosFs::allPoolsInCluster() const
   return poolVector;
 }
 
+int
+RadosFs::statCluster(uint64_t *totalSpaceKb,
+                     uint64_t *usedSpaceKb,
+                     uint64_t *availableSpaceKb,
+                     uint64_t *numberOfObjects)
+{
+  int ret;
+  rados_cluster_stat_t clusterStat;
+
+  ret = rados_cluster_stat(mPriv->radosCluster, &clusterStat);
+
+  if (ret != 0)
+    return ret;
+
+  if (totalSpaceKb)
+    *totalSpaceKb = clusterStat.kb;
+
+  if (usedSpaceKb)
+    *usedSpaceKb = clusterStat.kb_used;
+
+  if (availableSpaceKb)
+    *availableSpaceKb = clusterStat.kb_avail;
+
+  if (numberOfObjects)
+    *numberOfObjects = clusterStat.num_objects;
+
+  return ret;
+}
+
 RADOS_FS_END_NAMESPACE

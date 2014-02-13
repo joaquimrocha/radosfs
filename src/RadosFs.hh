@@ -22,6 +22,7 @@
 
 #include <string>
 #include <sys/types.h>
+#include <stdint.h>
 #include <vector>
 
 #define RADOS_FS_BEGIN_NAMESPACE namespace radosfs {
@@ -61,6 +62,11 @@ public:
   uid_t uid(void) const;
 
   uid_t gid(void) const;
+
+  int statCluster(uint64_t *totalSpaceKb,
+                  uint64_t *usedSpaceKb,
+                  uint64_t *availableSpaceKb,
+                  uint64_t *numberOfObjects);
 
   int stat(const std::string &path, struct stat *buff);
 
