@@ -594,6 +594,21 @@ TEST_F(RadosFsTest, FileReadWrite)
   delete[] buff;
 }
 
+TEST_F(RadosFsTest, StatCluster)
+{
+  AddPool();
+
+  uint64_t total = 0, used = 1, available = 1, numberOfObjects;
+
+  int ret = radosFs.statCluster(&total, &used, &available, &numberOfObjects);
+
+  EXPECT_EQ(0, ret);
+
+  EXPECT_GT(total, used);
+
+  EXPECT_GT(total, available);
+}
+
 GTEST_API_ int
 main(int argc, char **argv)
 {
