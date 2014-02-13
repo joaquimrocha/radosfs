@@ -21,6 +21,7 @@
 #define __RADOS_FS_HH__
 
 #include <string>
+#include <sys/types.h>
 #include <vector>
 
 #define RADOS_FS_BEGIN_NAMESPACE namespace radosfs {
