@@ -62,6 +62,8 @@ public:
 
   bool isReadable(void);
 
+  int stat(struct stat *buff);
+
 private:
   std::auto_ptr<RadosFsDirPriv> mPriv;
 };

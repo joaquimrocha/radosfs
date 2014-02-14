@@ -347,4 +347,13 @@ RadosFsDir::isReadable()
   return statBuffHasPermission(mPriv->dirInfo->statBuff, uid, gid, O_RDONLY);
 }
 
+int
+RadosFsDir::stat(struct stat *buff)
+{
+  if (mPriv->dirInfo)
+    *buff = mPriv->dirInfo->statBuff;
+
+  RadosFsInfo::stat(buff);
+}
+
 RADOS_FS_END_NAMESPACE
