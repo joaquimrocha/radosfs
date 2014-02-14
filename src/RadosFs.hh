@@ -72,6 +72,10 @@ public:
 
   std::vector<std::string> allPoolsInCluster(void) const;
 
+  int setXAttr(const std::string &path,
+               const std::string &attrName,
+               const std::string &value);
+
 private:
   RadosFsPriv *mPriv;
 

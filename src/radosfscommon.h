@@ -32,6 +32,8 @@
 
 #define ROOT_UID 0
 #define PATH_SEP '/'
+#define XATTR_SYS_PREFIX "sys."
+#define XATTR_USER_PREFIX "usr."
 #define XATTR_UID "uid="
 #define XATTR_GID "gid="
 #define XATTR_MODE "mode="
@@ -90,5 +92,15 @@ int indexObject(rados_ioctx_t &ioctx, const std::string &obj, char op);
 bool verifyIsOctal(const char *mode);
 
 std::string getDirPath(const char *path);
+
+std::string getRealPath(rados_ioctx_t ioctx, const std::string &path);
+
+int setXAttrFromPath(rados_ioctx_t ioctx,
+                     const struct stat &statBuff,
+                     uid_t uid,
+                     gid_t gid,
+                     const std::string &path,
+                     const std::string &attrName,
+                     const std::string &value);
 
 #endif /* __RADOS_FS_COMMON_HH__ */

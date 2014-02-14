@@ -295,3 +295,69 @@ getDirPath(const char *path)
 
   return dir;
 }
+
+std::string
+getRealPath(rados_ioctx_t ioctx, const std::string &path)
+{
+  mode_t fileType;
+
+  if (!checkIfPathExists(ioctx, path.c_str(), &fileType))
+    return "";
+
+  std::string realPath(path);
+
+  if (realPath[realPath.length()] == PATH_SEP)
+  {
+    if (fileType == S_IFREG)
+      realPath.erase(realPath.length() - 1, 1);
+  }
+  else
+  {
+    if (fileType == S_IFDIR)
+      realPath += PATH_SEP;
+  }
+
+  return realPath;
+}
+
+int
+checkPermissionsForXAttr(const struct stat &statBuff,
+                         const std::string &attrName,
+                         uid_t uid,
+                         gid_t gid,
+                         int permission)
+{
+  if (!statBuffHasPermission(statBuff, uid, gid, permission))
+    return -EACCES;
+
+  if (attrName.compare(0, strlen(XATTR_SYS_PREFIX), XATTR_SYS_PREFIX) == 0)
+  {
+    if (uid != ROOT_UID)
+      return -EACCES;
+  }
+  else if (attrName.compare(0, strlen(XATTR_USER_PREFIX), XATTR_USER_PREFIX) != 0)
+  {
+    return -EINVAL;
+  }
+
+  return 0;
+}
+
+int
+setXAttrFromPath(rados_ioctx_t ioctx,
+                 const struct stat &statBuff,
+                 uid_t uid,
+                 gid_t gid,
+                 const std::string &path,
+                 const std::string &attrName,
+                 const std::string &value)
+{
+  int ret = checkPermissionsForXAttr(statBuff, attrName, uid, gid, O_WRONLY);
+
+  if (ret != 0)
+    return ret;
+
+  return rados_setxattr(ioctx, path.c_str(), attrName.c_str(),
+                        value.c_str(), value.length());
+}
+

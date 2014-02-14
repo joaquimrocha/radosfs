@@ -527,4 +527,30 @@ RadosFs::statCluster(uint64_t *totalSpaceKb,
   return ret;
 }
 
+int
+RadosFs::setXAttr(const std::string &path,
+                  const std::string &attrName,
+                  const std::string &value)
+{
+  rados_ioctx_t ioctx;
+
+  int ret = mPriv->getIoctxFromPath(path, &ioctx);
+
+  if (ret != 0)
+    return ret;
+
+  const std::string &realPath = getRealPath(ioctx, path);
+
+  if (realPath == "")
+    return -ENOENT;
+
+  struct stat buff;
+  ret = genericStat(ioctx, realPath.c_str(), &buff);
+
+  if (ret != 0)
+    return ret;
+
+  return setXAttrFromPath(ioctx, buff, uid(), gid(), realPath, attrName, value);
+}
+
 RADOS_FS_END_NAMESPACE
