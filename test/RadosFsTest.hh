@@ -28,6 +28,9 @@
 
 #define CONF_ENV_VAR "RADOSFS_TEST_CLUSTER_CONF"
 
+#define TEST_UID 1000
+#define TEST_GID 1000
+
 class RadosFsTest : public testing::Test
 {
 
@@ -40,6 +43,8 @@ protected:
   virtual void TearDown();
 
   void AddPool();
+
+  void testXAttrInFsInfo(radosfs::RadosFsInfo &info);
 
   radosfs::RadosFs radosFs;
 

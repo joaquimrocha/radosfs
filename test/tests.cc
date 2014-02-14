@@ -24,9 +24,6 @@
 #include "RadosFsTest.hh"
 #include "radosfscommon.h"
 
-#define TEST_UID 1000
-#define TEST_GID 1000
-
 TEST_F(RadosFsTest, DefaultConstructor)
 {
   EXPECT_TRUE(radosFs.uid() == 0);
@@ -717,6 +714,29 @@ TEST_F(RadosFsTest, XAttrs)
   // Check that a sys xattr is present
 
   EXPECT_EQ(1, map.count(XATTR_PERMISSIONS));
+}
+
+TEST_F(RadosFsTest, XAttrsInInfo)
+{
+  AddPool();
+
+  radosfs::RadosFsDir dir(&radosFs, "/user");
+
+  EXPECT_EQ(0, dir.create((S_IRWXU | S_IRGRP | S_IROTH),
+                          false, TEST_UID, TEST_GID));
+
+  testXAttrInFsInfo(dir);
+
+  radosFs.setIds(TEST_UID, TEST_GID);
+
+  // Create a file for the xattrs
+
+  radosfs::RadosFsFile file(&radosFs, dir.path() + "file",
+                            radosfs::RadosFsFile::MODE_READ_WRITE);
+
+  EXPECT_EQ(0, file.create((S_IRWXU | S_IRGRP | S_IROTH)));
+
+  testXAttrInFsInfo(file);
 }
 
 GTEST_API_ int
