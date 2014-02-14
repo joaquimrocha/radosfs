@@ -25,6 +25,7 @@
 #include <errno.h>
 #include <rados/librados.h>
 #include <fcntl.h>
+#include <map>
 #include <string>
 #include <sstream>
 
@@ -118,5 +119,12 @@ int removeXAttrFromPath(rados_ioctx_t ioctx,
                         gid_t gid,
                         const std::string &path,
                         const std::string &attrName);
+
+int getMapOfXAttrFromPath(rados_ioctx_t ioctx,
+                          const struct stat &statBuff,
+                          uid_t uid,
+                          gid_t gid,
+                          const std::string &path,
+                          std::map<std::string, std::string> &map);
 
 #endif /* __RADOS_FS_COMMON_HH__ */

@@ -606,4 +606,29 @@ RadosFs::removeXAttr(const std::string &path,
   return removeXAttrFromPath(ioctx, buff, uid(), gid(), realPath, attrName);
 }
 
+int
+RadosFs::getXAttrsMap(const std::string &path,
+                      std::map<std::string, std::string> &map)
+{
+  rados_ioctx_t ioctx;
+
+  int ret = mPriv->getIoctxFromPath(path, &ioctx);
+
+  if (ret != 0)
+    return ret;
+
+  const std::string &realPath = getRealPath(ioctx, path);
+
+  if (realPath == "")
+    return -ENOENT;
+
+  struct stat buff;
+  ret = genericStat(ioctx, realPath.c_str(), &buff);
+
+  if (ret != 0)
+    return ret;
+
+  return getMapOfXAttrFromPath(ioctx, buff, uid(), gid(), realPath, map);
+}
+
 RADOS_FS_END_NAMESPACE

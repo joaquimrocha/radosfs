@@ -20,6 +20,7 @@
 #ifndef __RADOS_FS_HH__
 #define __RADOS_FS_HH__
 
+#include <map>
 #include <string>
 #include <sys/types.h>
 #include <stdint.h>
@@ -82,6 +83,9 @@ public:
                size_t length);
 
   int removeXAttr(const std::string &path, const std::string &attrName);
+
+  int getXAttrsMap(const std::string &path,
+                   std::map<std::string, std::string> &map);
 
 private:
   RadosFsPriv *mPriv;

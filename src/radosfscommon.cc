@@ -402,3 +402,40 @@ int removeXAttrFromPath(rados_ioctx_t ioctx,
   return rados_rmxattr(ioctx, path.c_str(), attrName.c_str());
 }
 
+int getMapOfXAttrFromPath(rados_ioctx_t ioctx,
+                          const struct stat &statBuff,
+                          uid_t uid,
+                          gid_t gid,
+                          const std::string &path,
+                          std::map<std::string, std::string> &map)
+{
+  if (!statBuffHasPermission(statBuff, uid, gid, O_RDONLY))
+    return -EACCES;
+
+  rados_xattrs_iter_t iter;
+
+  int ret = rados_getxattrs(ioctx, path.c_str(), &iter);
+
+  if (ret != 0)
+    return ret;
+
+  const char *attr = 0;
+  const char *value = 0;
+  size_t len;
+  const size_t sysPrefixSize = strlen(XATTR_SYS_PREFIX);
+
+  while ((ret = rados_getxattrs_next(iter, &attr, &value, &len)) == 0)
+  {
+    if (attr == 0)
+      break;
+
+    if (uid != ROOT_UID && strncmp(attr, XATTR_SYS_PREFIX, sysPrefixSize) == 0)
+      continue;
+
+    map[attr] = value;
+  }
+
+  rados_getxattrs_end(iter);
+
+  return ret;
+}
