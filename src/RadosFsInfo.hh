@@ -68,6 +68,8 @@ public:
                std::string &value,
                size_t length);
 
+  virtual int removeXAttr(const std::string &attrName);
+
 private:
   std::auto_ptr<RadosFsInfoPriv> mPriv;
 };

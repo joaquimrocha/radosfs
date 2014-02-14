@@ -152,4 +152,20 @@ RadosFsInfo::getXAttr(const std::string &attrName,
                           path(), attrName, value, length);
 }
 
+int
+RadosFsInfo::removeXAttr(const std::string &attrName)
+{
+  int ret;
+  struct stat buff;
+
+  ret = stat(&buff);
+
+  if (ret != 0)
+    return ret;
+
+  return removeXAttrFromPath(mPriv->ioctx, buff,
+                             mPriv->radosFs->uid(), mPriv->radosFs->gid(),
+                             path(), attrName);
+}
+
 RADOS_FS_END_NAMESPACE
