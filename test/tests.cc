@@ -22,6 +22,7 @@
 #include <stdexcept>
 
 #include "RadosFsTest.hh"
+#include "radosfscommon.h"
 
 #define TEST_UID 1000
 #define TEST_GID 1000
@@ -607,6 +608,115 @@ TEST_F(RadosFsTest, StatCluster)
   EXPECT_GT(total, used);
 
   EXPECT_GT(total, available);
+}
+
+TEST_F(RadosFsTest, XAttrs)
+{
+  AddPool();
+
+  // Create a folder for the user
+
+  radosfs::RadosFsDir dir(&radosFs, "/user");
+  EXPECT_EQ(0, dir.create((S_IRWXU | S_IRGRP | S_IROTH), false, TEST_UID, TEST_GID));
+
+  const std::string &fileName(dir.path() + "file");
+
+  radosFs.setIds(TEST_UID, TEST_GID);
+
+  // Create a file for the xattrs
+
+  radosfs::RadosFsFile file(&radosFs, fileName,
+                            radosfs::RadosFsFile::MODE_READ_WRITE);
+
+  EXPECT_EQ(0, file.create((S_IRWXU | S_IRGRP | S_IROTH)));
+
+  // Get the permissions xattr by a unauthorized user
+
+  std::string xAttrValue;
+  EXPECT_EQ(-EACCES, radosFs.getXAttr(fileName, XATTR_PERMISSIONS,
+                                      xAttrValue, XATTR_PERMISSIONS_LENGTH));
+
+  // Get an invalid xattr
+
+  EXPECT_EQ(-EINVAL, radosFs.getXAttr(fileName, "invalid",
+                                      xAttrValue, XATTR_PERMISSIONS_LENGTH));
+
+  // Get an inexistent
+
+  EXPECT_LT(radosFs.getXAttr(fileName, "usr.inexistent",
+                             xAttrValue, XATTR_PERMISSIONS_LENGTH), 0);
+
+  // Set a user attribute
+
+  const std::string attr("usr.attr");
+  const std::string value("value");
+  EXPECT_EQ(0, radosFs.setXAttr(fileName, attr, value));
+
+  // Get the attribute set above
+
+  EXPECT_EQ(value.length(), radosFs.getXAttr(fileName, attr,
+                                             xAttrValue, value.length()));
+
+  // Check the attribtue's value
+
+  EXPECT_EQ(value, xAttrValue);
+
+  // Change to another user
+
+  radosFs.setIds(TEST_UID + 1, TEST_GID + 1);
+
+  // Set an xattr by an unauthorized user
+
+  EXPECT_EQ(-EACCES, radosFs.setXAttr(fileName, attr, value));
+
+  // Get an xattr by a user who can only read
+
+  EXPECT_EQ(value.length(), radosFs.getXAttr(fileName, attr,
+                                             xAttrValue, value.length()));
+
+  // Check the attribute's value
+
+  EXPECT_EQ(value, xAttrValue);
+
+  // Remove an xattr by an unauthorized user
+
+  EXPECT_EQ(-EACCES, radosFs.removeXAttr(fileName, attr));
+
+  // Get the xattrs map
+
+  std::map<std::string, std::string> map;
+
+  EXPECT_EQ(0, radosFs.getXAttrsMap(fileName, map));
+
+  // Check the xattrs map's size
+
+  EXPECT_EQ(1, map.size());
+
+  // Switch to the root user
+
+  radosFs.setIds(ROOT_UID, ROOT_UID);
+
+  map.clear();
+
+  // Set an xattr -- when being root -- in a different user's file
+
+  EXPECT_EQ(0, radosFs.setXAttr(fileName, "sys.attribute", "check"));
+
+  // Get the xattrs map
+
+  EXPECT_EQ(0, radosFs.getXAttrsMap(fileName, map));
+
+  // Check the xattrs map's size
+
+  EXPECT_EQ(3, map.size());
+
+  // Check the xattrs map's value
+
+  EXPECT_EQ(map[attr], value);
+
+  // Check that a sys xattr is present
+
+  EXPECT_EQ(1, map.count(XATTR_PERMISSIONS));
 }
 
 GTEST_API_ int
