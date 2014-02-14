@@ -61,6 +61,9 @@ public:
 
   virtual void update(void);
 
+  virtual int setXAttr(const std::string &attrName,
+               const std::string &value);
+
 private:
   std::auto_ptr<RadosFsInfoPriv> mPriv;
 };

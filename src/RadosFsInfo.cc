@@ -117,4 +117,21 @@ RadosFsInfo::update()
                                     &mPriv->fileType);
 }
 
+int
+RadosFsInfo::setXAttr(const std::string &attrName,
+                      const std::string &value)
+{
+  int ret;
+  struct stat buff;
+
+  ret = stat(&buff);
+
+  if (ret != 0)
+    return ret;
+
+  return setXAttrFromPath(mPriv->ioctx, buff,
+                          mPriv->radosFs->uid(), mPriv->radosFs->gid(),
+                          path(), attrName, value);
+}
+
 RADOS_FS_END_NAMESPACE
