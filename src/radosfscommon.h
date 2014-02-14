@@ -112,4 +112,11 @@ int getXAttrFromPath(rados_ioctx_t ioctx,
                      std::string &value,
                      size_t length);
 
+int removeXAttrFromPath(rados_ioctx_t ioctx,
+                        const struct stat &statBuff,
+                        uid_t uid,
+                        gid_t gid,
+                        const std::string &path,
+                        const std::string &attrName);
+
 #endif /* __RADOS_FS_COMMON_HH__ */

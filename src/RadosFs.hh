@@ -81,6 +81,8 @@ public:
                std::string &value,
                size_t length);
 
+  int removeXAttr(const std::string &path, const std::string &attrName);
+
 private:
   RadosFsPriv *mPriv;
 

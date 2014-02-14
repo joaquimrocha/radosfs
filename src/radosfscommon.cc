@@ -387,3 +387,18 @@ getXAttrFromPath(rados_ioctx_t ioctx,
   return ret;
 }
 
+int removeXAttrFromPath(rados_ioctx_t ioctx,
+                        const struct stat &statBuff,
+                        uid_t uid,
+                        gid_t gid,
+                        const std::string &path,
+                        const std::string &attrName)
+{
+  int ret = checkPermissionsForXAttr(statBuff, attrName, uid, gid, O_WRONLY);
+
+  if (ret != 0)
+    return ret;
+
+  return rados_rmxattr(ioctx, path.c_str(), attrName.c_str());
+}
+
