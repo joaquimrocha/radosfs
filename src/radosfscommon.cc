@@ -361,3 +361,29 @@ setXAttrFromPath(rados_ioctx_t ioctx,
                         value.c_str(), value.length());
 }
 
+int
+getXAttrFromPath(rados_ioctx_t ioctx,
+                 const struct stat &statBuff,
+                 uid_t uid,
+                 gid_t gid,
+                 const std::string &path,
+                 const std::string &attrName,
+                 std::string &value,
+                 size_t length)
+{
+  int ret = checkPermissionsForXAttr(statBuff, attrName, uid, gid, O_RDONLY);
+
+  if (ret != 0)
+    return ret;
+
+  char *buff = new char[length];
+  ret = rados_getxattr(ioctx, path.c_str(), attrName.c_str(), buff, length);
+
+  if (ret >= 0)
+    value = std::string(buff);
+
+  delete[] buff;
+
+  return ret;
+}
+

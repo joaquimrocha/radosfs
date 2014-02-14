@@ -76,6 +76,11 @@ public:
                const std::string &attrName,
                const std::string &value);
 
+  int getXAttr(const std::string &path,
+               const std::string &attrName,
+               std::string &value,
+               size_t length);
+
 private:
   RadosFsPriv *mPriv;
 
