@@ -70,6 +70,8 @@ public:
 
   virtual int removeXAttr(const std::string &attrName);
 
+  virtual int getXAttrsMap(std::map<std::string, std::string> &map);
+
 private:
   std::auto_ptr<RadosFsInfoPriv> mPriv;
 };
