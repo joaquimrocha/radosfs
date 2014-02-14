@@ -134,4 +134,22 @@ RadosFsInfo::setXAttr(const std::string &attrName,
                           path(), attrName, value);
 }
 
+int
+RadosFsInfo::getXAttr(const std::string &attrName,
+                      std::string &value,
+                      size_t length)
+{
+  int ret;
+  struct stat buff;
+
+  ret = stat(&buff);
+
+  if (ret != 0)
+    return ret;
+
+  return getXAttrFromPath(mPriv->ioctx, buff,
+                          mPriv->radosFs->uid(), mPriv->radosFs->gid(),
+                          path(), attrName, value, length);
+}
+
 RADOS_FS_END_NAMESPACE

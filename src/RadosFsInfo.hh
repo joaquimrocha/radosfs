@@ -64,6 +64,10 @@ public:
   virtual int setXAttr(const std::string &attrName,
                const std::string &value);
 
+  virtual int getXAttr(const std::string &attrName,
+               std::string &value,
+               size_t length);
+
 private:
   std::auto_ptr<RadosFsInfoPriv> mPriv;
 };
