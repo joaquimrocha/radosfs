@@ -346,4 +346,13 @@ RadosFsFile::setPath(const std::string &path)
   mPriv->updatePath();
 }
 
+int
+RadosFsFile::stat(struct stat *buff)
+{
+  if (exists())
+    *buff = mPriv->statBuff;
+
+  RadosFsInfo::stat(buff);
+}
+
 RADOS_FS_END_NAMESPACE

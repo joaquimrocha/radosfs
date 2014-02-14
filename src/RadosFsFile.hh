@@ -71,6 +71,8 @@ public:
 
   void setPath(const std::string &path);
 
+  int stat(struct stat *buff);
+
 private:
   std::auto_ptr<RadosFsFilePriv> mPriv;
 };
