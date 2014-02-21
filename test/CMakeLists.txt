@@ -21,10 +21,10 @@ find_package( LibRados REQUIRED )
 
 include_directories( ${PROJECT_SOURCE_DIR}/src ${GTEST_INCLUDE_DIRS} ${RADOS_INCLUDE_DIR} )
 
-add_executable( runTests tests.cc RadosFsTest.cc RadosFsTest.hh )
-target_link_libraries( runTests ${GTEST_LIB} ${RADOS_LIB} radosfs )
+add_executable( run-tests tests.cc RadosFsTest.cc RadosFsTest.hh )
+target_link_libraries( run-tests ${GTEST_LIB} ${RADOS_LIB} radosfs )
 
 add_test(
-    NAME runTests
-    COMMAND runTests
+    NAME run-tests
+    COMMAND run-tests
 )
