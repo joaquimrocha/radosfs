@@ -39,6 +39,7 @@ endif( MacOSX )
 add_subdirectory( src )
 add_subdirectory( test )
 add_subdirectory( benchmark )
+add_subdirectory( tools )
 
 #-------------------------------------------------------------------------------
 # 'uninstall' target
