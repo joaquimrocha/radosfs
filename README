@@ -6,3 +6,45 @@ Cluster.
 
 It is published under the terms of the LGPLv3 license:
   http://www.gnu.org/licenses/gpl-3.0.html
+
+
+======
+Usage
+======
+
+Here is a quick example of how to use RadosFs (it might also be a good idea to
+take a look at the unit tests for further examples):
+
+  #include <libradosfs.h>
+
+  int ret;
+
+  // Initialize RadosFs
+  radosfs::RadosFs radosFs;
+  ret = radosFs.init("someusername", "/path/to/conf/ceph.conf");
+
+  if (ret != 0)
+    return ret;
+
+  // Add a pool
+  radosFs.addPool("root-pool", "/");
+
+  // Create a directory for a user with UID and GID = 1000
+  radosfs::RadosFsDir dir(&radosFs, "/userdir");
+  ret = dir.create(-1, false, 1000, 1000);
+
+  if (ret != 0)
+    return ret;
+
+  // Change the current UID and GID to the user mentioned above
+  // (further operations will be done under these ids)
+  radosFs.setIds(1000, 1000);
+
+  // Create a file as user 1000
+  radofs::RadosFsFile file(&radosFs,
+                           "/userdir/myfile",
+                           radofs::RadosFsFile::MODE_WRITE);
+  ret = file.create();
+
+  if (ret != 0)
+    return ret;
