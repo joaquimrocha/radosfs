@@ -48,3 +48,51 @@ take a look at the unit tests for further examples):
 
   if (ret != 0)
     return ret;
+
+
+======
+Tools
+======
+
+RadosFs comes with a radosfsck tool for checking the filesystem for issues
+and correct them.
+
+Here is how to use it:
+
+  $ radosfsck --conf=PATH_TO_CLUSTER_CONF pool-name
+
+  Run the check in the cluster configured by PATH_TO_CLUSTER_CONF and the pool
+  indicated by "pool-name" which is automatically mapped to the root (/) as
+  no path prefix was indicated.
+
+
+  $ radosfsck --conf=PATH_TO_CLUSTER_CONF root-pool / test-pool /test/
+
+  More than one pool can be configured and mapped to a certain prefix. As shown
+  above, the pool named root-pool is mapped to the root prefix (/) and the one
+  named test-pool is mapped to the /test/ prefix.
+
+
+  $ radosfsck --fix --conf=PATH_TO_CLUSTER_CONF root-pool
+
+  The fix option (--fix or -f) will try to correct the issues found. The current
+  approach to that is:
+
+    * if a directory doesn't exist anymore, create it;
+    * if a file doesn't exist anymore, deindex it;
+    * if a file or directory exists but is not indexed, do index it.
+
+
+  $ radosfsck --fix --dry --conf=PATH_TO_CLUSTER_CONF root-pool
+
+  Sometimes it might be useful to see what the fix operation would do without
+  running it. That can be accomplished by using the dry run (--dry or -n) option
+  together with the run one.
+
+
+  $ radosfsck --verbose --conf=PATH_TO_CLUSTER_CONF root-pool
+
+  Using the --verbose option (or -v) will show all the issues found and not only
+  a summary. If used together with the fix option, it will show what was fixed
+  and how. If the dry run option is also used, it will show what would be done
+  for each fix attempt.
