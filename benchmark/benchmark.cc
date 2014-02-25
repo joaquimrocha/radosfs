@@ -26,8 +26,6 @@
 #include <unistd.h>
 #include <getopt.h>
 
-#include "libradosfs.hh"
-#include "radosfs/RadosFsFile.hh"
 #include "BenchmarkMgr.hh"
 
 #define CONF_ENV_VAR "RADOSFS_BENCHMARK_CLUSTER_CONF"

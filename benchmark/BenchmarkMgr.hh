@@ -4,7 +4,9 @@
 #include <pthread.h>
 #include <rados/librados.h>
 
-#include "libradosfs.hh"
+#include "RadosFs.hh"
+#include "RadosFsDir.hh"
+#include "RadosFsFile.hh"
 
 #define TEST_POOL "test-pool"
 
