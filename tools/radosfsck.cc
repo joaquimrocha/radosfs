@@ -26,7 +26,9 @@
 #include <sstream>
 #include <sys/stat.h>
 
-#include "libradosfs.hh"
+#include "RadosFs.hh"
+#include "RadosFsDir.hh"
+#include "RadosFsFile.hh"
 #include "radosfscommon.h"
 
 #define CONF_ENV_VAR "RADOSFS_CLUSTER_CONF"
