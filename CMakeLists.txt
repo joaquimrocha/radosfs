@@ -19,9 +19,10 @@
 set( VERSION_MAJOR "0" )
 set( VERSION_MINOR "1" )
 set( VERSION_PATCH "0")
+set( RELEASE       "1")
 
 cmake_minimum_required( VERSION 2.6 )
-project( libradosfs )
+project( radosfs )
 
 enable_testing()
 
@@ -52,3 +53,23 @@ CONFIGURE_FILE(
 
 ADD_CUSTOM_TARGET(uninstall
   "${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_BINARY_DIR}/cmake/cmake_uninstall.cmake")
+
+#-------------------------------------------------------------------------------
+# 'gitdist' target
+#-------------------------------------------------------------------------------
+add_custom_target(gitdist
+    COMMAND git archive --prefix=${CMAKE_PROJECT_NAME}-${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}-${RELEASE}/ HEAD
+        | gzip > ${CMAKE_BINARY_DIR}/${CMAKE_PROJECT_NAME}-${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}-${RELEASE}.tar.gz
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+#-------------------------------------------------------------------------------
+# 'srpm' target
+#-------------------------------------------------------------------------------
+ADD_CUSTOM_TARGET(srpm COMMAND rpmbuild -ts ${CMAKE_PROJECT_NAME}-${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}-${RELEASE}.tar.gz)
+ADD_DEPENDENCIES(srpm gitdist)
+
+#-------------------------------------------------------------------------------
+# 'rpm' target
+#-------------------------------------------------------------------------------
+ADD_CUSTOM_TARGET(rpm COMMAND rpmbuild -tb ${CMAKE_PROJECT_NAME}-${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}-${RELEASE}.tar.gz)
+ADD_DEPENDENCIES(rpm gitdist)
