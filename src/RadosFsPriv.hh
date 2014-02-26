@@ -64,6 +64,8 @@ public:
 
   void removeCache(LinkedList *link, bool freeMemory = true);
 
+  void removeCache(const std::string &path, bool freeMemory = true);
+
   std::map<std::string, LinkedList *> cacheMap;
   LinkedList *head;
   LinkedList *tail;
@@ -114,6 +116,8 @@ public:
   void removeRadosFsIO(std::tr1::shared_ptr<RadosFsIO> sharedFsIO);
 
   void updateDirCache(std::tr1::shared_ptr<DirCache> &cache);
+
+  void removeDirCache(std::tr1::shared_ptr<DirCache> &cache);
 
   rados_t radosCluster;
   static __thread uid_t uid;

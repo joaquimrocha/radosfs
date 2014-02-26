@@ -63,7 +63,10 @@ RadosFsDirPriv::updateDirInfoPtr()
 void
 RadosFsDirPriv::updateFsDirCache()
 {
-  dir->filesystem()->mPriv->updateDirCache(dirInfo);
+  if (dir->exists())
+    dir->filesystem()->mPriv->updateDirCache(dirInfo);
+  else
+    dir->filesystem()->mPriv->removeDirCache(dirInfo);
 }
 
 int

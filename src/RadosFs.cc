@@ -79,6 +79,16 @@ PriorityCache::cleanCache()
 }
 
 void
+PriorityCache::removeCache(const std::string &path, bool freeMemory)
+{
+  if (cacheMap.count(path) == 0)
+    return;
+
+  LinkedList *link = cacheMap[path];
+  removeCache(link, freeMemory);
+}
+
+void
 PriorityCache::removeCache(LinkedList *link, bool freeMemory)
 {
   if (head == link)
@@ -412,6 +422,16 @@ RadosFsPriv::updateDirCache(std::tr1::shared_ptr<DirCache> &cache)
   pthread_mutex_lock(&dirCacheMutex);
 
   dirCache.update(cache);
+
+  pthread_mutex_unlock(&dirCacheMutex);
+}
+
+void
+RadosFsPriv::removeDirCache(std::tr1::shared_ptr<DirCache> &cache)
+{
+  pthread_mutex_lock(&dirCacheMutex);
+
+  dirCache.removeCache(cache->path());
 
   pthread_mutex_unlock(&dirCacheMutex);
 }
