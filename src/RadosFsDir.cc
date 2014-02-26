@@ -330,7 +330,12 @@ RadosFsDir::entry(int entryIndex, std::string &entry)
 void
 RadosFsDir::setPath(const std::string &path)
 {
-  RadosFsInfo::setPath(getDirPath(path.c_str()));
+  const std::string &dirPath = getDirPath(path.c_str());
+
+  if (dirPath == this->path())
+    return;
+
+  RadosFsInfo::setPath(dirPath);
 
   mPriv->updatePath();
 }
