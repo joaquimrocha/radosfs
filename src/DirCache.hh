@@ -41,6 +41,7 @@ public:
   const std::string getEntry(int index);
   rados_ioctx_t ioctx(void) const { return mIoctx; };
   std::set<std::string> contents(void) const { return mContents; };
+  std::string path(void) const { return mPath; }
 
   struct stat statBuff;
 

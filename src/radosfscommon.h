@@ -45,6 +45,8 @@
 #define DEFAULT_MODE_DIR (S_IFDIR | DEFAULT_MODE)
 #define INDEX_NAME_KEY "name="
 #define MEGABYTE_CONVERSION (1024 * 1024) // 1MB
+#define DEFAULT_DIR_CACHE_MAX_SIZE 1000000
+#define DEFAULT_DIR_CACHE_CLEAN_PERCENTAGE .2
 
 typedef struct {
   std::string name;

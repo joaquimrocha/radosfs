@@ -33,6 +33,7 @@ RadosFsPriv::RadosFsPriv(RadosFs *radosFs)
 {
   uid = 0;
   gid = 0;
+  dirCache.maxCacheSize = DEFAULT_DIR_CACHE_MAX_SIZE;
 
   pthread_mutex_init(&poolMutex, 0);
   pthread_mutex_init(&dirCacheMutex, 0);
@@ -44,9 +45,160 @@ RadosFsPriv::~RadosFsPriv()
   if (radosCluster)
     rados_shutdown(radosCluster);
 
+  pthread_mutex_lock(&dirCacheMutex);
+
+  dirCache.cleanCache();
+
+  pthread_mutex_unlock(&dirCacheMutex);
+
   pthread_mutex_destroy(&poolMutex);
   pthread_mutex_destroy(&dirCacheMutex);
   pthread_mutex_destroy(&operationsMutex);
+}
+
+PriorityCache::PriorityCache()
+  : head(0),
+    tail(0),
+    cacheSize(0),
+    maxCacheSize(DEFAULT_DIR_CACHE_MAX_SIZE)
+{}
+
+PriorityCache::~PriorityCache()
+{}
+
+void
+PriorityCache::cleanCache()
+{
+  std::map<std::string, LinkedList *>::iterator it;
+  for (it = cacheMap.begin(); it != cacheMap.end(); it++)
+  {
+    delete (*it).second;
+  }
+
+  cacheMap.clear();
+}
+
+void
+PriorityCache::removeCache(LinkedList *link, bool freeMemory)
+{
+  if (head == link)
+  {
+    head = head->previous;
+
+    if (head)
+      head->next = 0;
+  }
+
+  if (tail == link)
+  {
+    tail = tail->next;
+
+    if (tail)
+      tail->previous = 0;
+  }
+
+  if (link->next != 0)
+    link->next->previous = link->previous;
+
+  if (link->previous != 0)
+    link->previous->next = link->next;
+
+  if (freeMemory)
+  {
+    cacheSize -= link->lastNumEntries;
+    cacheMap.erase(link->cachePtr->path());
+    delete link;
+  }
+}
+
+void
+PriorityCache::moveToFront(LinkedList *link)
+{
+  if (head == link || link == 0)
+    return;
+
+  if (tail == link)
+  {
+    tail = tail->next;
+
+    if (tail)
+      tail->previous = 0;
+  }
+
+  if (tail == 0)
+    tail = link;
+
+  if (link->next != 0)
+    link->next->previous = link->previous;
+
+  if (link->previous != 0)
+    link->previous->next = link->next;
+
+  link->previous = head;
+  head = link;
+
+  if (link->previous)
+    link->previous->next = link;
+
+  link->next = 0;
+}
+
+void
+PriorityCache::update(std::tr1::shared_ptr<DirCache> cache)
+{
+  LinkedList *list = 0;
+  const size_t dirNumEntries = cache->contents().size();
+
+  // we add 1 to the number of entries because the size of the
+  // cache is the number of directories plus their entries
+  if (dirNumEntries + 1 > maxCacheSize)
+    return;
+
+  if (cacheMap.count(cache->path()) == 0)
+  {
+    list = new LinkedList;
+    list->cachePtr = cache;
+    list->next = 0;
+    list->previous = 0;
+    list->lastNumEntries = 0;
+
+    cacheMap[cache->path()] = list;
+  }
+  else
+  {
+    list = cacheMap[cache->path()];
+  }
+
+  if (dirNumEntries != list->lastNumEntries)
+  {
+    cacheSize += dirNumEntries - list->lastNumEntries;
+    list->lastNumEntries = dirNumEntries;
+  }
+
+  moveToFront(list);
+
+  adjustCache();
+}
+
+void
+PriorityCache::adjustCache()
+{
+  if (size() <= maxCacheSize || tail == 0 || size() == 1)
+    return;
+
+  size_t minCacheSize = (float) maxCacheSize *
+                        DEFAULT_DIR_CACHE_CLEAN_PERCENTAGE;
+
+  if (minCacheSize == 0)
+    minCacheSize = 1;
+
+  while (size() > minCacheSize)
+  {
+    if (tail == 0)
+      break;
+
+    removeCache(tail);
+  }
 }
 
 int
@@ -261,19 +413,21 @@ RadosFsPriv::getDirInfo(const char *path)
 
   pthread_mutex_lock(&dirCacheMutex);
 
-  if (dirCache.count(path) == 0)
+  if (dirCache.cacheMap.count(path) == 0)
   {
     rados_ioctx_t ioctx;
     int ret = getIoctxFromPath(path, &ioctx);
 
-    if (ret == 0)
-    {
-      DirCache *dirInfo = new DirCache(path, ioctx);
-      dirCache[path] = std::tr1::shared_ptr<DirCache>(dirInfo);
-    }
-  }
+    if (ret != 0)
+      return cache;
 
-  cache = dirCache[path];
+    DirCache *dirInfo = new DirCache(path, ioctx);
+    cache = std::tr1::shared_ptr<DirCache>(dirInfo);
+
+    dirCache.update(cache);
+  }
+  else
+    cache = dirCache.cacheMap[path]->cachePtr;
 
   pthread_mutex_unlock(&dirCacheMutex);
 

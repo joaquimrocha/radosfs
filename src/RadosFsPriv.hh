@@ -36,6 +36,41 @@ RADOS_FS_BEGIN_NAMESPACE
 
 class RadosFs;
 
+typedef struct _LinkedList LinkedList;
+
+struct _LinkedList
+{
+  std::tr1::shared_ptr<DirCache> cachePtr;
+  int lastNumEntries;
+  LinkedList *previous;
+  LinkedList *next;
+};
+
+class PriorityCache
+{
+public:
+  PriorityCache();
+  ~PriorityCache();
+
+  void update(std::tr1::shared_ptr<DirCache> cache);
+
+  void adjustCache(void);
+
+  size_t size(void) { return cacheSize + cacheMap.size(); }
+
+  void cleanCache();
+
+  void moveToFront(LinkedList *link);
+
+  void removeCache(LinkedList *link, bool freeMemory = true);
+
+  std::map<std::string, LinkedList *> cacheMap;
+  LinkedList *head;
+  LinkedList *tail;
+  size_t cacheSize;
+  size_t maxCacheSize;
+};
+
 class RadosFsPriv
 {
 public:
@@ -85,7 +120,7 @@ public:
   std::map<std::string, RadosFsPool> poolMap;
   std::set<std::string> poolPrefixSet;
   pthread_mutex_t poolMutex;
-  std::map<std::string, std::tr1::shared_ptr<DirCache> > dirCache;
+  PriorityCache dirCache;
   pthread_mutex_t dirCacheMutex;
   std::map<std::string, std::tr1::weak_ptr<RadosFsIO> > operations;
   pthread_mutex_t operationsMutex;
