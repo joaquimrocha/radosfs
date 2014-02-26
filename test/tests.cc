@@ -739,6 +739,115 @@ TEST_F(RadosFsTest, XAttrsInInfo)
   testXAttrInFsInfo(file);
 }
 
+TEST_F(RadosFsTest, DirCache)
+{
+  AddPool();
+
+  const size_t maxSize = 4;
+
+  // Set a maximum size for the cache and verify
+
+  radosFs.setDirCacheMaxSize(maxSize);
+
+  EXPECT_EQ(maxSize, radosFs.dirCacheMaxSize());
+
+  EXPECT_EQ(0, radosFsPriv()->dirCache.size());
+
+  // Instantiate a dir and check that the cache size stays the same
+
+  radosfs::RadosFsDir dir(&radosFs, "/dir");
+
+  EXPECT_EQ(0, radosFsPriv()->dirCache.size());
+
+  // Create that dir and check that the cache size increments
+
+  EXPECT_EQ(0, dir.create());
+
+  EXPECT_EQ(1, radosFsPriv()->dirCache.size());
+
+  // Check that the most recent cached dir has the same path
+  // as the one we created
+
+  EXPECT_EQ(dir.path(),
+            radosFsPriv()->dirCache.head->cachePtr->path());
+
+  // Instantiate another dir from the one before and verify the cache
+  // stays the same
+
+  radosfs::RadosFsDir otherDir(dir);
+
+  EXPECT_EQ(1, radosFsPriv()->dirCache.size());
+
+  // Change the path and verify the cache size increments
+
+  otherDir.setPath("/dir1");
+  otherDir.create();
+
+  EXPECT_EQ(2, radosFsPriv()->dirCache.size());
+
+  // Check that the most recent cached dir has the same path
+  // as the one we created
+
+  EXPECT_EQ(otherDir.path(),
+            radosFsPriv()->dirCache.head->cachePtr->path());
+
+  // Create a sub directory and verify that the cache size increments
+
+  radosfs::RadosFsDir subdir(&radosFs, "/dir/subdir");
+  EXPECT_EQ(0, subdir.create());
+
+  EXPECT_EQ(3, radosFsPriv()->dirCache.size());
+
+  // Check that the most recent cached dir has the same path
+  // as the one we created
+
+  EXPECT_EQ(subdir.path(),
+            radosFsPriv()->dirCache.head->cachePtr->path());
+
+  // Update the parent dir of the one we created and verify
+  // that the cache size increments (because now it has an entry)
+
+  dir.update();
+
+  EXPECT_EQ(4, radosFsPriv()->dirCache.size());
+
+  // Check that the most recent cached dir has the same path
+  // as the one we updated
+
+  EXPECT_EQ(dir.path(),
+            radosFsPriv()->dirCache.head->cachePtr->path());
+
+  // Change the cache's max size so it allows to hold only one dir
+  // with no entries
+
+  radosFs.setDirCacheMaxSize(1);
+
+  // Verify that the cache's contents were cleaned due to the
+  // ridiculously small size
+
+  EXPECT_EQ(0, radosFsPriv()->dirCache.size());
+
+  // Update dir with one entry and verify it doesn't get cached
+  // (because the cache size would be greater than the maximum)
+
+  dir.update();
+
+  EXPECT_EQ(0, radosFsPriv()->dirCache.size());
+
+  // Update the subdir (with no entries) and verify the cache
+  // size increments
+
+  subdir.update();
+
+  EXPECT_EQ(1, radosFsPriv()->dirCache.size());
+
+  // Remove the cached dir and verify the cache size decrements
+
+  subdir.remove();
+
+  EXPECT_EQ(0, radosFsPriv()->dirCache.size());
+}
+
 GTEST_API_ int
 main(int argc, char **argv)
 {
