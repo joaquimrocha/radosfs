@@ -335,6 +335,8 @@ RadosFsDir::setPath(const std::string &path)
   if (dirPath == this->path())
     return;
 
+  mPriv->dirInfo.reset();
+
   RadosFsInfo::setPath(dirPath);
 
   mPriv->updatePath();
