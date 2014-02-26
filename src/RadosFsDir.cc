@@ -290,7 +290,9 @@ RadosFsDir::remove()
   if (ret == 0)
     indexObject(ioctx, dirPath.c_str(), '-');
 
-  update();
+  RadosFsInfo::update();
+  mPriv->updateFsDirCache();
+  mPriv->updateDirInfoPtr();
 
   return ret;
 }
