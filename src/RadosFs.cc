@@ -795,4 +795,17 @@ RadosFs::getXAttrsMap(const std::string &path,
   return getMapOfXAttrFromPath(ioctx, buff, uid(), gid(), realPath, map);
 }
 
+void
+RadosFs::setDirCacheMaxSize(size_t size)
+{
+  mPriv->dirCache.maxCacheSize = size;
+  mPriv->dirCache.adjustCache();
+}
+
+size_t
+RadosFs::dirCacheMaxSize(void) const
+{
+  return mPriv->dirCache.maxCacheSize;
+}
+
 RADOS_FS_END_NAMESPACE

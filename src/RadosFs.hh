@@ -85,6 +85,10 @@ public:
   int getXAttrsMap(const std::string &path,
                    std::map<std::string, std::string> &map);
 
+  void setDirCacheMaxSize(size_t size);
+
+  size_t dirCacheMaxSize(void) const;
+
 private:
   RadosFsPriv *mPriv;
 
