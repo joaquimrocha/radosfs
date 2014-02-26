@@ -20,6 +20,7 @@
 #include <gtest/gtest.h>
 #include <rados/librados.h>
 #include "RadosFs.hh"
+#include "RadosFsPriv.hh"
 #include "RadosFsFile.hh"
 #include "RadosFsDir.hh"
 
@@ -47,6 +48,8 @@ protected:
   void testXAttrInFsInfo(radosfs::RadosFsInfo &info);
 
   radosfs::RadosFs radosFs;
+
+  radosfs::RadosFsPriv *radosFsPriv(void) const { return radosFs.mPriv; }
 
 private:
   rados_t mCluster;

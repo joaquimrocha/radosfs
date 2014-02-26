@@ -29,6 +29,8 @@
 #define RADOS_FS_BEGIN_NAMESPACE namespace radosfs {
 #define RADOS_FS_END_NAMESPACE }
 
+class RadosFsTest;
+
 RADOS_FS_BEGIN_NAMESPACE
 
 class RadosFsPriv;
@@ -92,6 +94,7 @@ public:
 private:
   RadosFsPriv *mPriv;
 
+friend class ::RadosFsTest;
 friend class RadosFsInfoPriv;
 friend class RadosFsFilePriv;
 friend class RadosFsDirPriv;
