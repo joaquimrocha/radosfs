@@ -32,8 +32,6 @@
 RADOS_FS_BEGIN_NAMESPACE
 
 class RadosFsPriv;
-class RadosFsFilePriv;
-class RadosFsDirPriv;
 
 class RadosFs
 {
