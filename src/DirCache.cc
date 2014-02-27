@@ -26,6 +26,8 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
+#define COMPACT_LOCK_NAME "compact-dir"
+
 DirCache::DirCache(const std::string &dirpath, rados_ioctx_t ioctx)
   : mPath(dirpath),
     mIoctx(ioctx),
@@ -142,6 +144,59 @@ DirCache::getEntry(int index)
   pthread_mutex_unlock(&mContentsMutex);
 
   return entry;
+}
+
+void
+DirCache::compactDirOpLog(void)
+{
+  update();
+
+  genericStat(mIoctx, mPath.c_str(), &statBuff);
+
+  const char *keys[] = { DIR_LOG_UPDATED };
+  const char *values[] = { DIR_LOG_UPDATED_FALSE };
+  const size_t lengths[] = { strlen(values[0]) };
+
+  rados_write_op_t writeOp = rados_create_write_op();
+
+  rados_write_op_omap_set(writeOp, keys, values, lengths, 1);
+
+  rados_write_op_operate(writeOp, mIoctx, mPath.c_str(), NULL, 0);
+
+  rados_release_write_op(writeOp);
+
+  writeOp = rados_create_write_op();
+
+  std::set<std::string>::iterator it;
+  std::string compactContents;
+
+  for (it = mContents.begin(); it != mContents.end(); it++)
+  {
+    compactContents += getObjectIndexLine(*it, '+');
+  }
+
+  rados_write_op_truncate(writeOp, 0);
+
+  if (compactContents != "")
+    rados_write_op_write_full(writeOp,
+                              compactContents.c_str(),
+                              compactContents.length());
+
+  int cmpRet;
+  rados_write_op_omap_cmp(writeOp,
+                          DIR_LOG_UPDATED,
+                          LIBRADOS_CMPXATTR_OP_EQ,
+                          DIR_LOG_UPDATED_FALSE,
+                          strlen(DIR_LOG_UPDATED_FALSE),
+                          &cmpRet);
+
+  rados_write_op_operate(writeOp, mIoctx, mPath.c_str(), NULL, 0);
+
+  genericStat(mIoctx, mPath.c_str(), &statBuff);
+
+  mLastCachedSize = mLastReadByte = statBuff.st_size;
+
+  rados_release_write_op(writeOp);
 }
 
 RADOS_FS_END_NAMESPACE

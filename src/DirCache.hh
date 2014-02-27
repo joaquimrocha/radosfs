@@ -42,6 +42,7 @@ public:
   rados_ioctx_t ioctx(void) const { return mIoctx; }
   std::set<std::string> contents(void) const { return mContents; }
   std::string path(void) const { return mPath; }
+  void compactDirOpLog(void);
 
   struct stat statBuff;
 

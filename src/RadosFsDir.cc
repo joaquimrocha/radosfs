@@ -292,6 +292,9 @@ RadosFsDir::remove()
 
   RadosFsInfo::update();
   mPriv->updateFsDirCache();
+
+  info->compactDirOpLog();
+
   mPriv->updateDirInfoPtr();
 
   return ret;

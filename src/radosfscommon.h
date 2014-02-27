@@ -47,6 +47,9 @@
 #define MEGABYTE_CONVERSION (1024 * 1024) // 1MB
 #define DEFAULT_DIR_CACHE_MAX_SIZE 1000000
 #define DEFAULT_DIR_CACHE_CLEAN_PERCENTAGE .2
+#define DIR_LOG_UPDATED "updated"
+#define DIR_LOG_UPDATED_FALSE "false"
+#define DIR_LOG_UPDATED_TRUE "true"
 
 typedef struct {
   std::string name;
@@ -91,6 +94,8 @@ std::string getParentDir(const std::string &path, int *pos);
 std::string escapeObjName(const std::string &obj);
 
 int indexObject(rados_ioctx_t ioctx, const std::string &obj, char op);
+
+std::string getObjectIndexLine(const std::string &obj, char op);
 
 bool verifyIsOctal(const char *mode);
 
