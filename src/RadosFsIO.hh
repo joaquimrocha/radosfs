@@ -40,7 +40,7 @@ public:
   ssize_t write(const char *buff, off_t offset, size_t blen);
   ssize_t writeSync(const char *buff, off_t offset, size_t blen);
 
-  std::string path(void) const { return mPath; };
+  std::string path(void) const { return mPath; }
 
   void setLazyRemoval(bool remove) { mLazyRemoval = remove; }
   bool lazyRemoval(void) const { return mLazyRemoval; }
