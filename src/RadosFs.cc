@@ -406,6 +406,16 @@ RadosFsPriv::getParentDir(const std::string &obj, int *pos)
   return obj.substr(0, index);
 }
 
+void
+RadosFsPriv::updateDirCache(std::tr1::shared_ptr<DirCache> &cache)
+{
+  pthread_mutex_lock(&dirCacheMutex);
+
+  dirCache.update(cache);
+
+  pthread_mutex_unlock(&dirCacheMutex);
+}
+
 std::tr1::shared_ptr<DirCache>
 RadosFsPriv::getDirInfo(const char *path)
 {

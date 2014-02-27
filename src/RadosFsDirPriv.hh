@@ -47,6 +47,8 @@ public:
 
   int updateIoctx(void);
 
+  void updateFsDirCache();
+
   RadosFsDir *dir;
   struct stat statBuff;
   std::string parentDir;

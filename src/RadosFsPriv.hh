@@ -113,6 +113,8 @@ public:
   void setRadosFsIO(std::tr1::shared_ptr<RadosFsIO> sharedFsIO);
   void removeRadosFsIO(std::tr1::shared_ptr<RadosFsIO> sharedFsIO);
 
+  void updateDirCache(std::tr1::shared_ptr<DirCache> &cache);
+
   rados_t radosCluster;
   static __thread uid_t uid;
   static __thread gid_t gid;

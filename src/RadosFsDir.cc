@@ -60,6 +60,12 @@ RadosFsDirPriv::updateDirInfoPtr()
   return false;
 }
 
+void
+RadosFsDirPriv::updateFsDirCache()
+{
+  dir->filesystem()->mPriv->updateDirCache(dirInfo);
+}
+
 int
 RadosFsDirPriv::updateIoctx()
 {
@@ -292,7 +298,10 @@ RadosFsDir::update()
   RadosFsInfo::update();
 
   if (mPriv->dirInfo || mPriv->updateDirInfoPtr())
+  {
     mPriv->dirInfo->update();
+    mPriv->updateFsDirCache();
+  }
 }
 
 int
