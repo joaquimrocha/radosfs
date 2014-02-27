@@ -67,15 +67,13 @@ RadosFsFilePriv::updatePath()
 
   radosFsIO = radosFs->mPriv->getRadosFsIO(fsFile->path());
 
-  RadosFsIO *fsIO;
-
-  radosFsIO.reset();
-
   if (!radosFsIO.get())
-    fsIO = new RadosFsIO(pool, fsFile->path());
+  {
+    RadosFsIO *fsIO = new RadosFsIO(pool, fsFile->path());
 
-  radosFsIO = std::tr1::shared_ptr<RadosFsIO>(fsIO);
-  radosFs->mPriv->setRadosFsIO(radosFsIO);
+    radosFsIO = std::tr1::shared_ptr<RadosFsIO>(fsIO);
+    radosFs->mPriv->setRadosFsIO(radosFsIO);
+  }
 }
 
 int

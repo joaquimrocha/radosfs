@@ -22,6 +22,7 @@
 #include "RadosFs.hh"
 #include "RadosFsPriv.hh"
 #include "RadosFsFile.hh"
+#include "RadosFsFilePriv.hh"
 #include "RadosFsDir.hh"
 
 #ifndef RADOS_FS_TEST_HH
@@ -50,6 +51,7 @@ protected:
   radosfs::RadosFs radosFs;
 
   radosfs::RadosFsPriv *radosFsPriv(void) const { return radosFs.mPriv; }
+  radosfs::RadosFsFilePriv *radosFsFilePriv(radosfs::RadosFsFile &file);
 
 private:
   rados_t mCluster;

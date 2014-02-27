@@ -26,6 +26,8 @@
 #include "RadosFs.hh"
 #include "RadosFsInfo.hh"
 
+class RadosFsTest;
+
 RADOS_FS_BEGIN_NAMESPACE
 
 class RadosFsFilePriv;
@@ -75,6 +77,8 @@ public:
 
 private:
   std::auto_ptr<RadosFsFilePriv> mPriv;
+
+friend class ::RadosFsTest;
 };
 
 RADOS_FS_END_NAMESPACE

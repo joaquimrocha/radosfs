@@ -81,6 +81,12 @@ RadosFsTest::AddPool()
   EXPECT_EQ(1, radosFs.pools().size());
 }
 
+radosfs::RadosFsFilePriv *
+RadosFsTest::radosFsFilePriv(radosfs::RadosFsFile &file)
+{
+  return file.mPriv.get();
+}
+
 void
 RadosFsTest::testXAttrInFsInfo(radosfs::RadosFsInfo &info)
 {
