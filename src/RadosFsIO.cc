@@ -28,11 +28,15 @@ RADOS_FS_BEGIN_NAMESPACE
 RadosFsIO::RadosFsIO(const RadosFsPool *pool,
                      const std::string &path)
   : mPool(pool),
-    mPath(path)
+    mPath(path),
+    mLazyRemoval(false)
 {}
 
 RadosFsIO::~RadosFsIO()
-{}
+{
+  if (mLazyRemoval)
+    rados_remove(mPool->ioctx, mPath.c_str());
+}
 
 ssize_t
 RadosFsIO::read(char *buff, off_t offset, size_t blen)

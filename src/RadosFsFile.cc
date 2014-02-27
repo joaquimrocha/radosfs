@@ -143,6 +143,25 @@ RadosFsFilePriv::sanitizePath(const std::string &path)
   return filePath;
 }
 
+int
+RadosFsFilePriv::removeFile()
+{
+  int ret;
+
+  const std::string &filePath = fsFile->path().c_str();
+
+  if (radosFsIO.use_count() > 1)
+  {
+    radosFsIO->setLazyRemoval(true);
+
+    return 0;
+  }
+
+  ret = rados_remove(ioctx, filePath.c_str());
+
+  return ret;
+}
+
 RadosFsFile::RadosFsFile(RadosFs *radosFs,
                          const std::string &path,
                          RadosFsFile::OpenMode mode)
@@ -280,7 +299,7 @@ RadosFsFile::remove()
 
   if (statBuffHasPermission(mPriv->statBuff, uid, gid, O_WRONLY | O_RDWR))
   {
-    ret = rados_remove(ioctx, filePath);
+    ret = mPriv->removeFile();
     indexObject(ioctx, filePath, '-');
   }
   else

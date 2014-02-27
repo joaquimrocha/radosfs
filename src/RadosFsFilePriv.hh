@@ -45,6 +45,8 @@ public:
 
   static std::string sanitizePath(const std::string &path);
 
+  int removeFile(void);
+
   RadosFsFile *fsFile;
   rados_ioctx_t ioctx;
   struct stat statBuff;

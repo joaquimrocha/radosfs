@@ -42,9 +42,13 @@ public:
 
   std::string path(void) const { return mPath; };
 
+  void setLazyRemoval(bool remove) { mLazyRemoval = remove; }
+  bool lazyRemoval(void) const { return mLazyRemoval; }
+
 private:
   const RadosFsPool *mPool;
   const std::string mPath;
+  bool mLazyRemoval;
   std::vector<rados_completion_t> mCompletionList;
 
   void sync(void);
