@@ -254,6 +254,33 @@ TEST_F(RadosFsTest, RemoveFile)
   EXPECT_EQ(0, file.remove());
 
   EXPECT_FALSE(file.exists());
+
+  radosfs::RadosFsFile *file1, *file2;
+
+  file1 = new radosfs::RadosFsFile(&radosFs, "/testfile1",
+                                   radosfs::RadosFsFile::MODE_WRITE);
+
+  file2 = new radosfs::RadosFsFile(&radosFs, file1->path(),
+                                   radosfs::RadosFsFile::MODE_WRITE);
+
+  EXPECT_EQ(0, file1->create());
+
+  file2->update();
+
+  EXPECT_TRUE(file2->exists());
+
+  EXPECT_EQ(0, file1->remove());
+
+  file2->update();
+
+  EXPECT_TRUE(file2->exists());
+
+  delete file2;
+  delete file1;
+
+  file.setPath("/testfile1");
+
+  EXPECT_FALSE(file.exists());
 }
 
 TEST_F(RadosFsTest, CreateFileInDir)
