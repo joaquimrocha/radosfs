@@ -245,10 +245,20 @@ RadosFsFile::create(int mode)
       (filePath != "" && filePath[filePath.length() - 1] == PATH_SEP))
     return -EISDIR;
 
-  // if the file exists we do not return an error;
+  // if the file exists and is not scheduled for deletion
+  // we do not return an error;
   // we should check if this is desired behavior
   if (exists())
-    return 0;
+  {
+    if (mPriv->radosFsIO->lazyRemoval())
+    {
+      mPriv->radosFsIO->setLazyRemoval(false);
+    }
+    else
+    {
+      return 0;
+    }
+  }
 
   if ((mPriv->permissions & RadosFsFile::MODE_WRITE) == 0)
     return -EACCES;
