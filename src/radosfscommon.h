@@ -90,7 +90,7 @@ std::string getParentDir(const std::string &path, int *pos);
 
 std::string escapeObjName(const std::string &obj);
 
-int indexObject(rados_ioctx_t &ioctx, const std::string &obj, char op);
+int indexObject(rados_ioctx_t ioctx, const std::string &obj, char op);
 
 bool verifyIsOctal(const char *mode);
 

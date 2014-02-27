@@ -250,7 +250,7 @@ escapeObjName(const std::string &obj)
 }
 
 int
-indexObject(rados_ioctx_t &ioctx,
+indexObject(rados_ioctx_t ioctx,
             const std::string &obj,
             char op)
 {
