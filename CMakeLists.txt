@@ -55,6 +55,27 @@ ADD_CUSTOM_TARGET(uninstall
   "${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_BINARY_DIR}/cmake/cmake_uninstall.cmake")
 
 #-------------------------------------------------------------------------------
+# 'distcheck' target
+#-------------------------------------------------------------------------------
+
+set(SPEC_FILE_IN "pkg/rhel/radosfs.spec.in")
+set(SPEC_FILE "pkg/rhel/radosfs.spec")
+
+add_custom_target(spec
+  COMMAND cat ${SPEC_FILE_IN} | sed s/__VERSION_MAJOR__/${VERSION_MAJOR}/ |
+          sed s/__VERSION_MINOR__/${VERSION_MINOR}/ |
+          sed s/__VERSION_PATCH__/${VERSION_PATCH}/ |
+          sed s/__RELEASE__/${RELEASE}/ > ${SPEC_FILE}
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+add_custom_target(distcheck
+  COMMAND tar cvzf ${CMAKE_BINARY_DIR}/${CMAKE_PROJECT_NAME}-${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}-${RELEASE}.tar.gz
+    --transform "s,^,${CMAKE_PROJECT_NAME}-${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}-${RELEASE}/,"
+    `git ls-files` ${SPEC_FILE}
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+ADD_DEPENDENCIES(distcheck spec)
+
+#-------------------------------------------------------------------------------
 # 'gitdist' target
 #-------------------------------------------------------------------------------
 add_custom_target(gitdist

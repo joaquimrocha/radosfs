@@ -1,7 +1,7 @@
 %define _unpackaged_files_terminate_build 0
 Name:		radosfs
-Version:	0.1.0
-Release:	1
+Version:	__VERSION_MAJOR__.__VERSION_MINOR__.__VERSION_PATCH__
+Release:	__RELEASE__
 Summary:	A file system library based in librados
 Prefix:         /usr
 Group:		Applications/File
