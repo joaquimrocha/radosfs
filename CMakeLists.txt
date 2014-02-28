@@ -37,10 +37,16 @@ else( MacOSX )
   set( LIB_INSTALL_DIR lib64 )
 endif( MacOSX )
 
-add_subdirectory( src )
-add_subdirectory( test )
-add_subdirectory( benchmark )
-add_subdirectory( tools )
+# This is so we only build the targets for creating the
+# tarball and rpm packages (helpful for the build system)
+set( NO_SOURCE CACHE BOOL false )
+
+if( NOT NO_SOURCE )
+  add_subdirectory( src )
+  add_subdirectory( test )
+  add_subdirectory( benchmark )
+  add_subdirectory( tools )
+endif( NOT NO_SOURCE )
 
 #-------------------------------------------------------------------------------
 # 'uninstall' target
