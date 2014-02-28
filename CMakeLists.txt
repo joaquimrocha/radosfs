@@ -87,10 +87,10 @@ add_custom_target(gitdist
 # 'srpm' target
 #-------------------------------------------------------------------------------
 ADD_CUSTOM_TARGET(srpm COMMAND rpmbuild -ts ${CMAKE_PROJECT_NAME}-${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}-${RELEASE}.tar.gz)
-ADD_DEPENDENCIES(srpm gitdist)
+ADD_DEPENDENCIES(srpm distcheck)
 
 #-------------------------------------------------------------------------------
 # 'rpm' target
 #-------------------------------------------------------------------------------
 ADD_CUSTOM_TARGET(rpm COMMAND rpmbuild -tb ${CMAKE_PROJECT_NAME}-${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}-${RELEASE}.tar.gz)
-ADD_DEPENDENCIES(rpm gitdist)
+ADD_DEPENDENCIES(rpm distcheck)
