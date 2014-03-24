@@ -29,7 +29,8 @@ __thread uid_t RadosFsPriv::uid;
 __thread gid_t RadosFsPriv::gid;
 
 RadosFsPriv::RadosFsPriv(RadosFs *radosFs)
-  : radosCluster(0)
+  : radosCluster(0),
+    dirCompactRatio(DEFAULT_DIR_COMPACT_RATIO)
 {
   uid = 0;
   gid = 0;

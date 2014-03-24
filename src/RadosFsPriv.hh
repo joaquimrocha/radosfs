@@ -130,6 +130,7 @@ public:
   pthread_mutex_t dirCacheMutex;
   std::map<std::string, std::tr1::weak_ptr<RadosFsIO> > operations;
   pthread_mutex_t operationsMutex;
+  float dirCompactRatio;
 };
 
 RADOS_FS_END_NAMESPACE

@@ -50,6 +50,7 @@
 #define DIR_LOG_UPDATED "updated"
 #define DIR_LOG_UPDATED_FALSE "false"
 #define DIR_LOG_UPDATED_TRUE "true"
+#define DEFAULT_DIR_COMPACT_RATIO .2
 
 typedef struct {
   std::string name;
