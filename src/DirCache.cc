@@ -115,11 +115,15 @@ DirCache::update()
 
   ret = rados_read(mIoctx, mPath.c_str(), buff, buffLength, mLastReadByte);
 
-  if (ret != 0)
+  if (ret > 0)
   {
     mLastReadByte = ret;
     buff[buffLength - 1] = '\0';
     parseContents(buff, buffLength);
+  }
+  else
+  {
+    return ret;
   }
 
   mLastCachedSize = mLastReadByte = statBuff.st_size;
