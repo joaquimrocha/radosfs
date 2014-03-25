@@ -199,7 +199,18 @@ DirCache::compactDirOpLog(void)
 
   mLastCachedSize = mLastReadByte = statBuff.st_size;
 
+  mLogNrLines = mContents.size();
+
   rados_release_write_op(writeOp);
+}
+
+float
+DirCache::logRatio() const
+{
+  if (mLogNrLines > 0)
+    return mContents.size() / (float) mLogNrLines;
+
+  return -1;
 }
 
 RADOS_FS_END_NAMESPACE

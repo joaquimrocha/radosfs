@@ -43,6 +43,7 @@ public:
   std::set<std::string> contents(void) const { return mContents; }
   std::string path(void) const { return mPath; }
   void compactDirOpLog(void);
+  float logRatio(void) const;
 
   struct stat statBuff;
 
