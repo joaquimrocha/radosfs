@@ -88,6 +88,36 @@ RadosFsTest::radosFsFilePriv(radosfs::RadosFsFile &file)
 }
 
 void
+RadosFsTest::createNFiles(size_t numFiles)
+{
+  const std::string dirPath("/");
+
+  for (size_t i = 0; i < numFiles; i++)
+  {
+    std::ostringstream s;
+    s << i;
+    radosfs::RadosFsFile file(&radosFs, dirPath + "file" + s.str(),
+                              radosfs::RadosFsFile::MODE_WRITE);
+    EXPECT_EQ(0, file.create());
+  }
+}
+
+void
+RadosFsTest::removeNFiles(size_t numFiles)
+{
+  const std::string dirPath("/");
+
+  for (size_t i = 0; i < numFiles; i++)
+  {
+    std::ostringstream s;
+    s << i;
+    radosfs::RadosFsFile file(&radosFs, dirPath + "file" + s.str(),
+                              radosfs::RadosFsFile::MODE_WRITE);
+    EXPECT_EQ(0, file.remove());
+  }
+}
+
+void
 RadosFsTest::testXAttrInFsInfo(radosfs::RadosFsInfo &info)
 {
   // Get the permissions xattr by a unauthorized user

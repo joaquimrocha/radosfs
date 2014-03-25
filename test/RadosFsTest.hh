@@ -48,6 +48,10 @@ protected:
 
   void testXAttrInFsInfo(radosfs::RadosFsInfo &info);
 
+  void createNFiles(size_t numFiles);
+
+  void removeNFiles(size_t numFiles);
+
   radosfs::RadosFs radosFs;
 
   radosfs::RadosFsPriv *radosFsPriv(void) const { return radosFs.mPriv; }

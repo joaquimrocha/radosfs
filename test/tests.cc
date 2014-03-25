@@ -19,6 +19,7 @@
 
 #include <gtest/gtest.h>
 #include <errno.h>
+#include <sstream>
 #include <stdexcept>
 
 #include "RadosFsTest.hh"
@@ -881,6 +882,83 @@ TEST_F(RadosFsTest, DirCache)
   subdir.remove();
 
   EXPECT_EQ(0, radosFsPriv()->dirCache.size());
+}
+
+TEST_F(RadosFsTest, CompactDir)
+{
+  AddPool();
+
+  // Set a different compact ratio
+  // (and a lower one as well, so it doesn't trigger compaction)
+
+  const float newRatio = 0.01;
+
+  radosFs.setDirCompactRatio(newRatio);
+  EXPECT_EQ(newRatio, radosFs.dirCompactRatio());
+
+  // Create files and remove half of them
+
+  const size_t numFiles = 10;
+
+  createNFiles(numFiles);
+  removeNFiles(numFiles / 2);
+
+  // Check that the size of the object is greater than the original one,
+  // after the dir is updated
+
+  const std::string dirPath("/");
+  struct stat statBefore, statAfter;
+
+  radosFs.stat(dirPath, &statBefore);
+
+  radosfs::RadosFsDir dir(&radosFs, dirPath);
+  dir.update();
+
+  radosFs.stat(dirPath, &statAfter);
+
+  EXPECT_GT(statBefore.st_size, 0);
+
+  EXPECT_EQ(statAfter.st_size, statBefore.st_size);
+
+  // Get the entries before the compaction
+
+  std::set<std::string> entriesBefore, entriesAfter;
+  dir.entryList(entriesBefore);
+
+  // Set a hight compact ratio so it automatically compacts
+  // when we update the dir
+
+  radosFs.setDirCompactRatio(0.9);
+
+  dir.update();
+
+  // Check if it compacted after the update
+
+  radosFs.stat(dirPath, &statAfter);
+
+  EXPECT_LT(statAfter.st_size, statBefore.st_size);
+
+  // Compact it "manually"
+
+  radosFs.setDirCompactRatio(0.01);
+
+  createNFiles(numFiles);
+  removeNFiles(numFiles / 2);
+
+  dir.compact();
+
+  radosFs.stat(dirPath, &statAfter);
+
+  EXPECT_LT(statAfter.st_size, statBefore.st_size);
+
+  // Check the integrity of the entries in the dir, before and after the
+  // compaction
+
+  dir.update();
+
+  dir.entryList(entriesAfter);
+
+  EXPECT_EQ(entriesBefore, entriesAfter);
 }
 
 GTEST_API_ int
