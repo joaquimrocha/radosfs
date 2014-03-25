@@ -55,6 +55,7 @@ private:
   uint64_t mLastCachedSize;
   int mLastReadByte;
   pthread_mutex_t mContentsMutex;
+  size_t mLogNrLines;
 };
 
 RADOS_FS_END_NAMESPACE

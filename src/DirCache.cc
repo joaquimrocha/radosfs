@@ -32,7 +32,8 @@ DirCache::DirCache(const std::string &dirpath, rados_ioctx_t ioctx)
   : mPath(dirpath),
     mIoctx(ioctx),
     mLastCachedSize(0),
-    mLastReadByte(0)
+    mLastReadByte(0),
+    mLogNrLines(0)
 {
   pthread_mutex_init(&mContentsMutex, 0);
 
@@ -81,6 +82,8 @@ DirCache::parseContents(char *buff, int length)
     }
 
     pthread_mutex_lock(&mContentsMutex);
+
+    mLogNrLines++;
 
     if (mContents.count(entry.c_str()) > 0)
     {
