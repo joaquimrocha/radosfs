@@ -308,6 +308,11 @@ RadosFsDir::update()
   if (mPriv->dirInfo || mPriv->updateDirInfoPtr())
   {
     mPriv->dirInfo->update();
+
+    const float ratio = mPriv->dirInfo->logRatio();
+    if (ratio != -1 && ratio <= filesystem()->dirCompactRatio())
+      compact();
+
     mPriv->updateFsDirCache();
   }
 }
