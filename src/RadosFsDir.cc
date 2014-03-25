@@ -380,4 +380,16 @@ RadosFsDir::stat(struct stat *buff)
   RadosFsInfo::stat(buff);
 }
 
+int
+RadosFsDir::compact()
+{
+  if (mPriv->dirInfo)
+  {
+    mPriv->dirInfo->compactDirOpLog();
+    return 0;
+  }
+
+  return -1;
+}
+
 RADOS_FS_END_NAMESPACE

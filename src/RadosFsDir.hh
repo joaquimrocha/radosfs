@@ -64,6 +64,8 @@ public:
 
   int stat(struct stat *buff);
 
+  int compact(void);
+
 private:
   std::auto_ptr<RadosFsDirPriv> mPriv;
 };
