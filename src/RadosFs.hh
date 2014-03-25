@@ -91,6 +91,10 @@ public:
 
   size_t dirCacheMaxSize(void) const;
 
+  void setDirCompactRatio(float ratio);
+
+  float dirCompactRatio(void) const;
+
 private:
   RadosFsPriv *mPriv;
 

@@ -829,4 +829,16 @@ RadosFs::dirCacheMaxSize(void) const
   return mPriv->dirCache.maxCacheSize;
 }
 
+void
+RadosFs::setDirCompactRatio(float ratio)
+{
+  mPriv->dirCompactRatio = ratio;
+}
+
+float
+RadosFs::dirCompactRatio(void) const
+{
+  return mPriv->dirCompactRatio;
+}
+
 RADOS_FS_END_NAMESPACE
