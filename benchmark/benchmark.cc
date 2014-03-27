@@ -22,7 +22,7 @@
 #include <limits>
 #include <pthread.h>
 #include <sstream>
-#include <ctime>
+#include <time.h>
 #include <unistd.h>
 #include <getopt.h>
 
@@ -58,9 +58,9 @@ createFiles(void *bInfo)
     std::stringstream stream;
     stream << "/" << "t" << threadId << "-" << i;
 
-    clock_t timeBefore, timeAfter;
+    struct timespec timeBefore, timeAfter;
 
-    timeBefore = clock();
+    clock_gettime(CLOCK_REALTIME, &timeBefore);
 
     radosfs::RadosFsFile file(&benchmark->radosFs,
                               stream.str(),
@@ -68,7 +68,7 @@ createFiles(void *bInfo)
 
     int ret = file.create();
 
-    timeAfter = clock();
+    clock_gettime(CLOCK_REALTIME, &timeAfter);
 
     if (ret == 0)
       benchmark->incFiles();
@@ -78,7 +78,7 @@ createFiles(void *bInfo)
       continue;
     }
 
-    float diffTime = (float) (timeAfter - timeBefore) / (float) CLOCKS_PER_SEC;
+    float diffTime = (float) (timeAfter.tv_sec - timeBefore.tv_sec);
 
     if (diffTime < benchmarkInfo->minCreationTime)
       benchmarkInfo->minCreationTime = diffTime;
