@@ -60,40 +60,46 @@ DirCache::parseContents(char *buff, int length)
   //  while ((i = contents.tokenize(line, i, '\n')) != -1)
   for (std::string line; getline(iss, line, '\n');)
   {
-    // we add the name key's length + 2 because we count
-    // the operation char (+ or -) and the "
-    int namePos = strlen(INDEX_NAME_KEY) + 2;
+    int startPos = 0, lastPos = 0;
+    std::string key, name, value;
+    bool deleteEntry = false;
 
-    if (line.length() < namePos)
-      continue;
-
-    // we avoid including the last character because it is " and \n
-    std::string entry(line, namePos, line.length() - namePos - 2);
-
-    size_t index = 0;
-    while(true)
+    while ((lastPos = splitToken(line, startPos, key, value)) != startPos)
     {
-      index = entry.find("\\\"", index);
+      // if the value is just quotes, we skip it
+      if (value.length() > 2)
+      {
+        value = value.substr(1, value.length() - 2);
+      }
 
-      if (index == std::string::npos)
-        break;
+      if (key != "" && key.compare(1, std::string::npos, INDEX_NAME_KEY) == 0)
+      {
+        name = value;
 
-      entry.replace(index, 2, "\"");
+        if (key[0] == '-')
+        {
+          deleteEntry = true;
+          break;
+        }
+      }
+
+      startPos = lastPos;
+      key = value = "";
     }
 
     pthread_mutex_lock(&mContentsMutex);
 
     mLogNrLines++;
 
-    if (mContents.count(entry.c_str()) > 0)
+    if (mContents.count(name.c_str()) > 0)
     {
-      if (line[0] == '-')
+      if (deleteEntry)
       {
-        mContents.erase(entry.c_str());
+        mContents.erase(name.c_str());
       }
     }
     else
-      mContents.insert(entry);
+      mContents.insert(name);
 
     pthread_mutex_unlock(&mContentsMutex);
   }

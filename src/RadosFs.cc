@@ -255,7 +255,7 @@ RadosFsPriv::indexObject(rados_ioctx_t &ioctx,
   const std::string &baseName = obj.substr(index, std::string::npos);
 
   contents += op;
-  contents += INDEX_NAME_KEY "\"" + escapeObjName(baseName) + "\" ";
+  contents += INDEX_NAME_KEY "=\"" + escapeObjName(baseName) + "\" ";
   contents += "\n";
 
   return rados_append(ioctx, dirName.c_str(),

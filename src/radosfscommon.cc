@@ -290,7 +290,7 @@ getObjectIndexLine(const std::string &obj, char op)
   std::string contents;
 
   contents += op;
-  contents += INDEX_NAME_KEY "\"" + escapeObjName(obj) + "\" ";
+  contents += INDEX_NAME_KEY "=\"" + escapeObjName(obj) + "\" ";
   contents += "\n";
 
   return contents;
@@ -463,4 +463,53 @@ int getMapOfXAttrFromPath(rados_ioctx_t ioctx,
   rados_getxattrs_end(iter);
 
   return ret;
+}
+
+int
+splitToken(const std::string &line,
+           int startPos,
+           std::string &key,
+           std::string &value)
+{
+  std::string token("");
+  bool gotKey(false);
+  bool quoteOpened(false);
+
+  size_t i = startPos;
+
+  for (; i < line.length(); i++)
+  {
+    if (!gotKey)
+    {
+      if ((line[i] == ' '))
+      {
+        if (token != "")
+          gotKey = true;
+      }
+      else if (line[i] == '=')
+        gotKey = true;
+      else
+        token += line[i];
+
+      continue;
+    }
+
+    value += line[i];
+
+    if (line[i] == '"' && i > 1 && line[i - 1] != '\\')
+    {
+      if (quoteOpened)
+      {
+        i++;
+        break;
+      }
+      else
+        quoteOpened = true;
+    }
+  }
+
+  if (token != "")
+    key = token;
+
+  return i;
 }
