@@ -96,10 +96,16 @@ DirCache::parseContents(char *buff, int length)
       if (deleteEntry)
       {
         mContents.erase(name.c_str());
+        mEntryNames.erase(name);
       }
     }
     else
-      mContents.insert(name);
+    {
+      DirEntry entry;
+      entry.name = name;
+      mContents[name] = entry;
+      mEntryNames.insert(name);
+    }
 
     pthread_mutex_unlock(&mContentsMutex);
   }
@@ -144,11 +150,11 @@ DirCache::getEntry(int index)
 
   pthread_mutex_lock(&mContentsMutex);
 
-  const int size = (int) mContents.size();
+  const int size = (int) mEntryNames.size();
 
   if (index < size)
   {
-    std::set<std::string>::iterator it = mContents.begin();
+    std::set<std::string>::iterator it = mEntryNames.begin();
     std::advance(it, index);
 
     entry = *it;
@@ -180,12 +186,13 @@ DirCache::compactDirOpLog(void)
 
   writeOp = rados_create_write_op();
 
-  std::set<std::string>::iterator it;
+  std::map<std::string, DirEntry>::iterator it;
   std::string compactContents;
 
   for (it = mContents.begin(); it != mContents.end(); it++)
   {
-    compactContents += getObjectIndexLine(*it, '+');
+    const DirEntry &entry = (*it).second;
+    compactContents += INDEX_NAME_KEY "=\"" + escapeObjName(entry.name) + "\" \n";
   }
 
   rados_write_op_truncate(writeOp, 0);

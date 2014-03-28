@@ -22,6 +22,7 @@
 
 #include <pthread.h>
 #include <set>
+#include <map>
 #include <string>
 #include <rados/librados.h>
 
@@ -29,6 +30,12 @@
 #include "radosfsdefines.h"
 
 RADOS_FS_BEGIN_NAMESPACE
+
+typedef struct
+{
+  std::string name;
+  std::map<std::string, std::string> metadata;
+} DirEntry;
 
 class DirCache
 {
@@ -40,7 +47,7 @@ public:
   int update(void);
   const std::string getEntry(int index);
   rados_ioctx_t ioctx(void) const { return mIoctx; }
-  std::set<std::string> contents(void) const { return mContents; }
+  std::set<std::string> contents(void) const { return mEntryNames; }
   std::string path(void) const { return mPath; }
   void compactDirOpLog(void);
   float logRatio(void) const;
@@ -52,7 +59,8 @@ private:
 
   std::string mPath;
   rados_ioctx_t mIoctx;
-  std::set<std::string> mContents;
+  std::map<std::string, DirEntry> mContents;
+  std::set<std::string> mEntryNames;
   uint64_t mLastCachedSize;
   int mLastReadByte;
   pthread_mutex_t mContentsMutex;
