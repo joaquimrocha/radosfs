@@ -74,6 +74,8 @@ public:
                   const std::string &key,
                   std::string &value);
 
+  int removeMetadata(const std::string &entry, const std::string &key);
+
 private:
   std::auto_ptr<RadosFsDirPriv> mPriv;
 };

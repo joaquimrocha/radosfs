@@ -441,4 +441,28 @@ RadosFsDir::getMetadata(const std::string &entry,
   return -1;
 }
 
+int
+RadosFsDir::removeMetadata(const std::string &entry, const std::string &key)
+{
+  update();
+
+  if (!isWritable())
+    return -EACCES;
+
+  if (mPriv->dirInfo)
+  {
+    if (mPriv->dirInfo->hasEntry(entry))
+    {
+      std::map<std::string, std::string> metadata;
+      metadata[key] = "";
+
+      return indexObjectMetadata(mPriv->ioctx, path() + entry, metadata, '-');
+    }
+
+    return -ENOENT;
+  }
+
+  return -1;
+}
+
 RADOS_FS_END_NAMESPACE
