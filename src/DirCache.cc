@@ -274,6 +274,19 @@ DirCache::logRatio() const
   return -1;
 }
 
+bool
+DirCache::hasEntry(const std::string &entry)
+{
+  bool entryExists(false);
+  pthread_mutex_lock(&mContentsMutex);
+
+  entryExists = mContents.count(entry) > 0;
+
+  pthread_mutex_unlock(&mContentsMutex);
+
+  return entryExists;
+}
+
 int
 DirCache::getMetadata(const std::string &entry,
                       const std::string &key,

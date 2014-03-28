@@ -51,6 +51,7 @@ public:
   std::string path(void) const { return mPath; }
   void compactDirOpLog(void);
   float logRatio(void) const;
+  bool hasEntry(const std::string &entry);
   int getMetadata(const std::string &entry,
                   const std::string &key,
                   std::string &value);
