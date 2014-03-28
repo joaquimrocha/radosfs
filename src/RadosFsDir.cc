@@ -397,4 +397,30 @@ RadosFsDir::compact()
   return -1;
 }
 
+int
+RadosFsDir::setMetadata(const std::string &entry,
+                        const std::string &key,
+                        std::string &value)
+{
+  update();
+
+  if (!isWritable())
+    return -EACCES;
+
+  if (mPriv->dirInfo)
+  {
+    if (mPriv->dirInfo->hasEntry(entry))
+    {
+      std::map<std::string, std::string> metadata;
+      metadata[key] = value;
+
+      return indexObjectMetadata(mPriv->ioctx, path() + entry, metadata, '+');
+    }
+
+    return -ENOENT;
+  }
+
+  return -1;
+}
+
 RADOS_FS_END_NAMESPACE

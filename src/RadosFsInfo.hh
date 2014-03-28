@@ -72,6 +72,8 @@ public:
 
   virtual int getXAttrsMap(std::map<std::string, std::string> &map);
 
+  virtual int setMetadata(const std::string &key, const std::string &value);
+
 private:
   std::auto_ptr<RadosFsInfoPriv> mPriv;
 };

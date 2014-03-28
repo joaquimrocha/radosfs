@@ -66,6 +66,10 @@ public:
 
   int compact(void);
 
+  int setMetadata(const std::string &entry,
+                  const std::string &key,
+                  std::string &value);
+
 private:
   std::auto_ptr<RadosFsDirPriv> mPriv;
 };

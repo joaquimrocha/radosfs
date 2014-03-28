@@ -296,6 +296,59 @@ getObjectIndexLine(const std::string &obj, char op)
   return contents;
 }
 
+int
+indexObjectMetadata(rados_ioctx_t ioctx,
+                    const std::string &obj,
+                    std::map<std::string, std::string> &metadata,
+                    char op)
+{
+  int ret = 0;
+  int index;
+  std::string contents;
+  const std::string &dirName = getParentDir(obj, &index);
+
+  if (dirName == "")
+    return 0;
+
+  const std::string &baseName = obj.substr(index, std::string::npos);
+
+  contents = "+";
+  contents += INDEX_NAME_KEY "=\"" + escapeObjName(baseName) + "\" ";
+
+  std::map<std::string, std::string>::iterator it;
+  for (it = metadata.begin(); it != metadata.end(); it++)
+  {
+    const std::string &key = (*it).first;
+    const std::string &value = (*it).second;
+
+    contents += op;
+    contents += INDEX_METADATA_PREFIX "."  + escapeObjName(key);
+
+    if (op == '+')
+      contents += "=\"" + escapeObjName(value) + "\"";
+
+    contents += " ";
+  }
+
+  contents += "\n";
+
+  const char *keys[] = { DIR_LOG_UPDATED };
+  const char *values[] = { DIR_LOG_UPDATED_TRUE };
+  const size_t lengths[] = { strlen(values[0]) };
+
+  rados_write_op_t writeOp = rados_create_write_op();
+
+  rados_write_op_omap_set(writeOp, keys, values, lengths, 1);
+
+  rados_write_op_append(writeOp, contents.c_str(), contents.length());
+
+  ret = rados_write_op_operate(writeOp, ioctx, dirName.c_str(), NULL, 0);
+
+  rados_release_write_op(writeOp);
+
+  return ret;
+}
+
 bool
 verifyIsOctal(const char *mode)
 {

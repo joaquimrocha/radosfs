@@ -184,4 +184,13 @@ RadosFsInfo::getXAttrsMap(std::map<std::string, std::string> &map)
                                path(), map);
 }
 
+int
+RadosFsInfo::setMetadata(const std::string &key, const std::string &value)
+{
+  std::map<std::string, std::string> metadata;
+  metadata[key] = value;
+
+  return indexObjectMetadata(mPriv->ioctx, path(), metadata, '+');
+}
+
 RADOS_FS_END_NAMESPACE
