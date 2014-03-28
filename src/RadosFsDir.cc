@@ -423,4 +423,22 @@ RadosFsDir::setMetadata(const std::string &entry,
   return -1;
 }
 
+int
+RadosFsDir::getMetadata(const std::string &entry,
+                        const std::string &key,
+                        std::string &value)
+{
+  update();
+
+  if (!isReadable())
+    return -EACCES;
+
+  if (mPriv->dirInfo)
+  {
+    return mPriv->dirInfo->getMetadata(entry, key, value);
+  }
+
+  return -1;
+}
+
 RADOS_FS_END_NAMESPACE

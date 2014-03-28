@@ -274,4 +274,28 @@ DirCache::logRatio() const
   return -1;
 }
 
+int
+DirCache::getMetadata(const std::string &entry,
+                      const std::string &key,
+                      std::string &value)
+{
+  int ret = -ENOENT;
+  pthread_mutex_lock(&mContentsMutex);
+
+  if (mContents.count(entry) > 0)
+  {
+    std::map<std::string, std::string> &metadata = mContents[entry].metadata;
+
+    if (metadata.count(key) > 0)
+    {
+      value = metadata[key];
+      ret = 0;
+    }
+  }
+
+  pthread_mutex_unlock(&mContentsMutex);
+
+  return ret;
+}
+
 RADOS_FS_END_NAMESPACE
