@@ -961,6 +961,56 @@ TEST_F(RadosFsTest, CompactDir)
   EXPECT_EQ(entriesBefore, entriesAfter);
 }
 
+TEST_F(RadosFsTest, Metadata)
+{
+  AddPool();
+
+  const std::string &basePath = "f1";
+
+  radosfs::RadosFsDir dir(&radosFs, "/");
+
+  std::string key = "mykey", value = "myvalue";
+
+  // Set metadata on an inexistent file
+
+  EXPECT_EQ(-ENOENT, dir.setMetadata(basePath, key, value));
+
+  // Create the file and check again
+
+  radosfs::RadosFsFile file(&radosFs, "/" + basePath,
+                            radosfs::RadosFsFile::MODE_READ_WRITE);
+
+  file.create();
+
+  EXPECT_EQ(0, dir.setMetadata(basePath, key, value));
+
+  // Verify the value set
+
+  std::string newValue = "";
+
+  EXPECT_EQ(0, dir.getMetadata(basePath, key, newValue));
+
+  EXPECT_EQ(value, newValue);
+
+  // Remove inexistent metadata
+
+  EXPECT_EQ(-ENOENT, dir.removeMetadata(basePath + "_fake", key));
+
+  // Remove the metadata set before
+
+  EXPECT_EQ(0, dir.removeMetadata(basePath, key));
+
+  // Get the metadata previously removed
+
+  EXPECT_EQ(-ENOENT, dir.getMetadata(basePath, key, newValue));
+
+  // Get the metadata with an unauthorized user
+
+  radosFs.setIds(TEST_UID, TEST_GID);
+
+  EXPECT_EQ(-EACCES, dir.setMetadata(basePath, key, value));
+}
+
 GTEST_API_ int
 main(int argc, char **argv)
 {
