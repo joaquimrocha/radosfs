@@ -63,6 +63,9 @@ DirCache::parseContents(char *buff, int length)
     int startPos = 0, lastPos = 0;
     std::string key, name, value;
     bool deleteEntry = false;
+    std::map<std::string, std::string> metadataToAdd;
+    std::set<std::string> metadataToDelete;
+    const int metadataPrefixLength = strlen(INDEX_METADATA_PREFIX) + 1;
 
     while ((lastPos = splitToken(line, startPos, key, value)) != startPos)
     {
@@ -72,14 +75,28 @@ DirCache::parseContents(char *buff, int length)
         value = value.substr(1, value.length() - 2);
       }
 
-      if (key != "" && key.compare(1, std::string::npos, INDEX_NAME_KEY) == 0)
+      if (key != "")
       {
-        name = value;
-
-        if (key[0] == '-')
+        if (key.compare(1, std::string::npos, INDEX_NAME_KEY) == 0)
         {
-          deleteEntry = true;
-          break;
+          name = value;
+
+          if (key[0] == '-')
+          {
+            deleteEntry = true;
+            break;
+          }
+        }
+        else if (key.compare(1,
+                             metadataPrefixLength,
+                             INDEX_METADATA_PREFIX ".") == 0)
+        {
+          const std::string metadataKey = key.substr(metadataPrefixLength + 1);
+
+          if (key[0] == '-')
+            metadataToDelete.insert(metadataKey);
+          else
+            metadataToAdd[metadataKey] = value;
         }
       }
 
@@ -97,6 +114,25 @@ DirCache::parseContents(char *buff, int length)
       {
         mContents.erase(name.c_str());
         mEntryNames.erase(name);
+      }
+      else
+      {
+        std::map<std::string, std::string>::iterator mapIt;
+        for (mapIt = metadataToAdd.begin(); mapIt != metadataToAdd.end(); mapIt++)
+        {
+          const std::string &mdKey = (*mapIt).first;
+          const std::string &mdValue = (*mapIt).second;
+          mContents[name].metadata[mdKey] = mdValue;
+        }
+
+        std::set<std::string>::iterator setIt;
+        for (setIt = metadataToDelete.begin(); setIt != metadataToDelete.end(); setIt++)
+        {
+          const std::string &mdKey = *setIt;
+
+          if (mContents[name].metadata.count(mdKey) > 0)
+            mContents[name].metadata.erase(mdKey);
+        }
       }
     }
     else
@@ -192,7 +228,15 @@ DirCache::compactDirOpLog(void)
   for (it = mContents.begin(); it != mContents.end(); it++)
   {
     const DirEntry &entry = (*it).second;
-    compactContents += INDEX_NAME_KEY "=\"" + escapeObjName(entry.name) + "\" \n";
+    compactContents += INDEX_NAME_KEY "=\"" + escapeObjName(entry.name) + "\" ";
+
+    std::map<std::string, std::string>::const_iterator mdIt;
+    for (mdIt = entry.metadata.begin(); mdIt != entry.metadata.end(); mdIt++)
+    {
+      compactContents += "+" + (*mdIt).first + "=\"" + (*mdIt).second + "\" ";
+    }
+
+    compactContents += "\n";
   }
 
   rados_write_op_truncate(writeOp, 0);
