@@ -146,4 +146,8 @@ int splitToken(const std::string &line,
                std::string &key,
                std::string &value);
 
+int writeContentsAtomically(rados_ioctx_t ioctx,
+                            const std::string &obj,
+                            const std::string &contents);
+
 #endif /* __RADOS_FS_COMMON_HH__ */

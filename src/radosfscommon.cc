@@ -254,7 +254,6 @@ indexObject(rados_ioctx_t ioctx,
             const std::string &obj,
             char op)
 {
-  int ret = 0;
   int index;
   std::string contents;
   const std::string &dirName = getParentDir(obj, &index);
@@ -262,26 +261,11 @@ indexObject(rados_ioctx_t ioctx,
   if (dirName == "")
     return 0;
 
-  const std::string &baseName =
-      obj.substr(index, std::string::npos);
+  const std::string &baseName = obj.substr(index, std::string::npos);
 
   contents = getObjectIndexLine(baseName, op);
 
-  const char *keys[] = { DIR_LOG_UPDATED };
-  const char *values[] = { DIR_LOG_UPDATED_TRUE };
-  const size_t lengths[] = { strlen(values[0]) };
-
-  rados_write_op_t writeOp = rados_create_write_op();
-
-  rados_write_op_omap_set(writeOp, keys, values, lengths, 1);
-
-  rados_write_op_append(writeOp, contents.c_str(), contents.length());
-
-  ret = rados_write_op_operate(writeOp, ioctx, dirName.c_str(), NULL, 0);
-
-  rados_release_write_op(writeOp);
-
-  return ret;
+  return writeContentsAtomically(ioctx, dirName.c_str(), contents);;
 }
 
 std::string
@@ -302,7 +286,6 @@ indexObjectMetadata(rados_ioctx_t ioctx,
                     std::map<std::string, std::string> &metadata,
                     char op)
 {
-  int ret = 0;
   int index;
   std::string contents;
   const std::string &dirName = getParentDir(obj, &index);
@@ -332,6 +315,14 @@ indexObjectMetadata(rados_ioctx_t ioctx,
 
   contents += "\n";
 
+  return writeContentsAtomically(ioctx, dirName.c_str(), contents);
+}
+
+int
+writeContentsAtomically(rados_ioctx_t ioctx,
+                        const std::string &obj,
+                        const std::string &contents)
+{
   const char *keys[] = { DIR_LOG_UPDATED };
   const char *values[] = { DIR_LOG_UPDATED_TRUE };
   const size_t lengths[] = { strlen(values[0]) };
@@ -342,7 +333,7 @@ indexObjectMetadata(rados_ioctx_t ioctx,
 
   rados_write_op_append(writeOp, contents.c_str(), contents.length());
 
-  ret = rados_write_op_operate(writeOp, ioctx, dirName.c_str(), NULL, 0);
+  int ret = rados_write_op_operate(writeOp, ioctx, obj.c_str(), NULL, 0);
 
   rados_release_write_op(writeOp);
 
