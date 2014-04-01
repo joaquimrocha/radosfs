@@ -1004,6 +1004,14 @@ TEST_F(RadosFsTest, Metadata)
 
   EXPECT_EQ(-ENOENT, dir.getMetadata(basePath, key, newValue));
 
+  // Set a metadata with an empty string as key
+
+  EXPECT_EQ(-EINVAL, dir.setMetadata(basePath, "", value));
+
+  // Set a metadata with an empty string as value
+
+  EXPECT_EQ(0, dir.setMetadata(basePath, "empty", ""));
+
   // Get the metadata with an unauthorized user
 
   radosFs.setIds(TEST_UID, TEST_GID);
