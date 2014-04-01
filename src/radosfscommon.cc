@@ -557,3 +557,22 @@ splitToken(const std::string &line,
 
   return i;
 }
+
+std::string
+sanitizePath(const std::string &path)
+{
+  std::string sanitizedPath("");
+
+  for (size_t i = 0; i < path.length(); i++)
+  {
+    if (i > 0 && (path[i] == PATH_SEP && path[i - 1] == PATH_SEP))
+      continue;
+
+    sanitizedPath += path[i];
+  }
+
+  if (sanitizedPath == "" || sanitizedPath[0] != PATH_SEP)
+    sanitizedPath = PATH_SEP + sanitizedPath;
+
+  return sanitizedPath;
+}

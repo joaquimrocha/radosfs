@@ -40,7 +40,7 @@ RadosFsInfoPriv::~RadosFsInfoPriv()
 void
 RadosFsInfoPriv::setPath(const std::string &path)
 {
-  this->path = path;
+  this->path = sanitizePath(path);
 
   radosFs->mPriv->getIoctxFromPath(path, &ioctx);
 }

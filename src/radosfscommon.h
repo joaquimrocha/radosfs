@@ -150,4 +150,6 @@ int writeContentsAtomically(rados_ioctx_t ioctx,
                             const std::string &obj,
                             const std::string &contents);
 
+std::string sanitizePath(const std::string &path);
+
 #endif /* __RADOS_FS_COMMON_HH__ */
