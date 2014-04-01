@@ -95,6 +95,8 @@ std::string getParentDir(const std::string &path, int *pos);
 
 std::string escapeObjName(const std::string &obj);
 
+std::string unescapeObjName(const std::string &obj);
+
 int indexObject(rados_ioctx_t ioctx, const std::string &obj, char op);
 
 std::string getObjectIndexLine(const std::string &obj, char op);

@@ -72,7 +72,7 @@ DirCache::parseContents(char *buff, int length)
       // if the value is just quotes, we skip it
       if (value.length() > 2)
       {
-        value = value.substr(1, value.length() - 2);
+        value = unescapeObjName(value.substr(1, value.length() - 2));
       }
 
       if (key != "")

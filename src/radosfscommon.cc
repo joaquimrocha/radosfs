@@ -250,10 +250,48 @@ escapeObjName(const std::string &obj)
   return str;
 }
 
-    str.replace(index, 1, "\\\"");
+std::string
+unescapeObjName(const std::string &obj)
+{
+  std::string str("");
+
+  if (obj == "")
+    return str;
+
+  size_t i;
+  const int length = obj.length();
+
+  for (i = 0; i < length - 1; i++)
+  {
+    if (obj[i] == '\\')
+    {
+      if (obj[i + 1] == '"')
+        str += '"';
+      else if (obj[i + 1] == '%')
+        str += '%';
+      else if (obj[i + 1] == '"')
+        str += '"';
+      else
+        obj[i];
+
+      i++;
+    }
+    else if (obj[i] == '%')
+    {
+      str += '\n';
+    }
+    else
+    {
+      str += obj[i];
+    }
   }
 
-  return str.c_str();
+  if (obj[length - 1] == '%' && i != (length - 1))
+    str += '\n';
+  else
+    str += obj[length - 1];
+
+  return str;
 }
 
 int
