@@ -77,6 +77,41 @@ TEST_F(RadosFsTest, Pools)
   EXPECT_EQ(0, radosFs.pools().size());
 }
 
+TEST_F(RadosFsTest, CharacterConsistency)
+{
+  AddPool();
+
+  // Create dir with a sequence of / in the path
+
+  radosfs::RadosFsDir otherDir(&radosFs, "");
+
+  EXPECT_EQ("/", otherDir.path());
+
+  otherDir.setPath("//d1//d2////////");
+
+  EXPECT_EQ("/d1/d2/", otherDir.path());
+
+  // Create dir with diacritics, whitespace and other different
+  // characters in the path
+
+  std::string path = "\n acções \n  über \n\n   %%   "
+                     "#  caractères \n \"extraños\" \n%";
+
+  otherDir.setPath(path);
+
+  EXPECT_EQ(0, otherDir.create());
+
+  EXPECT_EQ('/' + path + '/', otherDir.path());
+
+  radosfs::RadosFsDir rootDir(&radosFs, "/");
+  rootDir.update();
+
+  std::set<std::string> entries;
+  rootDir.entryList(entries);
+
+  EXPECT_NE(entries.end(), entries.find(path + '/'));
+}
+
 TEST_F(RadosFsTest, CreateDir)
 {
   AddPool();
