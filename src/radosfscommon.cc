@@ -233,15 +233,22 @@ getParentDir(const std::string &path, int *pos)
 std::string
 escapeObjName(const std::string &obj)
 {
-  std::string str(obj);
+  std::string str("");
 
-  size_t index = 0;
-  while (true)
+  for (size_t i = 0; i < obj.length(); i++)
   {
-    index = str.find("\"", index);
+    if (obj[i] == '"')
+      str += "\\\"";
+    else if (obj[i] == '\n')
+      str += '%';
+    else if (obj[i] == '%')
+      str += "\\%";
+    else
+      str += obj[i];
+  }
 
-    if (index == std::string::npos)
-      break;
+  return str;
+}
 
     str.replace(index, 1, "\\\"");
   }
