@@ -402,6 +402,9 @@ RadosFsDir::setMetadata(const std::string &entry,
                         const std::string &key,
                         const std::string &value)
 {
+  if (key == "")
+    return -EINVAL;
+
   update();
 
   if (!isWritable())
@@ -428,6 +431,9 @@ RadosFsDir::getMetadata(const std::string &entry,
                         const std::string &key,
                         std::string &value)
 {
+  if (key == "")
+    return -EINVAL;
+
   update();
 
   if (!isReadable())
@@ -444,6 +450,9 @@ RadosFsDir::getMetadata(const std::string &entry,
 int
 RadosFsDir::removeMetadata(const std::string &entry, const std::string &key)
 {
+  if (key == "")
+    return -EINVAL;
+
   update();
 
   if (!isWritable())
