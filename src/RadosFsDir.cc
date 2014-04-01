@@ -400,7 +400,7 @@ RadosFsDir::compact()
 int
 RadosFsDir::setMetadata(const std::string &entry,
                         const std::string &key,
-                        std::string &value)
+                        const std::string &value)
 {
   update();
 

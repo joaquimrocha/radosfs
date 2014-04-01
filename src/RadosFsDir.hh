@@ -68,7 +68,7 @@ public:
 
   int setMetadata(const std::string &entry,
                   const std::string &key,
-                  std::string &value);
+                  const std::string &value);
 
   int getMetadata(const std::string &entry,
                   const std::string &key,
