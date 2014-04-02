@@ -1047,6 +1047,17 @@ TEST_F(RadosFsTest, Metadata)
 
   EXPECT_EQ(0, dir.setMetadata(basePath, "empty", ""));
 
+  // Set metadata with non-ascii chars and whitespace
+
+  key = "\n acções \n  über \n\n   %%   #  caractères \n \"extraños\" \n%";
+  value = "\n value of " + key + " \n value";
+
+  EXPECT_EQ(0, dir.setMetadata(basePath, key, value));
+
+  EXPECT_EQ(0, dir.getMetadata(basePath, key, newValue));
+
+  EXPECT_EQ(value, newValue);
+
   // Get the metadata with an unauthorized user
 
   radosFs.setIds(TEST_UID, TEST_GID);
