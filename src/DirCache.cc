@@ -69,14 +69,10 @@ DirCache::parseContents(char *buff, int length)
 
     while ((lastPos = splitToken(line, startPos, key, value)) != startPos)
     {
-      // if the value is just quotes, we skip it
-      if (value.length() > 2)
-      {
-        value = unescapeObjName(value.substr(1, value.length() - 2));
-      }
-
       if (key != "")
       {
+        value = unescapeObjName(value);
+
         if (key.compare(1, std::string::npos, INDEX_NAME_KEY) == 0)
         {
           name = value;
@@ -91,7 +87,8 @@ DirCache::parseContents(char *buff, int length)
                              metadataPrefixLength,
                              INDEX_METADATA_PREFIX ".") == 0)
         {
-          const std::string metadataKey = key.substr(metadataPrefixLength + 1);
+          const std::string metadataKey =
+              unescapeObjName(key.substr(metadataPrefixLength + 1));
 
           if (key[0] == '-')
             metadataToDelete.insert(metadataKey);
