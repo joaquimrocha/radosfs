@@ -124,13 +124,19 @@ createFiles(void *bInfo)
 static void
 showUsage(const char *name)
 {
-  fprintf(stderr, "Usage:\n%s DURATION [NUM_THREADS] [%sCLUSTER_CONF]\n"
+  fprintf(stderr, "Usage:\n%s DURATION [NUM_THREADS] [%sCLUSTER_CONF] "
+          "[--%s]\n"
           "\tDURATION     - duration of the benchmark in seconds "
           "(has to be > 0)\n"
           "\tNUM_THREADS  - number of concurrent threads\n"
-          "\tCLUSTER_CONF - path to the cluster's configuration file\n",
+          "\tCLUSTER_CONF - path to the cluster's configuration file\n"
+          "\t--%s, -%c - make each thread work inside its own directory "
+          "instead of /\n",
           name,
-          CLUSTER_CONF_ARG);
+          CLUSTER_CONF_ARG,
+          CREATE_IN_DIR_CONF_ARG,
+          CREATE_IN_DIR_CONF_ARG,
+          CREATE_IN_DIR_CONF_ARG_CHAR);
 }
 
 static int
