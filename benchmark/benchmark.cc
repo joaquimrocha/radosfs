@@ -228,10 +228,11 @@ main(int argc, char **argv)
 
   fprintf(stderr, "\n*** RadosFs Benchmark ***\n\n"
           "Running on cluster configured by %s "
-          "for %d seconds with %d threads...\n",
+          "for %d seconds with %d threads %s...\n",
           confPath.c_str(),
           runTime,
-          numThreads);
+          numThreads,
+          (createInDir ? "(using their own directory)": "(all writing to / )"));
 
   BenchmarkMgr benchmark(confPath.c_str());
 
