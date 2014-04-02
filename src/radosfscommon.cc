@@ -286,10 +286,13 @@ unescapeObjName(const std::string &obj)
     }
   }
 
-  if (obj[length - 1] == '%' && i != (length - 1))
-    str += '\n';
-  else
-    str += obj[length - 1];
+  if (i <= length - 1)
+  {
+    if (obj[length - 1] == '%')
+      str += '\n';
+    else
+      str += obj[length - 1];
+  }
 
   return str;
 }
