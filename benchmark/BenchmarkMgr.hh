@@ -19,7 +19,8 @@ public:
   int numFiles(void);
   void setNumFiles(int numFiles);
   void incFiles(void);
-
+  void setCreateInDir(bool create) { mCreateInDir = create; }
+  bool createInDir(void) const { return mCreateInDir; }
 
   radosfs::RadosFs radosFs;
 
@@ -27,6 +28,7 @@ private:
   rados_t mCluster;
   const char *mConf;
   int mNumFiles;
+  bool mCreateInDir;
   pthread_mutex_t mNumFilesMutex;
 };
 

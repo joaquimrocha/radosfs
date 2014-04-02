@@ -4,7 +4,8 @@
 
 BenchmarkMgr::BenchmarkMgr(const char *conf)
   : mConf(conf),
-    mNumFiles(0)
+    mNumFiles(0),
+    mCreateInDir(false)
 {
   rados_create(&mCluster, 0);
 
