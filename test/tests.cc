@@ -1029,7 +1029,7 @@ TEST_F(RadosFsTest, Metadata)
 
   // Remove inexistent metadata
 
-  EXPECT_EQ(-ENOENT, dir.removeMetadata(basePath + "_fake", key));
+  EXPECT_EQ(-ENOENT, dir.removeMetadata(basePath, key + "_fake"));
 
   // Remove the metadata set before
 
