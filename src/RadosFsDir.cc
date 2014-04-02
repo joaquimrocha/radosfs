@@ -460,7 +460,10 @@ RadosFsDir::removeMetadata(const std::string &entry, const std::string &key)
 
   if (mPriv->dirInfo)
   {
-    if (mPriv->dirInfo->hasEntry(entry))
+    std::string value;
+
+    if (mPriv->dirInfo->hasEntry(entry) &&
+        mPriv->dirInfo->getMetadata(entry, key, value) == 0)
     {
       std::map<std::string, std::string> metadata;
       metadata[key] = "";
