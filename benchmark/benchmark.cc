@@ -53,10 +53,34 @@ createFiles(void *bInfo)
     benchmarkInfo->minCreationTime = std::numeric_limits<float>::max();
   benchmarkInfo->maxCreationTime = .0;
 
+  std::stringstream prefix;
+  prefix << "/t" << threadId;
+
+  if (benchmark->createInDir())
+  {
+    prefix << "/";
+
+    radosfs::RadosFsDir dir(&benchmark->radosFs, prefix.str());
+    int ret = dir.create();
+
+    if (ret != 0)
+    {
+      fprintf(stderr, "\nProblem creating directory %s: %s ... "
+              "Exiting thread %s\n",
+              prefix.str().c_str(), strerror(ret), threadId);
+
+      goto exitThread;
+    }
+  }
+  else
+  {
+    prefix << "-";
+  }
+
   for (int i = 0; !benchmarkInfo->shouldExit; i++)
   {
     std::stringstream stream;
-    stream << "/" << "t" << threadId << "-" << i;
+    stream << prefix.str() << i;
 
     struct timespec timeBefore, timeAfter;
 
@@ -87,6 +111,8 @@ createFiles(void *bInfo)
       benchmarkInfo->maxCreationTime = diffTime;
 
   }
+
+  exitThread:
 
   benchmarkInfo->exited = true;
 
