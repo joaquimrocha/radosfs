@@ -50,7 +50,7 @@ createFiles(void *bInfo)
   BenchmarkInfo *benchmarkInfo = (BenchmarkInfo *) bInfo;
   int threadId = benchmarkInfo->threadId;
   BenchmarkMgr *benchmark = benchmarkInfo->benchmark;
-    benchmarkInfo->minCreationTime = std::numeric_limits<float>::max();
+  benchmarkInfo->minCreationTime = std::numeric_limits<float>::max();
   benchmarkInfo->maxCreationTime = .0;
 
   std::stringstream prefix;
