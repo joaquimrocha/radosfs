@@ -32,6 +32,8 @@
 #define CLUSTER_CONF_ARG "conf"
 #define DEFAULT_NUM_THREADS 10
 #define LINES_PER_HEADER 30
+#define CREATE_IN_DIR_CONF_ARG "create-in-dir"
+#define CREATE_IN_DIR_CONF_ARG_CHAR 'd'
 
 typedef struct
 {
@@ -135,7 +137,8 @@ static int
 parseArguments(int argc, char **argv,
                std::string &confPath,
                int *runTime,
-               int *numThreads)
+               int *numThreads,
+               bool *createInDir)
 {
   confPath = "";
   const char *confFromEnv(getenv(CONF_ENV_VAR));
@@ -148,15 +151,23 @@ parseArguments(int argc, char **argv,
   int optionIndex = 0;
   struct option options[] =
   {{CLUSTER_CONF_ARG, required_argument, 0, CLUSTER_CONF_ARG[0]},
+   {CREATE_IN_DIR_CONF_ARG, no_argument, 0, CREATE_IN_DIR_CONF_ARG_CHAR},
    {0, 0, 0, 0}
   };
 
   int c;
 
-  while ((c = getopt_long(argc, argv, "c:", options, &optionIndex)) != -1)
+  std::string args;
+  args += CREATE_IN_DIR_CONF_ARG_CHAR;
+  args += CLUSTER_CONF_ARG[0];
+  args += ":";
+
+  while ((c = getopt_long(argc, argv, args.c_str(), options, &optionIndex)) != -1)
   {
     if (c == 'c')
       confPath = optarg;
+    else if (c == CREATE_IN_DIR_CONF_ARG_CHAR)
+      *createInDir = true;
   }
 
   if (confPath == "")
@@ -198,8 +209,10 @@ main(int argc, char **argv)
 {
   std::string confPath;
   int runTime, numThreads;
+  bool createInDir;
 
-  int ret = parseArguments(argc, argv, confPath, &runTime, &numThreads);
+  int ret = parseArguments(argc, argv, confPath, &runTime, &numThreads,
+                           &createInDir);
 
   if (ret != 0)
   {
@@ -217,6 +230,7 @@ main(int argc, char **argv)
   BenchmarkMgr benchmark(confPath.c_str());
 
   benchmark.radosFs.addPool(TEST_POOL, "/", 1000);
+  benchmark.setCreateInDir(createInDir);
 
   pthread_attr_t attr;
   pthread_t threads[numThreads];
