@@ -350,7 +350,7 @@ indexObjectMetadata(rados_ioctx_t ioctx,
     const std::string &value = (*it).second;
 
     contents += op;
-    contents += INDEX_METADATA_PREFIX "."  + escapeObjName(key);
+    contents += INDEX_METADATA_PREFIX ".\""  + escapeObjName(key) + "\"";
 
     if (op == '+')
       contents += "=\"" + escapeObjName(value) + "\"";
@@ -568,37 +568,48 @@ splitToken(const std::string &line,
 
   for (; i < line.length(); i++)
   {
-    if (!gotKey)
-    {
-      if ((line[i] == ' '))
-      {
-        if (token != "")
-          gotKey = true;
-      }
-      else if (line[i] == '=')
-        gotKey = true;
-      else
-        token += line[i];
-
-      continue;
-    }
-
-    value += line[i];
-
     if (line[i] == '"' && i > 1 && line[i - 1] != '\\')
     {
       if (quoteOpened)
       {
         i++;
-        break;
+        quoteOpened = false;
+
+        if (gotKey)
+          break;
       }
       else
+      {
         quoteOpened = true;
+        continue;
+      }
     }
+
+    if (!quoteOpened)
+    {
+      if (line[i] == '=')
+      {
+        key = token;
+        token = "";
+        gotKey = true;
+        quoteOpened = false;
+
+        continue;
+      }
+      else if (line[i] == ' ')
+        continue;
+    }
+
+    token += line[i];
   }
 
   if (token != "")
-    key = token;
+  {
+    if (gotKey)
+      value = token;
+    else
+      key = token;
+  }
 
   return i;
 }
