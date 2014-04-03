@@ -225,6 +225,7 @@ DirCache::compactDirOpLog(void)
   for (it = mContents.begin(); it != mContents.end(); it++)
   {
     const DirEntry &entry = (*it).second;
+    compactContents += '+';
     compactContents += INDEX_NAME_KEY "=\"" + escapeObjName(entry.name) + "\" ";
 
     std::map<std::string, std::string>::const_iterator mdIt;
