@@ -994,6 +994,45 @@ TEST_F(RadosFsTest, CompactDir)
   dir.entryList(entriesAfter);
 
   EXPECT_EQ(entriesBefore, entriesAfter);
+
+  // Compact when metadata exists
+
+  const int totalMetadata(5);
+  const std::string key("mykey"), value("myvalue");
+  std::stringstream fileNameStr;
+  fileNameStr << "file" << (numFiles / 2 + 1);
+
+  for (int i = 0; i < totalMetadata; i++)
+  {
+    std::ostringstream keyStr, valueStr;
+
+    keyStr << key << i;
+    valueStr << value << i;
+
+    EXPECT_EQ(0, dir.setMetadata(fileNameStr.str(),
+                                 keyStr.str(),
+                                 valueStr.str()));
+  }
+
+  radosFs.stat(dirPath, &statBefore);
+
+  dir.compact();
+
+  radosFs.stat(dirPath, &statAfter);
+
+  EXPECT_LT(statAfter.st_size, statBefore.st_size);
+
+  for (int i = 0; i < totalMetadata; i++)
+  {
+    std::string valueSet;
+    std::ostringstream keyStr, valueStr;
+
+    keyStr << key << i;
+    valueStr << value << i;
+
+    EXPECT_EQ(0, dir.getMetadata(fileNameStr.str(), keyStr.str(), valueSet));
+    EXPECT_EQ(valueStr.str(), valueSet);
+  }
 }
 
 TEST_F(RadosFsTest, Metadata)
