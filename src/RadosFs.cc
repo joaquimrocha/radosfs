@@ -304,10 +304,16 @@ RadosFsPriv::addPool(const std::string &name,
     return ret;
 
   if (name == "")
-    return -1;
+  {
+    radosfs_debug("The pool's name cannot be an empty string");
+    return -EINVAL;
+  }
 
   if (prefix == "")
-    return -1;
+  {
+    radosfs_debug("The pool's prefix cannot be an empty string");
+    return -EINVAL;
+  }
 
   rados_ioctx_t ioctx;
 
