@@ -841,4 +841,16 @@ RadosFs::dirCompactRatio(void) const
   return mPriv->dirCompactRatio;
 }
 
+void
+RadosFs::setLogLevel(const RadosFs::LogLevel level)
+{
+  mPriv->logger.level = level;
+}
+
+RadosFs::LogLevel
+RadosFs::logLevel(void) const
+{
+  return mPriv->logger.level;
+}
+
 RADOS_FS_END_NAMESPACE

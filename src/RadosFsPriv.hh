@@ -31,6 +31,7 @@
 #include "radosfsdefines.h"
 #include "DirCache.hh"
 #include "RadosFsIO.hh"
+#include "RadosFsLogger.hh"
 
 RADOS_FS_BEGIN_NAMESPACE
 
@@ -131,6 +132,7 @@ public:
   std::map<std::string, std::tr1::weak_ptr<RadosFsIO> > operations;
   pthread_mutex_t operationsMutex;
   float dirCompactRatio;
+  RadosFsLogger logger;
 };
 
 RADOS_FS_END_NAMESPACE

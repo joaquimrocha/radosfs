@@ -52,6 +52,7 @@
 #define DIR_LOG_UPDATED_TRUE "true"
 #define DEFAULT_DIR_COMPACT_RATIO .2
 #define INDEX_METADATA_PREFIX "md"
+#define LOG_LEVEL_CONF_FILE "loglevel"
 
 typedef struct {
   std::string name;

@@ -41,6 +41,12 @@ public:
   RadosFs();
   ~RadosFs();
 
+  enum LogLevel
+  {
+    LOG_LEVEL_NONE    = 0,
+    LOG_LEVEL_DEBUG   = 1 << 0
+  };
+
   int init(const std::string &userName = "",
            const std::string &configurationFile = "");
 
@@ -94,6 +100,10 @@ public:
   void setDirCompactRatio(float ratio);
 
   float dirCompactRatio(void) const;
+
+  void setLogLevel(const LogLevel level);
+
+  LogLevel logLevel(void) const;
 
 private:
   RadosFsPriv *mPriv;
