@@ -18,6 +18,14 @@
 
 find_package( LibRados REQUIRED )
 
+set( LOG_LEVEL_FILE_BASE_NAME loglevel )
+set( LOG_LEVEL_FILE "${CONF_DIR}/${LOG_LEVEL_FILE_BASE_NAME}" )
+
+configure_file(
+  "${PROJECT_SOURCE_DIR}/src/radosfsdefines.h.in"
+  "${PROJECT_SOURCE_DIR}/src/radosfsdefines.h"
+)
+
 add_library( radosfs SHARED
              radosfscommon.cc radosfscommon.h
              RadosFs.cc RadosFs.hh RadosFsPriv.hh
