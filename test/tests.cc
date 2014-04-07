@@ -54,6 +54,8 @@ TEST_F(RadosFsTest, Pools)
 
   EXPECT_EQ(0, radosFs.addPool(poolName, poolPrefix, poolSize));
 
+  EXPECT_EQ(-EEXIST, radosFs.addPool(poolName, poolPrefix, poolSize));
+
   EXPECT_EQ(1, radosFs.pools().size());
 
   // Check pool's name from prefix
