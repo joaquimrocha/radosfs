@@ -320,6 +320,13 @@ RadosFsPriv::addPool(const std::string &name,
     return -EINVAL;
   }
 
+  if (poolMap.count(prefix) > 0)
+  {
+    radosfs_debug("There is already a pool with the prefix %s. "
+                  "Not adding.", prefix.c_str());
+    return -EEXIST;
+  }
+
   rados_ioctx_t ioctx;
 
   ret = rados_ioctx_create(radosCluster, name.c_str(), &ioctx);
