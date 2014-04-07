@@ -43,6 +43,11 @@ RadosFsPriv::RadosFsPriv(RadosFs *radosFs)
 
 RadosFsPriv::~RadosFsPriv()
 {
+  std::map<std::string, RadosFsPool>::iterator it;
+
+  for (it = poolMap.begin(); it != poolMap.end(); it++)
+    rados_ioctx_destroy((*it).second.ioctx);
+
   if (radosCluster)
     rados_shutdown(radosCluster);
 
