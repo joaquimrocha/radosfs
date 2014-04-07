@@ -18,6 +18,7 @@
 
 find_package( LibRados REQUIRED )
 
+set( CONF_DIR "/etc/${PROJECT_NAME}" )
 set( LOG_LEVEL_FILE_BASE_NAME loglevel )
 set( LOG_LEVEL_FILE "${CONF_DIR}/${LOG_LEVEL_FILE_BASE_NAME}" )
 
@@ -68,3 +69,6 @@ install( FILES
 install( FILES
          libradosfs.hh
          DESTINATION include )
+install( FILES
+         ${CMAKE_CURRENT_BINARY_DIR}/${LOG_LEVEL_FILE_BASE_NAME}
+         DESTINATION ${CONF_DIR} )
