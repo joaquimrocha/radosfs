@@ -29,7 +29,7 @@ enable_testing()
 set( CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/src ${PROJECT_SOURCE_DIR}/cmake
      ${PROJECT_SOURCE_DIR}/test )
 
-set( CMAKE_INSTALL_PREFIX /usr )
+set( CMAKE_INSTALL_PREFIX CACHE STRING "/usr" )
 
 if( MacOSX )
   set( LIB_INSTALL_DIR lib )
