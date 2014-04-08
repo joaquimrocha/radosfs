@@ -31,7 +31,6 @@ RadosFsInfoPriv::RadosFsInfoPriv(RadosFs *radosFs, const std::string &objPath)
     exists(false)
 {
   setPath(objPath);
-  radosFs->mPriv->getIoctxFromPath(objPath, &ioctx);
 }
 
 RadosFsInfoPriv::~RadosFsInfoPriv()
@@ -42,7 +41,7 @@ RadosFsInfoPriv::setPath(const std::string &path)
 {
   this->path = sanitizePath(path);
 
-  radosFs->mPriv->getIoctxFromPath(path, &ioctx);
+  radosFs->mPriv->getIoctxFromPath(this->path, &ioctx);
 }
 
 RadosFsInfo::RadosFsInfo(RadosFs *radosFs, const std::string &path)
