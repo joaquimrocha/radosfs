@@ -1118,6 +1118,27 @@ TEST_F(RadosFsTest, Metadata)
   EXPECT_EQ(-EACCES, dir.setMetadata(basePath, key, value));
 }
 
+TEST_F(RadosFsTest, Link)
+{
+  AddPool();
+
+  const std::string &linkName("dirName");
+
+  radosfs::RadosFsDir dir(&radosFs, "/dir");
+
+  EXPECT_EQ(-ENOENT, dir.createLink(linkName));
+
+  dir.create();
+
+  EXPECT_EQ(0, dir.createLink(linkName));
+
+  radosfs::RadosFsDir dirLink(&radosFs, linkName);
+
+  EXPECT_TRUE(dirLink.exists());
+
+  EXPECT_TRUE(dirLink.isLink());
+}
+
 GTEST_API_ int
 main(int argc, char **argv)
 {
