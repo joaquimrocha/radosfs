@@ -21,6 +21,8 @@
 #include "radosfscommon.h"
 #include "RadosFsInfo.hh"
 #include "RadosFsInfoPriv.hh"
+#include "RadosFsDir.hh"
+#include "RadosFsFile.hh"
 #include "RadosFsPriv.hh"
 
 RADOS_FS_BEGIN_NAMESPACE
@@ -42,6 +44,88 @@ RadosFsInfoPriv::setPath(const std::string &path)
   this->path = sanitizePath(path);
 
   radosFs->mPriv->getIoctxFromPath(this->path, &ioctx);
+}
+
+int
+RadosFsInfoPriv::makeLink(std::string &linkPath)
+{
+  int ret;
+  rados_ioctx_t ioctx;
+
+  while ((ret = makeRealPath(linkPath, &ioctx)) == -EAGAIN)
+  {}
+
+  if (ret != 0)
+  {
+    radosfs_debug("Error getting the real path for link %s",
+                  linkPath.c_str());
+    return ret;
+  }
+
+  struct stat buff;
+  std::string linkParent = getParentDir(linkPath, 0);
+
+  if (radosFs->stat(linkParent, &buff) != 0)
+  {
+    radosfs_debug("Cannot create a link in a directory that doesn't exist");
+    return -ENOENT;
+  }
+
+  uid_t uid;
+  gid_t gid;
+
+  radosFs->getIds(&uid, &gid);
+
+  if (!statBuffHasPermission(buff, uid, gid, O_WRONLY))
+  {
+    radosfs_debug("No permissions to write in %s", linkParent.c_str());
+    return -EACCES;
+  }
+
+  std::string alternativeName;
+
+  if (fileType == S_IFDIR)
+  {
+    linkPath = getDirPath(linkPath.c_str());
+    alternativeName = linkPath;
+    alternativeName.erase(alternativeName.length() - 1, 1);
+  }
+  else
+  {
+    if (linkPath[linkPath.length()] == PATH_SEP)
+      linkPath.erase(linkPath.length() - 1, 1);
+
+    alternativeName = linkPath;
+    alternativeName += PATH_SEP;
+  }
+
+  if (radosFs->stat(alternativeName, &buff) == 0)
+  {
+    radosfs_debug("That path already exists: %s",
+                  alternativeName.c_str());
+    return -EEXIST;
+  }
+
+  if (radosFs->stat(linkPath, &buff) == 0)
+  {
+    radosfs_debug("The link's path already exists");
+    return -EEXIST;
+  }
+
+  if (ret != 0)
+  {
+    radosfs_debug("Failed to retrieve the ioctx for %s", linkPath.c_str());
+    return ret;
+  }
+
+  rados_write(ioctx, linkPath.c_str(), "", 0, 0);
+  indexObject(ioctx, linkPath.c_str(), '+');
+
+  setPermissionsXAttr(ioctx, linkPath.c_str(), DEFAULT_MODE_LINK, uid, gid);
+
+  return setXAttrFromPath(ioctx, buff,
+                          ROOT_UID, ROOT_UID,
+                          linkPath, XATTR_LINK, this->path);
 }
 
 RadosFsInfo::RadosFsInfo(RadosFs *radosFs, const std::string &path)
@@ -181,6 +265,30 @@ RadosFsInfo::getXAttrsMap(std::map<std::string, std::string> &map)
   return getMapOfXAttrFromPath(mPriv->ioctx, buff,
                                mPriv->radosFs->uid(), mPriv->radosFs->gid(),
                                path(), map);
+}
+
+int
+RadosFsInfo::createLink(const std::string &linkName)
+{
+  std::string absLinkName(linkName);
+
+  if (!exists())
+  {
+    radosfs_debug("Cannot create a link to a file or directly "
+                  "that doesn't exist");
+    return -ENOENT;
+  }
+
+  if (linkName == "")
+  {
+    radosfs_debug("The link name cannot be empty");
+    return -EINVAL;
+  }
+
+  if (linkName[0] != PATH_SEP)
+    absLinkName = getParentDir(mPriv->path, 0) + linkName;
+
+  return mPriv->makeLink(absLinkName);
 }
 
 RADOS_FS_END_NAMESPACE

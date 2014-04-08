@@ -72,6 +72,8 @@ public:
 
   virtual int getXAttrsMap(std::map<std::string, std::string> &map);
 
+  virtual int createLink(const std::string &linkName);
+
 private:
   std::auto_ptr<RadosFsInfoPriv> mPriv;
 };

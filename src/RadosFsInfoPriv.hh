@@ -37,6 +37,8 @@ public:
 
   void setPath(const std::string &path);
 
+  int makeLink(std::string &path);
+
   std::string path;
   RadosFs *radosFs;
   rados_ioctx_t ioctx;
