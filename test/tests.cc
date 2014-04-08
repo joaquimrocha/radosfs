@@ -85,9 +85,11 @@ TEST_F(RadosFsTest, CharacterConsistency)
 
   // Create dir with a sequence of / in the path
 
-  radosfs::RadosFsDir otherDir(&radosFs, "");
+  std::string path = "no-slash";
 
-  EXPECT_EQ("/", otherDir.path());
+  radosfs::RadosFsDir otherDir(&radosFs, path);
+
+  EXPECT_EQ("/" + path + "/", otherDir.path());
 
   otherDir.setPath("//d1//d2////////");
 
@@ -96,8 +98,7 @@ TEST_F(RadosFsTest, CharacterConsistency)
   // Create dir with diacritics, whitespace and other different
   // characters in the path
 
-  std::string path = "\n acções \n  über \n\n   %%   "
-                     "#  caractères \n \"extraños\" \n%";
+  path = "\n acções \n  über \n\n   %%   #  caractères \n \"extraños\" \n%";
 
   otherDir.setPath(path);
 
