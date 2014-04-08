@@ -920,6 +920,17 @@ TEST_F(RadosFsTest, DirCache)
   subdir.remove();
 
   EXPECT_EQ(0, radosFsPriv()->dirCache.size());
+
+  // Create an uncacheable dir and verify the cache isn't affected
+
+  radosFs.setDirCacheMaxSize(100);
+
+  radosfs::RadosFsDir notCachedDir(&radosFs, "/notcached", false);
+  EXPECT_EQ(0, notCachedDir.create());
+
+  notCachedDir.update();
+
+  EXPECT_EQ(0, radosFsPriv()->dirCache.size());
 }
 
 TEST_F(RadosFsTest, CompactDir)
