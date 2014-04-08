@@ -456,7 +456,7 @@ RadosFsPriv::removeDirCache(std::tr1::shared_ptr<DirCache> &cache)
 }
 
 std::tr1::shared_ptr<DirCache>
-RadosFsPriv::getDirInfo(const char *path)
+RadosFsPriv::getDirInfo(const char *path, bool addToCache)
 {
   std::tr1::shared_ptr<DirCache> cache;
 
@@ -473,7 +473,8 @@ RadosFsPriv::getDirInfo(const char *path)
     DirCache *dirInfo = new DirCache(path, ioctx);
     cache = std::tr1::shared_ptr<DirCache>(dirInfo);
 
-    dirCache.update(cache);
+    if (addToCache)
+      dirCache.update(cache);
   }
   else
     cache = dirCache.cacheMap[path]->cachePtr;

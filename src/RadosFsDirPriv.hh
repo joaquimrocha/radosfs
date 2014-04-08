@@ -34,6 +34,8 @@ class RadosFsDirPriv
 {
 public:
   RadosFsDirPriv(RadosFsDir *dirObj);
+  RadosFsDirPriv(RadosFsDir *dirObj, bool cacheable);
+
   virtual ~RadosFsDirPriv();
 
   int makeDirsRecursively(rados_ioctx_t &ioctx,
@@ -54,6 +56,7 @@ public:
   std::string parentDir;
   std::tr1::shared_ptr<DirCache> dirInfo;
   rados_ioctx_t ioctx;
+  bool cacheable;
 };
 
 RADOS_FS_END_NAMESPACE

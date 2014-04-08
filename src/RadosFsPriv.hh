@@ -103,7 +103,8 @@ public:
 
   int getIoctxFromPath(const std::string &objectName, rados_ioctx_t *ioctx);
 
-  std::tr1::shared_ptr<DirCache> getDirInfo(const char *path);
+  std::tr1::shared_ptr<DirCache> getDirInfo(const char *path,
+                                            bool addToCache = true);
 
   int checkIfPathExists(rados_ioctx_t &ioctx,
                         const char *path,

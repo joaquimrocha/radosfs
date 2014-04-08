@@ -35,6 +35,8 @@ class RadosFsDir : public RadosFsInfo
 public:
   RadosFsDir(RadosFs *radosFs, const std::string &path);
 
+  RadosFsDir(RadosFs *radosFs, const std::string &path, bool cacheable);
+
   RadosFsDir(const RadosFsDir &otherDir);
 
   virtual ~RadosFsDir();

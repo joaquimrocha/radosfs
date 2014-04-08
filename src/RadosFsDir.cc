@@ -26,7 +26,16 @@ RADOS_FS_BEGIN_NAMESPACE
 
 RadosFsDirPriv::RadosFsDirPriv(RadosFsDir *dirObj)
   : dir(dirObj),
-    ioctx(0)
+    ioctx(0),
+    cacheable(true)
+{
+  updatePath();
+}
+
+RadosFsDirPriv::RadosFsDirPriv(RadosFsDir *dirObj, bool useCache)
+  : dir(dirObj),
+    ioctx(0),
+    cacheable(useCache)
 {
   updatePath();
 }
@@ -49,7 +58,8 @@ RadosFsDirPriv::updateDirInfoPtr()
 {
   if (dir->exists())
   {
-    dirInfo = dir->filesystem()->mPriv->getDirInfo(dir->path().c_str());
+    dirInfo = dir->filesystem()->mPriv->getDirInfo(dir->path().c_str(),
+                                                   cacheable);
     ioctx = dirInfo->ioctx();
 
     return true;
@@ -132,6 +142,13 @@ RadosFsDir::RadosFsDir(RadosFs *radosFs, const std::string &path)
 RadosFsDir::RadosFsDir(const RadosFsDir &otherDir)
   : RadosFsInfo(otherDir),
     mPriv(new RadosFsDirPriv(this))
+{}
+
+RadosFsDir::RadosFsDir(RadosFs *radosFs,
+                       const std::string &path,
+                       bool cacheable)
+  : RadosFsInfo(radosFs, getDirPath(path.c_str())),
+    mPriv(new RadosFsDirPriv(this, cacheable))
 {}
 
 RadosFsDir::~RadosFsDir()
@@ -313,7 +330,8 @@ RadosFsDir::update()
     if (ratio != -1 && ratio <= filesystem()->dirCompactRatio())
       compact();
 
-    mPriv->updateFsDirCache();
+    if (mPriv->cacheable)
+      mPriv->updateFsDirCache();
   }
 }
 
