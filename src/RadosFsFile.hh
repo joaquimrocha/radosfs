@@ -49,6 +49,8 @@ public:
 
   RadosFsFile(const RadosFsFile &otherFile);
 
+  RadosFsFile(const RadosFsFile *otherFile);
+
   RadosFsFile & operator=(const RadosFsFile &otherFile);
 
   OpenMode mode(void) const;

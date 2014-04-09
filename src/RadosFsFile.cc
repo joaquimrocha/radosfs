@@ -177,6 +177,11 @@ RadosFsFile::RadosFsFile(const RadosFsFile &otherFile)
     mPriv(new RadosFsFilePriv(this, otherFile.mode()))
 {}
 
+RadosFsFile::RadosFsFile(const RadosFsFile *otherFile)
+  : RadosFsInfo(*otherFile),
+    mPriv(new RadosFsFilePriv(this, otherFile->mode()))
+{}
+
 RadosFsFile &
 RadosFsFile::operator=(const RadosFsFile &otherFile)
 {
