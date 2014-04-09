@@ -176,41 +176,52 @@ checkIfPathExists(rados_ioctx_t &ioctx,
                   const char *path,
                   mode_t *filetype)
 {
+  uint64_t size;
+  std::string realPath(path);
   const int length = strlen(path);
   bool isDirPath = path[length - 1] == PATH_SEP;
 
-  if (rados_stat(ioctx, path, 0, 0) == 0)
+  if (rados_stat(ioctx, realPath.c_str(), &size, 0) != 0)
   {
     if (isDirPath)
-      *filetype = S_IFDIR;
+    {
+      // delete the last separator
+      realPath.erase(length - 1, 1);
+    }
     else
-      *filetype = S_IFREG;
-    return true;
+    {
+      realPath += PATH_SEP;
+    }
+
+    isDirPath = !isDirPath;
+
+    if (rados_stat(ioctx, realPath.c_str(), &size, 0) != 0)
+    {
+      return false;
+    }
   }
 
-  std::string otherPath(path);
+  if (size == 0)
+  {
+    char *buff = new char[length];
+    int ret = rados_getxattr(ioctx, realPath.c_str(), XATTR_LINK, buff, length);
+
+    delete[] buff;
+
+    if (ret > 0)
+    {
+      *filetype = S_IFLNK;
+
+      return true;
+    }
+  }
 
   if (isDirPath)
-  {
-    // delete the last separator
-    otherPath.erase(length - 1, 1);
-  }
+    *filetype = S_IFDIR;
   else
-  {
-    otherPath += PATH_SEP;
-  }
+    *filetype = S_IFREG;
 
-  if (rados_stat(ioctx, otherPath.c_str(), 0, 0) == 0)
-  {
-    if (isDirPath)
-      *filetype = S_IFREG;
-    else
-      *filetype = S_IFDIR;
-
-    return true;
-  }
-
-  return false;
+  return true;
 }
 
 std::string
