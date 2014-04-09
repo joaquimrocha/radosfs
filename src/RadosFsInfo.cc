@@ -292,17 +292,9 @@ RadosFsInfo::createLink(const std::string &linkName)
 }
 
 bool
-RadosFsInfo::isLink()
+RadosFsInfo::isLink() const
 {
-  if (mPriv->statBuff.st_size == 0)
-  {
-    std::string target;
-
-    if (getXAttr(XATTR_LINK, target, 1024) >= 0)
-      return true;
-  }
-
-  return false;
+  return mPriv->fileType == S_IFLNK;
 }
 
 RADOS_FS_END_NAMESPACE
