@@ -28,6 +28,7 @@
 RADOS_FS_BEGIN_NAMESPACE
 
 class RadosFs;
+class RadosFsInfo;
 
 class RadosFsInfoPriv
 {
@@ -41,6 +42,7 @@ public:
 
   std::string path;
   RadosFs *radosFs;
+  RadosFsInfo *target;
   rados_ioctx_t ioctx;
   struct stat statBuff;
   mode_t fileType;

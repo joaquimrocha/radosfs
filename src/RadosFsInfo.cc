@@ -29,6 +29,7 @@ RADOS_FS_BEGIN_NAMESPACE
 
 RadosFsInfoPriv::RadosFsInfoPriv(RadosFs *radosFs, const std::string &objPath)
   : radosFs(radosFs),
+    target(0),
     fileType(0),
     exists(false)
 {
@@ -36,7 +37,9 @@ RadosFsInfoPriv::RadosFsInfoPriv(RadosFs *radosFs, const std::string &objPath)
 }
 
 RadosFsInfoPriv::~RadosFsInfoPriv()
-{}
+{
+  delete target;
+}
 
 void
 RadosFsInfoPriv::setPath(const std::string &path)
@@ -195,9 +198,34 @@ RadosFsInfo::stat(struct stat *buff)
 void
 RadosFsInfo::update()
 {
+  char *linkTarget = 0;
   mPriv->exists = checkIfPathExists(mPriv->ioctx,
                                     mPriv->path.c_str(),
-                                    &mPriv->fileType);
+                                    &mPriv->fileType,
+                                    &linkTarget);
+
+  if (mPriv->target)
+  {
+    delete mPriv->target;
+    mPriv->target = 0;
+  }
+
+  if (!mPriv->exists)
+  {
+    mPriv->fileType = 0;
+    return;
+  }
+
+  if (isLink() && linkTarget != 0)
+  {
+    if (linkTarget[strlen(linkTarget) - 1] == PATH_SEP)
+      mPriv->target = new RadosFsDir(filesystem(), linkTarget);
+    else
+      mPriv->target = new RadosFsFile(filesystem(), linkTarget,
+                                      RadosFsFile::MODE_READ_WRITE);
+
+    delete[] linkTarget;
+  }
 }
 
 int
