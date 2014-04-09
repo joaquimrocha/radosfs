@@ -1137,6 +1137,8 @@ TEST_F(RadosFsTest, Link)
   EXPECT_TRUE(dirLink.exists());
 
   EXPECT_TRUE(dirLink.isLink());
+
+  EXPECT_EQ(dir.path(), dirLink.targetPath());
 }
 
 GTEST_API_ int
