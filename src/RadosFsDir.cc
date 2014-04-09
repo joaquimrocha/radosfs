@@ -144,6 +144,11 @@ RadosFsDir::RadosFsDir(const RadosFsDir &otherDir)
     mPriv(new RadosFsDirPriv(this))
 {}
 
+RadosFsDir::RadosFsDir(const RadosFsDir *otherDir)
+  : RadosFsInfo(*otherDir),
+    mPriv(new RadosFsDirPriv(this))
+{}
+
 RadosFsDir::RadosFsDir(RadosFs *radosFs,
                        const std::string &path,
                        bool cacheable)

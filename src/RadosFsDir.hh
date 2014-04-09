@@ -39,6 +39,8 @@ public:
 
   RadosFsDir(const RadosFsDir &otherDir);
 
+  RadosFsDir(const RadosFsDir *otherDir);
+
   virtual ~RadosFsDir();
 
   RadosFsDir & operator=(const RadosFsDir &otherDir);
