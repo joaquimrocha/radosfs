@@ -98,8 +98,17 @@ RadosFsDirPriv::makeDirsRecursively(rados_ioctx_t &ioctx,
   const std::string dir = getDirPath(path);
   const std::string parentDir = getParentDir(path, &index);
 
-  if (rados_stat(ioctx, dir.c_str(), 0, 0) == 0 || parentDir == "")
+  if (parentDir == "")
     return 0;
+
+  if (checkIfPathExists(ioctx, dir.c_str(), &fileType))
+  {
+    if (fileType == S_IFDIR)
+      return 0;
+
+    if (fileType == S_IFREG)
+      return -ENOTDIR;
+  }
 
   if (!checkIfPathExists(ioctx, parentDir.c_str(), &fileType))
   {
