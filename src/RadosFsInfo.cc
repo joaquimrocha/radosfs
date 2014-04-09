@@ -174,6 +174,9 @@ RadosFsInfo::setFilesystem(RadosFs *radosFs)
 bool
 RadosFsInfo::isFile() const
 {
+  if (isLink())
+    return mPriv->target->isFile();
+
   return mPriv->fileType == S_IFREG;
 }
 
