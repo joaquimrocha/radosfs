@@ -177,6 +177,10 @@ TEST_F(RadosFsTest, CreateDir)
   dir.setPath("/testdir/1/2/3/4/5");
 
   EXPECT_EQ(0, dir.create(-1, true));
+
+  dir.setPath(file.path() + "/d1");
+
+  EXPECT_EQ(-ENOTDIR, dir.create(-1, true));
 }
 
 TEST_F(RadosFsTest, RemoveDir)
