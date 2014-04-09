@@ -76,6 +76,8 @@ public:
 
   virtual bool isLink(void) const;
 
+  virtual std::string targetPath(void) const;
+
 private:
   std::auto_ptr<RadosFsInfoPriv> mPriv;
 };

@@ -325,4 +325,13 @@ RadosFsInfo::isLink() const
   return mPriv->fileType == S_IFLNK;
 }
 
+std::string
+RadosFsInfo::targetPath() const
+{
+  if (!isLink() || mPriv->target == 0)
+    return "";
+
+  return mPriv->target->path();
+}
+
 RADOS_FS_END_NAMESPACE
