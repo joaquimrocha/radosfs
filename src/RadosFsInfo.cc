@@ -183,6 +183,9 @@ RadosFsInfo::isFile() const
 bool
 RadosFsInfo::isDir() const
 {
+  if (isLink())
+    return mPriv->target->isDir();
+
   return mPriv->fileType == S_IFDIR;
 }
 
