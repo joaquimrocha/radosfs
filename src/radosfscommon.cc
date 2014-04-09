@@ -174,7 +174,8 @@ genericStat(rados_ioctx_t &ioctx,
 bool
 checkIfPathExists(rados_ioctx_t &ioctx,
                   const char *path,
-                  mode_t *filetype)
+                  mode_t *filetype,
+                  char **linkTarget)
 {
   uint64_t size;
   std::string realPath(path);
@@ -203,17 +204,20 @@ checkIfPathExists(rados_ioctx_t &ioctx,
 
   if (size == 0)
   {
-    char *buff = new char[length];
+    char *buff = new char[XATTR_LINK_LENGTH];
     int ret = rados_getxattr(ioctx, realPath.c_str(), XATTR_LINK, buff, length);
-
-    delete[] buff;
 
     if (ret > 0)
     {
       *filetype = S_IFLNK;
 
+      if (linkTarget)
+        *linkTarget = buff;
+
       return true;
     }
+
+    delete[] buff;
   }
 
   if (isDirPath)

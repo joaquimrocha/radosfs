@@ -68,7 +68,10 @@ setPermissionsXAttr(rados_ioctx_t &ioctx,
                     uid_t uid,
                     gid_t gid);
 
-bool checkIfPathExists(rados_ioctx_t &ioctx, const char *path, mode_t *filetype);
+bool checkIfPathExists(rados_ioctx_t &ioctx,
+                       const char *path,
+                       mode_t *filetype,
+                       char **linkTarget = 0);
 
 std::string getParentDir(const std::string &path, int *pos);
 
