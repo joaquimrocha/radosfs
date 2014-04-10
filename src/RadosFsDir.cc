@@ -58,8 +58,12 @@ RadosFsDirPriv::updateDirInfoPtr()
 {
   if (dir->exists())
   {
-    dirInfo = dir->filesystem()->mPriv->getDirInfo(dir->path().c_str(),
-                                                   cacheable);
+    const char *path = dir->path().c_str();
+
+    if (dir->isLink())
+      path = dir->targetPath().c_str();
+
+    dirInfo = dir->filesystem()->mPriv->getDirInfo(path, cacheable);
     ioctx = dirInfo->ioctx();
 
     return true;
