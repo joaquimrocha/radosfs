@@ -40,6 +40,8 @@ public:
 
   int makeLink(std::string &path);
 
+  int makeRealPath(std::string &path);
+
   std::string path;
   RadosFs *radosFs;
   RadosFsInfo *target;

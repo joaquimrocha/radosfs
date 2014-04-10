@@ -41,10 +41,50 @@ RadosFsInfoPriv::~RadosFsInfoPriv()
   delete target;
 }
 
+int
+RadosFsInfoPriv::makeRealPath(std::string &path)
+{
+  char *linkTarget = 0;
+  std::string parent = getParentDir(path, 0);
+
+  rados_ioctx_t ioctx;
+  mode_t fileType;
+
+  if (parent == "" || radosFs->mPriv->getIoctxFromPath(parent, &ioctx) != 0)
+    return -ENODEV;
+
+  while (parent != "" &&
+         !checkIfPathExists(ioctx, parent.c_str(), &fileType, &linkTarget))
+    parent = getParentDir(parent, 0);
+
+  if (fileType == S_IFREG)
+  {
+    radosfs_debug("Problem with part of the path, it is a file: %s",
+                  parent.c_str());
+    return -ENOTDIR;
+  }
+
+  if (fileType == S_IFLNK)
+  {
+    path.erase(0, parent.length());
+    path = linkTarget + path;
+
+    delete[] linkTarget;
+
+    return -EAGAIN;
+  }
+
+  return 0;
+}
+
 void
 RadosFsInfoPriv::setPath(const std::string &path)
 {
+  int ret;
   this->path = sanitizePath(path);
+
+  while ((ret = makeRealPath(this->path)) == -EAGAIN)
+  {}
 
   radosFs->mPriv->getIoctxFromPath(this->path, &ioctx);
 }
