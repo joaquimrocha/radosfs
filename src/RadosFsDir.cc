@@ -313,12 +313,15 @@ RadosFsDir::remove()
   if (fileType == S_IFREG)
     return -ENOTDIR;
 
-  DirCache *info = mPriv->dirInfo.get();
+  if (!isLink())
+  {
+    DirCache *info = mPriv->dirInfo.get();
 
-  info->update();
+    info->update();
 
-  if (info->getEntry(0) != "")
-    return -ENOTEMPTY;
+    if (info->getEntry(0) != "")
+      return -ENOTEMPTY;
+  }
 
   ret = rados_remove(ioctx, dirPath.c_str());
 
