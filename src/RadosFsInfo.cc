@@ -42,7 +42,7 @@ RadosFsInfoPriv::~RadosFsInfoPriv()
 }
 
 int
-RadosFsInfoPriv::makeRealPath(std::string &path)
+RadosFsInfoPriv::makeRealPath(std::string &path, rados_ioctx_t *ioctxOut)
 {
   char *linkTarget = 0;
   std::string parent = getParentDir(path, 0);
@@ -56,6 +56,9 @@ RadosFsInfoPriv::makeRealPath(std::string &path)
   while (parent != "" &&
          !checkIfPathExists(ioctx, parent.c_str(), &fileType, &linkTarget))
     parent = getParentDir(parent, 0);
+
+  if (ioctxOut != 0)
+    *ioctxOut = ioctx;
 
   if (fileType == S_IFREG)
   {

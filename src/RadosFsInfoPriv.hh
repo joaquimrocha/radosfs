@@ -40,7 +40,7 @@ public:
 
   int makeLink(std::string &path);
 
-  int makeRealPath(std::string &path);
+  int makeRealPath(std::string &path, rados_ioctx_t *ioctxOut = 0);
 
   std::string path;
   RadosFs *radosFs;
