@@ -231,7 +231,7 @@ RadosFsDir::create(int mode,
 
   if (checkIfPathExists(ioctx, dir.c_str(), &fileType))
   {
-    if (fileType == S_IFREG)
+    if (fileType != S_IFDIR)
       return -ENOTDIR;
 
     if (mkpath)
