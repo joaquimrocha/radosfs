@@ -454,7 +454,10 @@ RadosFsDir::setMetadata(const std::string &entry,
       std::map<std::string, std::string> metadata;
       metadata[key] = value;
 
-      return indexObjectMetadata(mPriv->ioctx, path() + entry, metadata, '+');
+      return indexObjectMetadata(mPriv->ioctx,
+                                 mPriv->dirInfo->path() + entry,
+                                 metadata,
+                                 '+');
     }
 
     return -ENOENT;
@@ -505,7 +508,10 @@ RadosFsDir::removeMetadata(const std::string &entry, const std::string &key)
       std::map<std::string, std::string> metadata;
       metadata[key] = "";
 
-      return indexObjectMetadata(mPriv->ioctx, path() + entry, metadata, '-');
+      return indexObjectMetadata(mPriv->ioctx,
+                                 mPriv->dirInfo->path() + entry,
+                                 metadata,
+                                 '-');
     }
 
     return -ENOENT;
