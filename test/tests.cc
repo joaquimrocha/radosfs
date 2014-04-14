@@ -1122,27 +1122,151 @@ TEST_F(RadosFsTest, Metadata)
   EXPECT_EQ(-EACCES, dir.setMetadata(basePath, key, value));
 }
 
-TEST_F(RadosFsTest, Link)
+TEST_F(RadosFsTest, LinkDir)
 {
   AddPool();
 
-  const std::string &linkName("dirName");
+  const std::string &linkName("dirLink");
 
   radosfs::RadosFsDir dir(&radosFs, "/dir");
+
+  // Create a link to a dir that doesn't exist
 
   EXPECT_EQ(-ENOENT, dir.createLink(linkName));
 
   dir.create();
 
+  // Create a link to a dir that exists
+
   EXPECT_EQ(0, dir.createLink(linkName));
+
+  // Verify the link
 
   radosfs::RadosFsDir dirLink(&radosFs, linkName);
 
   EXPECT_TRUE(dirLink.exists());
 
+  EXPECT_TRUE(dirLink.isDir());
+
   EXPECT_TRUE(dirLink.isLink());
 
   EXPECT_EQ(dir.path(), dirLink.targetPath());
+
+  struct stat buff;
+
+  EXPECT_EQ(0, radosFs.stat(dirLink.path(), &buff));
+
+  EXPECT_NE(0, buff.st_mode & S_IFLNK);
+
+  // Create a file in the original dir
+
+  radosfs::RadosFsFile file(&radosFs,
+                            dir.path() + "f1",
+                            radosfs::RadosFsFile::MODE_READ_WRITE);
+
+  file.create();
+
+  // Get the dir's entries using the link and verify them
+
+  dirLink.update();
+
+  std::set<std::string> entries, entriesAfter;
+
+  EXPECT_EQ(0, dirLink.entryList(entries));
+
+  EXPECT_NE(entries.end(), entries.find("f1"));
+
+  // Verify dealing with metadata through the link
+
+  std::string mdKey = "testLink", mdValue = "testLinkValue", value;
+
+  EXPECT_EQ(0, dirLink.setMetadata("f1", mdKey, mdValue));
+
+  EXPECT_EQ(0, dirLink.getMetadata("f1", mdKey, value));
+
+  EXPECT_EQ(mdValue, value);
+
+  value = "";
+
+  EXPECT_EQ(0, dir.getMetadata("f1", mdKey, value));
+
+  EXPECT_EQ(mdValue, value);
+
+  EXPECT_EQ(0, dirLink.removeMetadata("f1", mdKey));
+
+  EXPECT_EQ(-ENOENT, dir.getMetadata("f1", mdKey, value));
+
+  // Create a dir using the link as parent
+
+  radosfs::RadosFsDir otherDir(&radosFs, dirLink.path() + "d2");
+
+  otherDir.create();
+
+  EXPECT_EQ(dir.path() + "d2/", otherDir.path());
+
+  // Check that the subdir was correctly created
+
+  dir.update();
+
+  entries.clear();
+
+  EXPECT_EQ(0, dirLink.entryList(entries));
+
+  EXPECT_NE(entries.end(), entries.find("d2/"));
+
+  // Create another link
+
+  EXPECT_EQ(0, dir.createLink("/dir/dirLink2"));
+
+  radosfs::RadosFsDir otherDirLink(&radosFs, dir.path() + "dirLink2");
+
+  EXPECT_TRUE(otherDirLink.isDir());
+
+  EXPECT_TRUE(otherDirLink.isLink());
+
+  // Create a file inside with a path with two links as intermediate ones
+
+  file.setPath("dirLink/dirLink2/f2");
+
+  EXPECT_EQ(0, file.create());
+
+  EXPECT_EQ(dir.path() + "f2", file.path());
+
+  // Create a dir with mkpath=true inside a link
+
+  otherDir.setPath(dirLink.path() + "/d1/d2/d3");
+
+  EXPECT_EQ(0, otherDir.create(-1, true));
+
+  EXPECT_EQ(dir.path() + "d1/d2/d3/", otherDir.path());
+
+  // Delete a link and check that its object is removed but not the target dir
+
+  entries.clear();
+
+  dir.update();
+
+  EXPECT_EQ(0, dir.entryList(entries));
+
+  EXPECT_EQ(0, otherDirLink.remove());
+
+  dir.update();
+
+  EXPECT_EQ(0, dir.entryList(entriesAfter));
+
+  EXPECT_LT(entries.size(), entriesAfter.size());
+
+  dir.update();
+
+  EXPECT_TRUE(dir.exists());
+
+  // Create link with a path to an existing file
+
+  EXPECT_EQ(-EEXIST, dir.createLink(dir.path() + "f2"));
+
+  // Create link with a path that has a file as intermediate path
+
+  EXPECT_EQ(-ENOTDIR, dir.createLink(dir.path() + "f2" + "/newLink"));
 }
 
 GTEST_API_ int
