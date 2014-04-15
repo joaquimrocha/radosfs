@@ -266,7 +266,12 @@ RadosFsFile::writeSync(const char *buff, off_t offset, size_t blen)
     return ret;
 
   if (mPriv->permissions & RadosFsFile::MODE_WRITE)
+  {
+    if (isLink())
+      return mPriv->target->writeSync(buff, offset, blen);
+
     return mPriv->radosFsIO->writeSync(buff, offset, blen);
+  }
 
   return -EACCES;
 }
