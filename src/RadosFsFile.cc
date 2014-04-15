@@ -230,7 +230,12 @@ RadosFsFile::read(char *buff, off_t offset, size_t blen)
     return ret;
 
   if (mPriv->permissions & RadosFsFile::MODE_READ)
+  {
+    if (isLink())
+      return mPriv->target->read(buff, offset, blen);
+
     return mPriv->radosFsIO->read(buff, offset, blen);
+  }
 
   return -EACCES;
 }
