@@ -1379,6 +1379,88 @@ TEST_F(RadosFsTest, LinkFile)
   EXPECT_EQ(-ENOLINK, fileLink.remove());
 }
 
+TEST_F(RadosFsTest, LinkPermissions)
+{
+  AddPool();
+
+  // Create user dir
+
+  radosfs::RadosFsDir dir(&radosFs, "/user");
+
+  EXPECT_EQ(0, dir.create(-1, false, TEST_UID, TEST_GID));
+
+  // Create a dir as root
+
+  dir.setPath("/dir");
+
+  EXPECT_EQ(0, dir.create(S_IWUSR));
+
+  // Create a dir link as user
+
+  radosFs.setIds(TEST_UID, TEST_GID);
+
+  std::string linkName = "/user/dirLink";
+
+  EXPECT_EQ(0, dir.createLink(linkName));
+
+  // Read the entries from the link as user
+
+  radosfs::RadosFsDir dirLink(&radosFs, linkName);
+
+  std::set<std::string> entries;
+
+  EXPECT_EQ(-EACCES, dirLink.entryList(entries));
+
+  // Read the entries from the link as root
+
+  radosFs.setIds(ROOT_UID, ROOT_UID);
+
+  EXPECT_EQ(0, dirLink.entryList(entries));
+
+  // Create a file as root
+
+  radosfs::RadosFsFile file(&radosFs, "/file",
+                            radosfs::RadosFsFile::MODE_READ_WRITE);
+
+  EXPECT_EQ(0, file.create(S_IWUSR));
+
+  // Create a file link as user
+
+  radosFs.setIds(TEST_UID, TEST_GID);
+
+  linkName = "/user/fileLink";
+
+  EXPECT_EQ(0, file.createLink(linkName));
+
+  // Read the file contents through the link as user
+
+  radosfs::RadosFsFile fileLink(&radosFs, linkName,
+                                radosfs::RadosFsFile::MODE_READ_WRITE);
+
+  char buff[] = {"X"};
+  EXPECT_EQ(-EACCES, fileLink.read(buff, 0, 1));
+
+  // Read the file contents through the link as root
+
+  radosFs.setIds(ROOT_UID, ROOT_UID);
+
+  fileLink.update();
+
+  EXPECT_EQ(0, fileLink.read(buff, 0, 1));
+
+  // Write in the file through the link as root
+
+  EXPECT_EQ(1, fileLink.write(buff, 0, 1));
+
+  // Write in the file through the link as user
+
+  radosFs.setIds(TEST_UID, TEST_UID);
+
+  fileLink.update();
+
+  EXPECT_EQ(-EACCES, fileLink.write(buff, 0, 1));
+}
+
 GTEST_API_ int
 main(int argc, char **argv)
 {
