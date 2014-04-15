@@ -379,7 +379,12 @@ RadosFsFile::truncate(unsigned long long size)
   filesystem()->getIds(&uid, &gid);
 
   if (statBuffHasPermission(mPriv->statBuff, uid, gid, O_WRONLY | O_RDWR))
+  {
+    if (isLink())
+      return mPriv->target->truncate(size);
+
     ret = rados_trunc(ioctx, filePath, size);
+  }
   else
     ret = -EACCES;
 
