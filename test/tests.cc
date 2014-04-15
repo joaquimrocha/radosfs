@@ -1269,6 +1269,116 @@ TEST_F(RadosFsTest, LinkDir)
   EXPECT_EQ(-ENOTDIR, dir.createLink(dir.path() + "f2" + "/newLink"));
 }
 
+TEST_F(RadosFsTest, LinkFile)
+{
+  AddPool();
+
+  const std::string &linkName("fileLink");
+
+  radosfs::RadosFsFile file(&radosFs, "/file",
+                            radosfs::RadosFsFile::MODE_READ_WRITE);
+
+  // Create a link to a file that doesn't exist
+
+  EXPECT_EQ(-ENOENT, file.createLink(linkName));
+
+  file.create();
+
+  // Create a link to a file that exists
+
+  EXPECT_EQ(0, file.createLink(linkName));
+
+  radosfs::RadosFsFile fileLink(&radosFs, linkName,
+                                radosfs::RadosFsFile::MODE_READ_WRITE);
+
+  // Call truncate on the link
+
+  const int newSize = 1024;
+
+  EXPECT_EQ(0, fileLink.truncate(newSize));
+
+  // Verify the link
+
+  EXPECT_TRUE(fileLink.exists());
+
+  EXPECT_TRUE(fileLink.isFile());
+
+  EXPECT_TRUE(fileLink.isLink());
+
+  EXPECT_EQ(file.path(), fileLink.targetPath());
+
+  struct stat buff;
+
+  EXPECT_EQ(0, radosFs.stat(fileLink.path(), &buff));
+
+  EXPECT_NE(0, buff.st_mode & S_IFLNK);
+
+  EXPECT_EQ(0, buff.st_size);
+
+  // Verify that truncate happened on the target dir
+
+  EXPECT_EQ(0, radosFs.stat(file.path(), &buff));
+
+  EXPECT_EQ(newSize, buff.st_size);
+
+  // Write to link
+
+  std::string text = "this is a link";
+  char contents[1024];
+
+  EXPECT_EQ(text.length(), fileLink.write(text.c_str(), 0, text.length()));
+
+  // Read from file and check contents
+
+  EXPECT_EQ(text.length(), file.read(contents, 0, text.length()));
+
+  EXPECT_EQ(0, strcmp(contents, text.c_str()));
+
+  // Verify that link's size hasn't changed
+
+  EXPECT_EQ(0, radosFs.stat(fileLink.path(), &buff));
+
+  EXPECT_EQ(0, buff.st_size);
+
+  // Write to file
+
+  text = "this is a file";
+
+  EXPECT_EQ(text.length(), file.write(text.c_str(), 0, text.length()));
+
+  // Read from link and check contents
+
+  EXPECT_EQ(text.length(), fileLink.read(contents, 0, text.length()));
+
+  EXPECT_EQ(0, strcmp(contents, text.c_str()));
+
+  // Remove file
+
+  EXPECT_EQ(0, file.remove());
+
+  // Re-start file link (make it drop the shared IO object)
+
+  file.setPath("/fake");
+  fileLink.setPath("/fake");
+
+  file.setPath("/file");
+  fileLink.setPath(linkName);
+
+  EXPECT_FALSE(file.exists());
+
+  EXPECT_TRUE(fileLink.exists());
+
+  // Write to a link whose target doesn't exist
+
+  EXPECT_EQ(-ENOLINK, fileLink.read(contents, 0, text.length()));
+
+  EXPECT_EQ(-ENOLINK, fileLink.write(contents, 0, text.length()));
+
+  // Delete a link and check that its object is removed but not the target file
+
+  EXPECT_EQ(-ENOLINK, fileLink.remove());
+}
+
 GTEST_API_ int
 main(int argc, char **argv)
 {
