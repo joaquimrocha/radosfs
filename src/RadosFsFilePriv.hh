@@ -48,6 +48,7 @@ public:
   int removeFile(void);
 
   RadosFsFile *fsFile;
+  RadosFsFile *target;
   rados_ioctx_t ioctx;
   struct stat statBuff;
   std::string parentDir;

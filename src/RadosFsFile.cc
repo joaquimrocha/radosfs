@@ -32,13 +32,17 @@ RadosFsFilePriv::RadosFsFilePriv(RadosFsFile *fsFile,
                                  RadosFsFile::OpenMode mode)
   : fsFile(fsFile),
     permissions(RadosFsFile::MODE_NONE),
-    mode(mode)
+    mode(mode),
+    target(0)
 {
   updatePath();
 }
 
 RadosFsFilePriv::~RadosFsFilePriv()
 {
+  if (target)
+    delete target;
+
   if (radosFsIO.get() && radosFsIO.use_count() == 1)
   {
     fsFile->filesystem()->mPriv->removeRadosFsIO(radosFsIO);
@@ -65,6 +69,14 @@ RadosFsFilePriv::updatePath()
 
   updatePermissions();
 
+  radosFsIO.reset();
+
+  if (target)
+  {
+    delete target;
+    target = 0;
+  }
+
   radosFsIO = radosFs->mPriv->getRadosFsIO(fsFile->path());
 
   if (!radosFsIO.get())
@@ -74,11 +86,21 @@ RadosFsFilePriv::updatePath()
     radosFsIO = std::tr1::shared_ptr<RadosFsIO>(fsIO);
     radosFs->mPriv->setRadosFsIO(radosFsIO);
   }
+
+  if (fsFile->isLink())
+  {
+    target = new RadosFsFile(fsFile->filesystem(),
+                             fsFile->targetPath(),
+                             mode);
+  }
 }
 
 int
 RadosFsFilePriv::verifyExistanceAndType()
 {
+  if (fsFile->isLink() && !target->exists())
+    return -ENOLINK;
+
   if (!fsFile->exists())
     return -ENOENT;
 
