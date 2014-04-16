@@ -349,6 +349,11 @@ RadosFsInfo::getXAttrsMap(std::map<std::string, std::string> &map)
   int ret;
   struct stat buff;
 
+  if (isLink())
+  {
+    return filesystem()->getXAttrsMap(targetPath(), map);
+  }
+
   ret = stat(&buff);
 
   if (ret != 0)
