@@ -1480,6 +1480,29 @@ TEST_F(RadosFsTest, LinkPermissions)
   EXPECT_EQ(-EACCES, fileLink.write(buff, 0, 1));
 }
 
+TEST_F(RadosFsTest, Common)
+{
+  AddPool();
+
+  // Test getRealPath
+
+  radosfs::RadosFsDir dir(&radosFs, "/dir");
+  dir.create();
+
+  rados_ioctx_t ioctx;
+  radosFsPriv()->getIoctxFromPath("/", &ioctx);
+
+  EXPECT_EQ("/dir/", getRealPath(ioctx, "/dir"));
+  EXPECT_EQ("/dir/", getRealPath(ioctx, "/dir/"));
+
+  radosfs::RadosFsFile file(&radosFs, "/file",
+                            radosfs::RadosFsFile::MODE_READ_WRITE);
+  file.create();
+
+  EXPECT_EQ("/file", getRealPath(ioctx, "/file/"));
+  EXPECT_EQ("/file", getRealPath(ioctx, "/file"));
+}
+
 GTEST_API_ int
 main(int argc, char **argv)
 {
