@@ -1310,6 +1310,10 @@ TEST_F(RadosFsTest, LinkFile)
   radosfs::RadosFsFile fileLink(&radosFs, linkName,
                                 radosfs::RadosFsFile::MODE_READ_WRITE);
 
+  // Make a link of a link
+
+  EXPECT_EQ(-EPERM, fileLink.createLink("linkOfALink"));
+
   // Call truncate on the link
 
   const int newSize = 1024;
