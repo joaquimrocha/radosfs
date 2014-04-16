@@ -1196,6 +1196,25 @@ TEST_F(RadosFsTest, LinkDir)
 
   EXPECT_EQ(-ENOENT, dir.getMetadata("f1", mdKey, value));
 
+  // Verify dealing with xattrs through the link
+
+  std::map<std::string, std::string> map;
+
+  value = "";
+  mdKey = "sys.myattr";
+
+  EXPECT_EQ(0, dirLink.setXAttr(mdKey, mdValue));
+
+  EXPECT_GT(dirLink.getXAttr(mdKey, value, 1024), 0);
+
+  EXPECT_EQ(mdValue, value);
+
+  EXPECT_EQ(0, dirLink.getXAttrsMap(map));
+
+  EXPECT_GT(map.size(), 0);
+
+  EXPECT_EQ(-ENODATA, radosFs.getXAttr(dirLink.path(), mdKey, value, 1024));
+
   // Create a dir using the link as parent
 
   radosfs::RadosFsDir otherDir(&radosFs, dirLink.path() + "d2");
@@ -1254,7 +1273,7 @@ TEST_F(RadosFsTest, LinkDir)
 
   EXPECT_EQ(0, dir.entryList(entriesAfter));
 
-  EXPECT_LT(entries.size(), entriesAfter.size());
+  EXPECT_LT(entriesAfter.size(), entries.size());
 
   dir.update();
 
