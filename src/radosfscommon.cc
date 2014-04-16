@@ -438,7 +438,7 @@ getRealPath(rados_ioctx_t ioctx, const std::string &path)
 
   std::string realPath(path);
 
-  if (realPath[realPath.length()] == PATH_SEP)
+  if (realPath[realPath.length() - 1] == PATH_SEP)
   {
     if (fileType == S_IFREG)
       realPath.erase(realPath.length() - 1, 1);
