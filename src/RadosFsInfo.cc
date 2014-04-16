@@ -328,6 +328,11 @@ RadosFsInfo::removeXAttr(const std::string &attrName)
   int ret;
   struct stat buff;
 
+  if (isLink())
+  {
+    return filesystem()->removeXAttr(targetPath(), attrName);
+  }
+
   ret = stat(&buff);
 
   if (ret != 0)
