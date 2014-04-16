@@ -382,6 +382,12 @@ RadosFsInfo::createLink(const std::string &linkName)
     return -EINVAL;
   }
 
+  if (isLink())
+  {
+    radosfs_debug("Cannot make a link to a link");
+    return -EPERM;
+  }
+
   if (linkName[0] != PATH_SEP)
     absLinkName = getParentDir(mPriv->path, 0) + linkName;
 
