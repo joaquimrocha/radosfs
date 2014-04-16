@@ -284,6 +284,11 @@ RadosFsInfo::setXAttr(const std::string &attrName,
   int ret;
   struct stat buff;
 
+  if (isLink())
+  {
+    return filesystem()->setXAttr(targetPath(), attrName, value);
+  }
+
   ret = stat(&buff);
 
   if (ret != 0)
