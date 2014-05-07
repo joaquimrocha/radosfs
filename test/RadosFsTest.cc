@@ -117,6 +117,48 @@ RadosFsTest::removeNFiles(size_t numFiles)
   }
 }
 
+int
+RadosFsTest::createContentsRecursively(const std::string &prefix,
+                                       size_t numDirs,
+                                       size_t numFiles,
+                                       ssize_t levels)
+{
+  if (--levels < 0)
+    return 0;
+
+  for (size_t i = 0; i < numDirs; i++)
+  {
+    int ret;
+    std::ostringstream s;
+    s << i;
+    radosfs::RadosFsDir dir(&radosFs, prefix + "d" + s.str());
+
+    if ((ret = dir.create()) == 0)
+    {
+      ret = createContentsRecursively(dir.path(), numDirs, numFiles, levels);
+
+      if (ret != 0)
+        return ret;
+    }
+    else
+      return ret;
+  }
+
+  for (size_t i = 0; i < numFiles; i++)
+  {
+    int ret;
+    std::ostringstream s;
+    s << i;
+    radosfs::RadosFsFile file(&radosFs, prefix + "f" + s.str(),
+                              radosfs::RadosFsFile::MODE_READ_WRITE);
+
+    if ((ret = file.create()) != 0)
+      return ret;
+  }
+
+  return 0;
+}
+
 void
 RadosFsTest::testXAttrInFsInfo(radosfs::RadosFsInfo &info)
 {

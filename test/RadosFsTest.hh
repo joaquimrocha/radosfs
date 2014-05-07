@@ -52,6 +52,11 @@ protected:
 
   void removeNFiles(size_t numFiles);
 
+  int createContentsRecursively(const std::string &prefix,
+                                size_t numDirs,
+                                size_t numFiles,
+                                ssize_t levels);
+
   radosfs::RadosFs radosFs;
 
   radosfs::RadosFsPriv *radosFsPriv(void) const { return radosFs.mPriv; }

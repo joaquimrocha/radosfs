@@ -19,11 +19,14 @@
 
 #include <gtest/gtest.h>
 #include <errno.h>
+#include <cmath>
 #include <sstream>
 #include <stdexcept>
 
 #include "RadosFsTest.hh"
 #include "radosfscommon.h"
+
+#define NSEC_TO_SEC(n) ((double)(n) / 1000000000.0)
 
 TEST_F(RadosFsTest, DefaultConstructor)
 {
@@ -1505,6 +1508,137 @@ TEST_F(RadosFsTest, Common)
 
   EXPECT_EQ("/file", getRealPath(ioctx, "/file/"));
   EXPECT_EQ("/file", getRealPath(ioctx, "/file"));
+}
+
+TEST_F(RadosFsTest, Find)
+{
+  AddPool();
+
+  radosfs::RadosFsDir dir(&radosFs, "/");
+
+  // Create files and directories
+
+  const int numDirsPerLevel = 5;
+  const int numFilesPerLevel = numDirsPerLevel / 2;
+  const int levels = 3;
+
+  int numDirs = 0;
+  for (int i = levels; i > 0; i--)
+    numDirs += pow(numDirsPerLevel, i);
+
+  fprintf(stdout, "[ CREATING CONTENTS... ");
+
+  EXPECT_EQ(0, createContentsRecursively("/",
+                                         numDirsPerLevel,
+                                         numDirsPerLevel / 2,
+                                         levels));
+
+  fprintf(stdout, "DONE]\n");
+
+  std::set<std::string> results;
+
+  dir.setPath("/");
+  dir.update();
+
+  // Find contents using an empty search string
+
+  EXPECT_EQ(-EINVAL, dir.find(results, ""));
+
+  // Find contents whose name begins with a "d" and measure its time
+  // (all directories)
+
+  struct timespec startTime, endTime;
+
+  clock_gettime(CLOCK_REALTIME, &startTime);
+
+  int ret = dir.find(results, "name=\"^d.*\"");
+
+  clock_gettime(CLOCK_REALTIME, &endTime);
+
+  double secsBefore = (double) startTime.tv_sec + NSEC_TO_SEC(startTime.tv_nsec);
+  double secsAfter = (double) endTime.tv_sec + NSEC_TO_SEC(endTime.tv_nsec);
+
+  fprintf(stdout, "[Searched %d directories in %.3f s]\n",
+          numDirs, secsAfter - secsBefore);
+
+  EXPECT_EQ(0, ret);
+
+  EXPECT_EQ(numDirs, results.size());
+
+  results.clear();
+
+  // Find contents whose name begins with a "f" (all files)
+
+  EXPECT_EQ(0, dir.find(results, "name=\"^f.*\""));
+
+  int numFiles = 1;
+  for (int i = levels - 1; i > 0; i--)
+    numFiles += pow(numDirsPerLevel, i);
+
+  numFiles *= numFilesPerLevel;
+
+  EXPECT_EQ(numFiles, results.size());
+
+  results.clear();
+
+  // Find contents whose size is 0 (all files + dirs of the last level)
+
+  EXPECT_EQ(0, dir.find(results, "size = 0"));
+
+  EXPECT_EQ(numFiles + pow(numDirsPerLevel, levels), results.size());
+
+  radosfs::RadosFsFile f(&radosFs, "/d0/d0/f0",
+                         radosfs::RadosFsFile::MODE_READ_WRITE);
+
+  EXPECT_EQ(0, f.truncate(100));
+
+  f.setPath("/d0/d0/d0/newFile");
+
+  EXPECT_EQ(0, f.create());
+
+  EXPECT_EQ(0, f.truncate(100));
+
+  results.clear();
+
+  // Find contents whose size is 100 and name begins with "new"
+
+  EXPECT_EQ(0, dir.find(results, "name=\"^new.*\" size = 100"));
+
+  EXPECT_EQ(1, results.size());
+
+  results.clear();
+
+  // Find contents whose size is 100 and name begins with "f"
+
+  EXPECT_EQ(0, dir.find(results, "name=\"^.*f.*\" size = 100"));
+
+  EXPECT_EQ(1, results.size());
+
+  results.clear();
+
+  // Find contents whose size is 100
+
+  EXPECT_EQ(0, dir.find(results, "size = 100"));
+
+  EXPECT_EQ(2, results.size());
+
+  results.clear();
+
+  // Find contents whose size is 100 and the name contains an "f"
+
+  EXPECT_EQ(0, dir.find(results, "iname=\".*f.*\" size = 100"));
+
+  EXPECT_EQ(2, results.size());
+
+  results.clear();
+
+  // Find contents whose name contains a "0" but does not contain an "f"
+
+  dir.setPath("/d0/d0/");
+
+  EXPECT_EQ(0, dir.find(results, "name!=\"^.*f.*\" name=\"^.*0.*\""));
+
+  EXPECT_EQ(1, results.size());
 }
 
 GTEST_API_ int
