@@ -34,6 +34,8 @@ RadosFsIO::RadosFsIO(const RadosFsPool *pool,
 
 RadosFsIO::~RadosFsIO()
 {
+  sync();
+
   if (mLazyRemoval)
     rados_remove(mPool->ioctx, mPath.c_str());
 }
