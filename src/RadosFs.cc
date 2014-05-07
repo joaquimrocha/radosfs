@@ -19,6 +19,7 @@
 
 #include <rados/librados.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include "RadosFs.hh"
 #include "RadosFsPriv.hh"
@@ -30,7 +31,8 @@ __thread gid_t RadosFsPriv::gid;
 
 RadosFsPriv::RadosFsPriv(RadosFs *radosFs)
   : radosCluster(0),
-    dirCompactRatio(DEFAULT_DIR_COMPACT_RATIO)
+    dirCompactRatio(DEFAULT_DIR_COMPACT_RATIO),
+    finder(radosFs)
 {
   uid = 0;
   gid = 0;

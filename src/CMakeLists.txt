@@ -46,6 +46,7 @@ add_library( radosfs SHARED
              RadosFsInfo.cc RadosFsInfo.hh RadosFsInfoPriv.hh
              RadosFsIO.cc RadosFsIO.hh
              RadosFsLogger.cc RadosFsLogger.hh
+             RadosFsFinder.cc RadosFsFinder.hh
 )
 
 include_directories( ${RADOS_INCLUDE_DIR} )

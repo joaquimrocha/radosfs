@@ -32,6 +32,7 @@
 #include "DirCache.hh"
 #include "RadosFsIO.hh"
 #include "RadosFsLogger.hh"
+#include "RadosFsFinder.hh"
 
 RADOS_FS_BEGIN_NAMESPACE
 
@@ -134,6 +135,7 @@ public:
   pthread_mutex_t operationsMutex;
   float dirCompactRatio;
   RadosFsLogger logger;
+  RadosFsFinder finder;
 };
 
 RADOS_FS_END_NAMESPACE

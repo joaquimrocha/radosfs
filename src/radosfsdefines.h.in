@@ -48,5 +48,15 @@
 #define DEFAULT_DIR_COMPACT_RATIO .2
 #define INDEX_METADATA_PREFIX "md"
 #define LOG_LEVEL_CONF_FILE "${LOG_LEVEL_FILE}"
+#define DEFAULT_NUM_FINDER_THREADS 100
+#define FINDER_KEY_NAME "name"
+#define FINDER_KEY_INAME "iname"
+#define FINDER_KEY_SIZE "size"
+#define FINDER_EQ_SYM "="
+#define FINDER_NE_SYM "!="
+#define FINDER_GT_SYM ">"
+#define FINDER_GE_SYM ">="
+#define FINDER_LT_SYM "<"
+#define FINDER_LE_SYM "<="
 
 #endif /* __RADOS_FS_DEFINES_HH__ */

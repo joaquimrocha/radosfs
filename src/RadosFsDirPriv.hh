@@ -25,6 +25,7 @@
 
 #include "radosfsdefines.h"
 #include "DirCache.hh"
+#include "RadosFsFinder.hh"
 
 RADOS_FS_BEGIN_NAMESPACE
 
@@ -50,6 +51,10 @@ public:
   int updateIoctx(void);
 
   void updateFsDirCache();
+
+  int find(std::set<std::string> &entries,
+           std::set<std::string> &results,
+           const std::map<RadosFsFinder::FindOptions, FinderArg> &args);
 
   RadosFsDir *dir;
   struct stat statBuff;

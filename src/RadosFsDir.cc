@@ -21,6 +21,7 @@
 #include "RadosFsDir.hh"
 #include "RadosFsDirPriv.hh"
 #include "RadosFsPriv.hh"
+#include "RadosFsFinder.hh"
 
 RADOS_FS_BEGIN_NAMESPACE
 
@@ -143,6 +144,76 @@ RadosFsDirPriv::makeDirsRecursively(rados_ioctx_t &ioctx,
 
     indexObject(ioctx, dir.c_str(), '+');
   }
+
+  return ret;
+}
+
+int
+RadosFsDirPriv::find(std::set<std::string> &entries,
+                     std::set<std::string> &results,
+                     const std::map<RadosFsFinder::FindOptions, FinderArg> &args)
+{
+  int ret = 0;
+  pthread_mutex_t mutex;
+  pthread_cond_t cond;
+
+  pthread_mutex_init(&mutex, 0);
+  pthread_cond_init(&cond, 0);
+
+  int numRelatedJobs = 0;
+  std::set<std::string>::iterator it;
+  std::vector<FinderData *> jobs;
+
+  for (it = entries.begin(); it != entries.end(); it++)
+  {
+    const std::string &entry = *it;
+
+    if (entry[entry.length() - 1] != PATH_SEP)
+      continue;
+
+    FinderData *data = new FinderData;
+
+    pthread_mutex_lock(&mutex);
+
+    data->dir = entry;
+    data->mutex = &mutex;
+    data->cond = &cond;
+    data->args = &args;
+    data->retCode = &ret;
+    numRelatedJobs++;
+    data->numberRelatedJobs = &numRelatedJobs;
+
+    pthread_mutex_unlock(&mutex);
+
+    jobs.push_back(data);
+
+    dir->filesystem()->mPriv->finder.find(data);
+  }
+
+  entries.clear();
+
+  if (jobs.size() == 0)
+    return 0;
+
+  pthread_mutex_lock(&mutex);
+
+  if (numRelatedJobs > 0)
+    pthread_cond_wait(&cond, &mutex);
+
+  pthread_mutex_unlock(&mutex);
+
+  std::vector<FinderData *>::iterator vit;
+  for (vit = jobs.begin(); vit != jobs.end(); vit++)
+  {
+    FinderData *data = *vit;
+    entries.insert(data->dirEntries.begin(), data->dirEntries.end());
+    results.insert(data->results.begin(), data->results.end());
+
+    delete data;
+  }
+
+  pthread_mutex_destroy(&mutex);
+  pthread_cond_destroy(&cond);
 
   return ret;
 }
@@ -518,6 +589,76 @@ RadosFsDir::removeMetadata(const std::string &entry, const std::string &key)
   }
 
   return -1;
+}
+
+int
+RadosFsDir::find(std::set<std::string> &results, const std::string args)
+{
+  int ret = 0;
+  std::set<std::string> dirs, files, entries;
+  std::map<RadosFsFinder::FindOptions, FinderArg> finderArgs;
+
+  entries.insert(path());
+
+  int startPos = 0, lastPos = 0;
+  std::string key, value, op;
+
+  while ((lastPos = splitToken(args, startPos, key, value, &op)) != startPos)
+  {
+    if (key == "")
+      break;
+
+    FinderArg arg;
+    arg.valueStr = "";
+    RadosFsFinder::FindOptions option;
+
+    bool isIName = key == FINDER_KEY_INAME;
+    if (key == FINDER_KEY_NAME || isIName)
+    {
+      arg.valueStr = value;
+
+      option = RadosFsFinder::FIND_NAME_EQ;
+
+      if (op == FINDER_NE_SYM)
+        option = RadosFsFinder::FIND_NAME_NE;
+
+      if (isIName)
+        arg.valueInt = 1;
+      else
+        arg.valueInt = 0;
+    }
+    else if (key == FINDER_KEY_SIZE)
+    {
+      arg.valueInt = atoi(value.c_str());
+
+      if (op == FINDER_EQ_SYM)
+        option = RadosFsFinder::FIND_SIZE_EQ;
+      else if (op == FINDER_NE_SYM)
+        option = RadosFsFinder::FIND_SIZE_NE;
+      else if (op == FINDER_GE_SYM)
+        option = RadosFsFinder::FIND_SIZE_GE;
+      else if (op == FINDER_GT_SYM)
+        option = RadosFsFinder::FIND_SIZE_GT;
+      else if (op == FINDER_LE_SYM)
+        option = RadosFsFinder::FIND_SIZE_LE;
+      else if (op == FINDER_LT_SYM)
+        option = RadosFsFinder::FIND_SIZE_LT;
+    }
+
+    finderArgs[option] = arg;
+
+    startPos = lastPos;
+    key = value = "";
+  }
+
+  if (finderArgs.size() == 0)
+    return -EINVAL;
+
+  while (entries.size() != 0 &&
+         ((ret = mPriv->find(entries, results, finderArgs)) == 0))
+  {}
+
+  return ret;
 }
 
 RADOS_FS_END_NAMESPACE

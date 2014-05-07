@@ -80,6 +80,8 @@ public:
 
   int removeMetadata(const std::string &entry, const std::string &key);
 
+  int find(std::set<std::string> &results, const std::string args);
+
 private:
   std::auto_ptr<RadosFsDirPriv> mPriv;
 };

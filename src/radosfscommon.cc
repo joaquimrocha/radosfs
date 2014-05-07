@@ -576,7 +576,8 @@ int
 splitToken(const std::string &line,
            int startPos,
            std::string &key,
-           std::string &value)
+           std::string &value,
+           std::string *op)
 {
   std::string token("");
   bool gotKey(false);
@@ -612,10 +613,49 @@ splitToken(const std::string &line,
         gotKey = true;
         quoteOpened = false;
 
+        if (op)
+          *op = "=";
+
         continue;
       }
-      else if (line[i] == ' ')
+
+      if (line[i] == ' ')
         continue;
+
+      if (op != 0)
+      {
+        if (line[i] == '<' || line[i] == '>')
+        {
+          key = token;
+          token = "";
+          gotKey = true;
+          quoteOpened = false;
+          *op = line[i];
+
+          if (i + 1 < line.length() && line[i + 1] == '=')
+          {
+            *op += "=";
+            i++;
+          }
+
+          continue;
+        }
+
+        if (line[i] == '!')
+        {
+          if (i + 1 < line.length() && line[i + 1] == '=')
+          {
+            key = token;
+            token = "";
+            gotKey = true;
+            quoteOpened = false;
+            *op = "!=";
+            i++;
+
+            continue;
+          }
+        }
+      }
     }
 
     token += line[i];

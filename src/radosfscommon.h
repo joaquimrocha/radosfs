@@ -128,7 +128,8 @@ int getMapOfXAttrFromPath(rados_ioctx_t ioctx,
 int splitToken(const std::string &line,
                int startPos,
                std::string &key,
-               std::string &value);
+               std::string &value,
+               std::string *op = 0);
 
 int writeContentsAtomically(rados_ioctx_t ioctx,
                             const std::string &obj,
