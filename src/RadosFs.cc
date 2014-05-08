@@ -558,6 +558,8 @@ RadosFs::removePool(const std::string &name)
 
   if (mPriv->poolMap.count(prefix) > 0)
   {
+    RadosFsPool pool = mPriv->poolMap[prefix];
+    rados_ioctx_destroy(pool.ioctx);
     mPriv->poolMap.erase(prefix);
     mPriv->poolPrefixSet.erase(prefix);
     ret = 0;
