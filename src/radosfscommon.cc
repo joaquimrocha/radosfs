@@ -222,6 +222,8 @@ checkIfPathExists(rados_ioctx_t &ioctx,
 
       if (linkTarget)
         *linkTarget = buff;
+      else
+        delete[] buff;
 
       return true;
     }
