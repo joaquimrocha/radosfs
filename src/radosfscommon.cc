@@ -205,7 +205,11 @@ checkIfPathExists(rados_ioctx_t &ioctx,
   if (size == 0)
   {
     char *buff = new char[XATTR_LINK_LENGTH];
-    int ret = rados_getxattr(ioctx, realPath.c_str(), XATTR_LINK, buff, length);
+    int ret = rados_getxattr(ioctx,
+                             realPath.c_str(),
+                             XATTR_LINK,
+                             buff,
+                             XATTR_LINK_LENGTH);
 
     if (ret > 0)
     {
