@@ -211,6 +211,11 @@ checkIfPathExists(rados_ioctx_t &ioctx,
     {
       *filetype = S_IFLNK;
 
+      if (ret < XATTR_LINK_LENGTH)
+        buff[ret] = '\0';
+      else
+        buff[XATTR_LINK_LENGTH - 1] = '\0';
+
       if (linkTarget)
         *linkTarget = buff;
 
