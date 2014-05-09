@@ -230,6 +230,8 @@ fsck(radosfs::RadosFs &radosFs,
   }
 
   rados_ioctx_destroy(ioctx);
+
+  return ret;
 }
 
 static void
