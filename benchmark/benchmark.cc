@@ -68,7 +68,7 @@ createFiles(void *bInfo)
     if (ret != 0)
     {
       fprintf(stderr, "\nProblem creating directory %s: %s ... "
-              "Exiting thread %s\n",
+              "Exiting thread %d\n",
               prefix.str().c_str(), strerror(ret), threadId);
 
       goto exitThread;
