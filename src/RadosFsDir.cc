@@ -369,7 +369,7 @@ RadosFsDir::remove()
 
   ret = genericStat(ioctx, mPriv->parentDir.c_str(), &buff);
 
-  if (ret != 0 || !mPriv->dirInfo && !mPriv->updateDirInfoPtr())
+  if (ret != 0 || (!mPriv->dirInfo && !mPriv->updateDirInfoPtr()))
     return -ENOENT;
 
   if (!statBuffHasPermission(buff,
