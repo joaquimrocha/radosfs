@@ -523,7 +523,7 @@ getXAttrFromPath(rados_ioctx_t ioctx,
   ret = rados_getxattr(ioctx, path.c_str(), attrName.c_str(), buff, length);
 
   if (ret >= 0)
-    value = std::string(buff);
+    value = std::string(buff, ret);
 
   delete[] buff;
 
@@ -575,7 +575,8 @@ int getMapOfXAttrFromPath(rados_ioctx_t ioctx,
     if (uid != ROOT_UID && strncmp(attr, XATTR_SYS_PREFIX, sysPrefixSize) == 0)
       continue;
 
-    map[attr] = value;
+    if (value != 0)
+      map[attr] = std::string(value, len);
   }
 
   rados_getxattrs_end(iter);
