@@ -519,6 +519,9 @@ getXAttrFromPath(rados_ioctx_t ioctx,
   if (ret != 0)
     return ret;
 
+  if (length == 0)
+    return -EINVAL;
+
   char *buff = new char[length];
   ret = rados_getxattr(ioctx, path.c_str(), attrName.c_str(), buff, length);
 
