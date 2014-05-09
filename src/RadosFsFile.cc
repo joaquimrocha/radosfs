@@ -426,7 +426,7 @@ RadosFsFile::stat(struct stat *buff)
   if (exists())
     *buff = mPriv->statBuff;
 
-  RadosFsInfo::stat(buff);
+  return RadosFsInfo::stat(buff);
 }
 
 RADOS_FS_END_NAMESPACE

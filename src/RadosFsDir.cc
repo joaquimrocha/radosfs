@@ -490,7 +490,7 @@ RadosFsDir::stat(struct stat *buff)
   if (mPriv->dirInfo)
     *buff = mPriv->dirInfo->statBuff;
 
-  RadosFsInfo::stat(buff);
+  return RadosFsInfo::stat(buff);
 }
 
 int
