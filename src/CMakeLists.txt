@@ -29,7 +29,7 @@ configure_file(
 )
 
 add_custom_command(
-  OUTPUT loglevel
+  OUTPUT ${LOG_LEVEL_FILE_BASE_NAME}
   COMMAND echo DEBUG > ${LOG_LEVEL_FILE_BASE_NAME}
   )
 add_custom_target(${LOG_LEVEL_FILE_BASE_NAME}
