@@ -19,7 +19,7 @@
 find_package( GTest )
 find_package( LibRados REQUIRED )
 
-if (GTest_FOUND)
+if (GTEST_FOUND)
 include_directories( ${PROJECT_SOURCE_DIR}/src ${GTEST_INCLUDE_DIRS} ${RADOS_INCLUDE_DIR} )
 
 add_executable( run-tests tests.cc RadosFsTest.cc RadosFsTest.hh )
@@ -29,4 +29,4 @@ add_test(
     NAME run-tests
     COMMAND run-tests
 )
-endif (GTest_FOUND)
+endif (GTEST_FOUND)
