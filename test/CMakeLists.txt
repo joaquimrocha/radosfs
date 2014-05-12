@@ -16,7 +16,7 @@
 # Lesser General Public License at http://www.gnu.org/licenses/lgpl-3.0.txt
 # for more details.
 
-find_package( GTest REQUIRED )
+find_package( GTest )
 find_package( LibRados REQUIRED )
 
 include_directories( ${PROJECT_SOURCE_DIR}/src ${GTEST_INCLUDE_DIRS} ${RADOS_INCLUDE_DIR} )
