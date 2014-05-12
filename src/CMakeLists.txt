@@ -32,8 +32,8 @@ add_custom_command(
   OUTPUT ${LOG_LEVEL_FILE_BASE_NAME}
   COMMAND echo DEBUG > ${LOG_LEVEL_FILE_BASE_NAME}
   )
-add_custom_target(${LOG_LEVEL_FILE_BASE_NAME}
-  ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${LOG_LEVEL_FILE_BASE_NAME}
+add_custom_target(${LOG_LEVEL_FILE_BASE_NAME}_target
+  ALL DEPENDS ${LOG_LEVEL_FILE_BASE_NAME}
 )
 
 add_library( radosfs SHARED
