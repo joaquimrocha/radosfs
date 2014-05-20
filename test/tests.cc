@@ -757,8 +757,7 @@ TEST_F(RadosFsTest, FileReadWrite)
 
   EXPECT_EQ(0, file.create());
 
-  EXPECT_EQ(contents.length(),
-            file.writeSync(contents.c_str(), 0, contents.length()));
+  EXPECT_EQ(0, file.writeSync(contents.c_str(), 0, contents.length()));
 
   // Read and verify the contents
 
@@ -787,8 +786,7 @@ TEST_F(RadosFsTest, FileReadWrite)
 
   buff = new char[contents2.length() + 1];
 
-  EXPECT_EQ(contents2.length(),
-            file.write(contents2.c_str(), 0, contents2.length()));
+  EXPECT_EQ(0, file.write(contents2.c_str(), 0, contents2.length()));
 
   // Read and verify the contents
 
