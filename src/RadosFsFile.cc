@@ -459,9 +459,65 @@ RadosFsFile::remove()
 }
 
 int
+createStripes(rados_ioctx_t ioctx,
+              const std::string &path,
+              size_t from,
+              size_t to)
+{
+  int ret;
+
+  for (; from < to; from++)
+  {
+    const char *stripe = makeFileStripeName(path, from).c_str();
+    ret = rados_write(ioctx, stripe, "", 0, 0);
+
+    if (ret != 0)
+    {
+      radosfs_debug("Cannot create stripe %s: %s", stripe, strerror(ret));
+      break;
+    }
+  }
+
+  return ret;
+}
+
+int
+removeStripes(rados_ioctx_t ioctx,
+              const std::string &path,
+              size_t from,
+              size_t to)
+{
+  int ret;
+
+  for (; from > to; from--)
+  {
+    const std::string &stripe = makeFileStripeName(path, from);
+    ret = rados_remove(ioctx, stripe.c_str());
+
+    if (ret != 0)
+    {
+      radosfs_debug("Cannot remove stripe %s: %s",
+                    stripe.c_str(),
+                    strerror(ret));
+      break;
+    }
+  }
+
+  return ret;
+}
+
+int
 RadosFsFile::truncate(unsigned long long size)
 {
-  int ret = mPriv->verifyExistanceAndType();
+  struct stat statBuff;
+  RadosFsStat *fsStat = mPriv->fsStat();
+  rados_ioctx_t ioctx = mPriv->ioctx;
+  int ret = stat(&statBuff);
+
+  if (ret != 0)
+    return ret;
+
+  ret = mPriv->verifyExistanceAndType();
 
   if (ret != 0)
     return ret;
@@ -477,8 +533,35 @@ RadosFsFile::truncate(unsigned long long size)
     if (isLink())
       return mPriv->target->truncate(size);
 
-    ret = rados_trunc(mPriv->ioctx,
-                      mPriv->fsStat()->translatedPath.c_str(), size);
+    const size_t stripeSize = mPriv->radosFsIO->stripeSize();
+    size_t lastStripe = 0;
+
+    if (statBuff.st_size > 0)
+      lastStripe = (statBuff.st_size - 1) / stripeSize;
+
+    size_t newLastStripe = 0;
+
+    if (size > 0)
+      newLastStripe = (size - 1) / stripeSize;
+
+    if (lastStripe > newLastStripe)
+      removeStripes(ioctx, fsStat->translatedPath, lastStripe, newLastStripe);
+    else if (lastStripe < newLastStripe)
+      createStripes(ioctx, fsStat->translatedPath, lastStripe + 1, newLastStripe);
+
+    const char *stripe = makeFileStripeName(fsStat->translatedPath,
+                                            newLastStripe).c_str();
+
+    // create new last stripe if it didn't exist before
+    if (newLastStripe > lastStripe)
+      ret = rados_write(ioctx, stripe, "", 0, 0);
+
+    if (ret == 0)
+    {
+      size_t remainingSize = size - newLastStripe * stripeSize;
+
+      ret = rados_trunc(ioctx, stripe, remainingSize);
+    }
   }
   else
     ret = -EACCES;
