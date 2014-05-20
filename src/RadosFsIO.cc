@@ -52,7 +52,42 @@ RadosFsIO::read(char *buff, off_t offset, size_t blen)
 {
   sync();
 
-  return rados_read(mPool->ioctx, mInode.c_str(), buff, blen, offset);
+  int ret = 0;
+
+  if (blen == 0)
+  {
+    radosfs_debug("Invalid length for reading. Cannot read 0 bytes.");
+    return -EINVAL;
+  }
+
+  off_t currentOffset =  offset % mStripeSize;
+  size_t bytesToRead = blen;
+
+  while (bytesToRead  > 0)
+  {
+    const std::string &fileStripe = getStripePath(blen - bytesToRead  + offset);
+    const size_t length = std::min(mStripeSize - currentOffset, bytesToRead );
+
+    ret += rados_read(mPool->ioctx,
+                      fileStripe.c_str(),
+                      buff,
+                      length,
+                      currentOffset);
+
+    currentOffset = 0;
+
+    if (ret < 0)
+      return ret;
+
+    if (bytesToRead  < mStripeSize)
+      break;
+    else
+      bytesToRead  -= length;
+
+    buff += length;
+  }
+
+  return ret;
 }
 
 ssize_t
@@ -158,7 +193,7 @@ RadosFsIO::getLastStripeIndex(void) const
 std::string
 RadosFsIO::getStripePath(off_t offset) const
 {
-  return makeFileStripeName(mPath, offset / mStripeSize);
+  return makeFileStripeName(mInode, offset / mStripeSize);
 }
 
 RADOS_FS_END_NAMESPACE
