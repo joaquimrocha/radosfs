@@ -1477,7 +1477,7 @@ TEST_F(RadosFsTest, LinkFile)
   std::string text = "this is a link";
   char contents[1024];
 
-  EXPECT_EQ(text.length(), fileLink.write(text.c_str(), 0, text.length()));
+  EXPECT_EQ(0, fileLink.write(text.c_str(), 0, text.length()));
 
   // Read from file and check contents
 
@@ -1495,7 +1495,7 @@ TEST_F(RadosFsTest, LinkFile)
 
   text = "this is a file";
 
-  EXPECT_EQ(text.length(), file.write(text.c_str(), 0, text.length()));
+  EXPECT_EQ(0, file.write(text.c_str(), 0, text.length()));
 
   // Read from link and check contents
 
@@ -1601,7 +1601,7 @@ TEST_F(RadosFsTest, LinkPermissions)
 
   // Write in the file through the link as root
 
-  EXPECT_EQ(1, fileLink.write(buff, 0, 1));
+  EXPECT_EQ(0, fileLink.write(buff, 0, 1));
 
   // Write in the file through the link as user
 
