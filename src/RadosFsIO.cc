@@ -102,31 +102,60 @@ ssize_t
 RadosFsIO::write(const char *buff, off_t offset, size_t blen)
 {
   int ret;
-  size_t compIndex, readBytes;
-  readBytes = blen;
+
+  if (blen == 0)
+  {
+    radosfs_debug("Invalid length for writing. Cannot write 0 bytes.");
+    return -EINVAL;
+  }
 
   if (((size_t) offset + blen) > mPool->size)
     return -EFBIG;
 
-  rados_completion_t comp;
-  mCompletionList.push_back(comp);
-  compIndex = mCompletionList.size() - 1;
+  off_t currentOffset =  offset % mStripeSize;
+  size_t bytesToWrite = blen;
 
-  rados_aio_create_completion(0, 0, 0, &mCompletionList[compIndex]);
-  ret = rados_aio_write(mPool->ioctx, mInode.c_str(),
-                        mCompletionList[compIndex], (const char *) buff,
-                        blen, offset);
-
-  // remove the completion object if something failed
-  if (ret != 0)
+  while (bytesToWrite > 0)
   {
-    std::vector<rados_completion_t>::iterator it = mCompletionList.begin();
-    std::advance(it, compIndex);
-    mCompletionList.erase(it);
-    readBytes = 0;
+    rados_completion_t comp;
+
+    mCompletionList.push_back(comp);
+
+    size_t compIndex = mCompletionList.size() - 1;
+    const std::string &fileStripe = getStripePath(blen - bytesToWrite + offset);
+    const size_t length = std::min(mStripeSize - currentOffset, bytesToWrite);
+
+    rados_aio_create_completion(0, 0, 0, &mCompletionList[compIndex]);
+    ret = rados_aio_write(mPool->ioctx, fileStripe.c_str(),
+                          mCompletionList[compIndex],
+                          (const char *) buff,
+                          length,
+                          currentOffset);
+
+    currentOffset = 0;
+
+    // remove the completion object if something failed
+    if (ret != 0)
+    {
+      std::vector<rados_completion_t>::iterator it = mCompletionList.begin();
+      std::advance(it, compIndex);
+      mCompletionList.erase(it);
+
+      radosfs_debug("Problem writing to %s: %s",
+                    fileStripe.c_str(),
+                    strerror(ret));
+      break;
+    }
+
+    if (bytesToWrite < mStripeSize)
+      break;
+    else
+      bytesToWrite -= length;
+
+    buff += length;
   }
 
-  return readBytes;
+  return ret;
 }
 
 void
