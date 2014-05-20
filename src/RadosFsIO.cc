@@ -95,7 +95,11 @@ RadosFsIO::writeSync(const char *buff, off_t offset, size_t blen)
 {
   sync();
 
-  return rados_write(mPool->ioctx, mInode.c_str(), buff, blen, offset);
+  int ret = write(buff, offset, blen);
+
+  sync();
+
+  return ret;
 }
 
 ssize_t
