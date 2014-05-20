@@ -676,20 +676,67 @@ TEST_F(RadosFsTest, FileTruncate)
 {
   AddPool();
 
+  // Make the files' stripe size small so many stripes will be generated
+
+  const size_t stripeSize = 128;
+  radosFs.setFileStripeSize(stripeSize);
+
   const std::string fileName("/test");
-  const unsigned long long size = 100;
+  char contents[stripeSize * 10];
+  memset(contents, 'x', stripeSize * 10);
+  unsigned long long size = 1024;
+
+  // Create a file and truncate it to the content's size
 
   radosfs::RadosFsFile file(&radosFs, fileName,
                             radosfs::RadosFsFile::MODE_WRITE);
 
   EXPECT_EQ(0, file.create());
 
+  EXPECT_EQ(0, file.write(contents, 0, stripeSize * 10));
+
   EXPECT_EQ(0, file.truncate(size));
+
+  // Create a new instance of the same file and check the size
 
   radosfs::RadosFsFile sameFile(&radosFs, fileName,
                                 radosfs::RadosFsFile::MODE_READ);
 
   struct stat buff;
+
+  EXPECT_EQ(0, sameFile.stat(&buff));
+
+  EXPECT_EQ(size, buff.st_size);
+
+  // Truncate the file to 0 and verify
+
+  EXPECT_EQ(0, file.truncate(0));
+
+  sameFile.update();
+
+  EXPECT_EQ(0, sameFile.stat(&buff));
+
+  EXPECT_EQ(0, buff.st_size);
+
+  // Truncate the file to a non-multiple of the stripe size and verify
+
+  size = stripeSize * 5.3;
+
+  EXPECT_EQ(0, file.truncate(size));
+
+  sameFile.update();
+
+  EXPECT_EQ(0, sameFile.stat(&buff));
+
+  EXPECT_EQ(size, buff.st_size);
+
+  // Truncate the file to a half of the stripe size and verify
+
+  size = stripeSize / 2;
+
+  EXPECT_EQ(0, file.truncate(size));
+
+  sameFile.update();
 
   EXPECT_EQ(0, sameFile.stat(&buff));
 
