@@ -115,6 +115,9 @@ public:
 
   LogLevel logLevel(void) const;
 
+  void setFileStripeSize(const size_t size);
+  size_t fileStripeSize(void) const;
+
 private:
   RadosFsPriv *mPriv;
 

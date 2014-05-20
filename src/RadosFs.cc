@@ -33,7 +33,8 @@ __thread gid_t RadosFsPriv::gid;
 RadosFsPriv::RadosFsPriv(RadosFs *radosFs)
   : radosCluster(0),
     dirCompactRatio(DEFAULT_DIR_COMPACT_RATIO),
-    finder(radosFs)
+    finder(radosFs),
+    fileStripeSize(FILE_STRIPE_SIZE)
 {
   uid = 0;
   gid = 0;
@@ -995,6 +996,27 @@ RadosFs::LogLevel
 RadosFs::logLevel(void) const
 {
   return mPriv->logger.level;
+}
+
+void
+RadosFs::setFileStripeSize(const size_t size)
+{
+  size_t realSize = size;
+
+  if (size == 0)
+  {
+    realSize = 1;
+    radosfs_debug("Cannot set the file stripe size as 0. Setting to %d.",
+                  realSize);
+  }
+
+  mPriv->fileStripeSize = realSize;
+}
+
+size_t
+RadosFs::fileStripeSize(void) const
+{
+  return mPriv->fileStripeSize;
 }
 
 RADOS_FS_END_NAMESPACE

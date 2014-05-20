@@ -61,5 +61,6 @@
 #define FINDER_GE_SYM ">="
 #define FINDER_LT_SYM "<"
 #define FINDER_LE_SYM "<="
+#define FILE_STRIPE_SIZE (128 * MEGABYTE_CONVERSION) // 128MB
 
 #endif /* __RADOS_FS_DEFINES_HH__ */

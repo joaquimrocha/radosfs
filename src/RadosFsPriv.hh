@@ -157,6 +157,7 @@ public:
   float dirCompactRatio;
   RadosFsLogger logger;
   RadosFsFinder finder;
+  size_t fileStripeSize;
 };
 
 RADOS_FS_END_NAMESPACE
