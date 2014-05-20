@@ -47,6 +47,8 @@ public:
   void setLazyRemoval(bool remove) { mLazyRemoval = remove; }
   bool lazyRemoval(void) const { return mLazyRemoval; }
 
+  size_t stripeSize(void) const { return mStripeSize; }
+
 private:
   const RadosFsPool *mPool;
   const std::string mInode;
