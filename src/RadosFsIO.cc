@@ -155,4 +155,10 @@ RadosFsIO::getLastStripeIndex(void) const
   return lastStripe;
 }
 
+std::string
+RadosFsIO::getStripePath(off_t offset) const
+{
+  return makeFileStripeName(mPath, offset / mStripeSize);
+}
+
 RADOS_FS_END_NAMESPACE

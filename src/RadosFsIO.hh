@@ -47,6 +47,8 @@ public:
   void setLazyRemoval(bool remove) { mLazyRemoval = remove; }
   bool lazyRemoval(void) const { return mLazyRemoval; }
 
+  std::string getStripePath(off_t offset) const;
+
   size_t stripeSize(void) const { return mStripeSize; }
 
   size_t getLastStripeIndex(void) const;
