@@ -17,20 +17,26 @@
  * for more details.
  */
 
+#include <cassert>
 #include <cstdio>
 #include <errno.h>
 
 #include "radosfsdefines.h"
 #include "RadosFsIO.hh"
+#include "RadosFsLogger.hh"
 
 RADOS_FS_BEGIN_NAMESPACE
 
 RadosFsIO::RadosFsIO(const RadosFsPool *pool,
-                     const std::string &iNode)
+                     const std::string &iNode,
+                     size_t stripeSize)
   : mPool(pool),
     mInode(iNode),
-    mLazyRemoval(false)
-{}
+    mLazyRemoval(false),
+    mStripeSize(stripeSize)
+{
+  assert(mStripeSize != 0);
+}
 
 RadosFsIO::~RadosFsIO()
 {

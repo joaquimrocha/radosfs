@@ -87,9 +87,6 @@ RadosFsFilePriv::updatePath()
     target = 0;
   }
 
-  if (!fsFile->isFile())
-    return;
-
   if (fsFile->isLink())
   {
     target = new RadosFsFile(fsFile->filesystem(),
@@ -102,7 +99,31 @@ RadosFsFilePriv::updatePath()
 
     if (!radosFsIO.get())
     {
-      RadosFsIO *fsIO = new RadosFsIO(dataPool, stat->translatedPath);
+      int stripeSize = 0;
+
+      if (fsFile->exists())
+      {
+        const size_t length = 12;
+        char buff[length + 1];
+
+
+        int ret = rados_getxattr(ioctx,
+                                 stat->translatedPath.c_str(),
+                                 XATTR_FILE_STRIPE_SIZE,
+                                 buff,
+                                 length);
+
+        if (ret >= 0)
+        {
+          stripeSize = atoi(buff);
+        }
+      }
+
+      if (stripeSize == 0)
+        stripeSize = radosFs->fileStripeSize();
+
+      RadosFsIO *fsIO = new RadosFsIO(dataPool, stat->translatedPath,
+                                      stripeSize);
 
       radosFsIO = std::tr1::shared_ptr<RadosFsIO>(fsIO);
       radosFs->mPriv->setRadosFsIO(radosFsIO);

@@ -34,7 +34,8 @@ class RadosFsIO
 {
 public:
   RadosFsIO(const RadosFsPool *pool,
-            const std::string &iNode);
+            const std::string &iNode,
+            size_t stripeSize);
   ~RadosFsIO();
 
   ssize_t read(char *buff, off_t offset, size_t blen);
@@ -49,6 +50,7 @@ public:
 private:
   const RadosFsPool *mPool;
   const std::string mInode;
+  size_t mStripeSize;
   bool mLazyRemoval;
   std::vector<rados_completion_t> mCompletionList;
 
