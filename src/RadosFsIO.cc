@@ -90,7 +90,7 @@ RadosFsIO::read(char *buff, off_t offset, size_t blen)
   return ret;
 }
 
-ssize_t
+int
 RadosFsIO::writeSync(const char *buff, off_t offset, size_t blen)
 {
   sync();
@@ -102,7 +102,7 @@ RadosFsIO::writeSync(const char *buff, off_t offset, size_t blen)
   return ret;
 }
 
-ssize_t
+int
 RadosFsIO::write(const char *buff, off_t offset, size_t blen)
 {
   int ret;

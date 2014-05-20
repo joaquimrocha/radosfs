@@ -316,7 +316,7 @@ RadosFsFile::read(char *buff, off_t offset, size_t blen)
   return -EACCES;
 }
 
-ssize_t
+int
 RadosFsFile::write(const char *buff, off_t offset, size_t blen)
 {
   int ret;
@@ -334,7 +334,7 @@ RadosFsFile::write(const char *buff, off_t offset, size_t blen)
   return -EACCES;
 }
 
-ssize_t
+int
 RadosFsFile::writeSync(const char *buff, off_t offset, size_t blen)
 {
   int ret;

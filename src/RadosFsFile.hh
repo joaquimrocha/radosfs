@@ -57,9 +57,9 @@ public:
 
   ssize_t read(char *buff, off_t offset, size_t blen);
 
-  ssize_t write(const char *buff, off_t offset, size_t blen);
+  int write(const char *buff, off_t offset, size_t blen);
 
-  ssize_t writeSync(const char *buff, off_t offset, size_t blen);
+  int writeSync(const char *buff, off_t offset, size_t blen);
 
   int create(int permissions = -1);
 
