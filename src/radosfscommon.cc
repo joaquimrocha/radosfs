@@ -804,3 +804,18 @@ sanitizePath(const std::string &path)
 
   return sanitizedPath;
 }
+
+std::string
+makeFileStripeName(const std::string &filePath, size_t stripeIndex)
+{
+  if (stripeIndex == 0)
+    return filePath;
+
+  char stripeNumHex[FILE_STRIPE_LENGTH];
+  sprintf(stripeNumHex, "%0*x", FILE_STRIPE_LENGTH, (unsigned int) stripeIndex);
+
+  std::ostringstream stream;
+  stream << filePath << "//" << stripeNumHex;
+
+  return stream.str();
+}

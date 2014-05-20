@@ -49,6 +49,8 @@ public:
 
   size_t stripeSize(void) const { return mStripeSize; }
 
+  size_t getLastStripeIndex(void) const;
+
 private:
   const RadosFsPool *mPool;
   const std::string mInode;

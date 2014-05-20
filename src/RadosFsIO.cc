@@ -18,6 +18,7 @@
  */
 
 #include <cassert>
+#include <climits>
 #include <cstdio>
 #include <errno.h>
 
@@ -113,6 +114,45 @@ RadosFsIO::cleanCompletion(bool sync)
     rados_aio_release(*it);
     it = mCompletionList.erase(it);
   }
+}
+
+size_t
+RadosFsIO::getLastStripeIndex(void) const
+{
+  int lastStripe = 1;
+  int nextIndex = lastStripe + FILE_STRIPE_SEARCH_STEP;
+  int lastInexistingIndex = INT_MAX;
+
+  int ret = rados_stat(mPool->ioctx,
+                       makeFileStripeName(mInode, lastStripe).c_str(),
+                       0,
+                       0);
+
+  if (ret != 0)
+    return 0;
+
+
+  while (nextIndex != lastStripe)
+  {
+    ret = rados_stat(mPool->ioctx,
+                     makeFileStripeName(mInode, nextIndex).c_str(),
+                     0,
+                     0);
+
+    if (ret == 0)
+    {
+      lastStripe = nextIndex;
+      nextIndex = std::min(nextIndex + FILE_STRIPE_SEARCH_STEP,
+                           lastInexistingIndex - 1);
+    }
+    else
+    {
+      lastInexistingIndex = nextIndex;
+      nextIndex -= std::max((nextIndex - lastStripe) / 2, 1);
+    }
+  }
+
+  return lastStripe;
 }
 
 RADOS_FS_END_NAMESPACE

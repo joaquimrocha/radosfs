@@ -513,4 +513,38 @@ RadosFsFile::setPath(const std::string &path)
   RadosFsInfo::setPath(filePath);
 }
 
+int
+RadosFsFile::stat(struct stat *buff)
+{
+  int ret;
+  RadosFsStat *stat;
+
+  RadosFsInfo::update();
+
+  if (!exists())
+    return -ENOENT;
+
+  stat = mPriv->fsStat();
+
+  *buff = stat->statBuff;
+
+  if (isLink())
+    return 0;
+
+  size_t numStripes = mPriv->radosFsIO->getLastStripeIndex();
+  u_int64_t size;
+
+  ret = rados_stat(mPriv->ioctx,
+                   makeFileStripeName(stat->translatedPath, numStripes).c_str(),
+                   &size,
+                   0);
+
+  if (ret != 0)
+    return ret;
+
+  buff->st_size = numStripes * mPriv->radosFsIO->stripeSize() + size;
+
+  return ret;
+}
+
 RADOS_FS_END_NAMESPACE

@@ -157,5 +157,6 @@ int statFromXAttr(const std::string &path,
                   struct stat* buff,
                   std::string &link);
 
+std::string makeFileStripeName(const std::string &filePath, size_t stripeIndex);
 
 #endif /* __RADOS_FS_COMMON_HH__ */
