@@ -747,6 +747,11 @@ TEST_F(RadosFsTest, FileReadWrite)
 {
   AddPool();
 
+  // Set a small file stripe size so many stripes will be created
+
+  const size_t stripeSize = 128;
+  radosFs.setFileStripeSize(stripeSize);
+
   // Write contents in file synchronously
 
   const std::string fileName("/test");
@@ -782,7 +787,10 @@ TEST_F(RadosFsTest, FileReadWrite)
 
   // Write other contents in file asynchronously
 
-  const std::string contents2("this is another test");
+  std::string contents2("this is another test ");
+
+  for (int i = 0; i < stripeSize; i++)
+    contents2 += "this is another test ";
 
   buff = new char[contents2.length() + 1];
 
@@ -792,7 +800,24 @@ TEST_F(RadosFsTest, FileReadWrite)
 
   EXPECT_EQ(contents2.length(), file.read(buff, 0, contents2.length()));
 
+  buff[contents2.length()] = '\0';
+
   EXPECT_EQ(0, strcmp(buff, contents2.c_str()));
+
+  // Change the contents of the file and verify them
+
+  const int charToChange = stripeSize * 1.3;
+  EXPECT_EQ(0, file.writeSync("d", charToChange, 1));
+
+  contents2[charToChange] = 'd';
+
+  EXPECT_EQ(contents2.length(), file.read(buff, 0, contents2.length()));
+
+  EXPECT_EQ(0, strcmp(buff, contents2.c_str()));
+
+  EXPECT_EQ(0, file.stat(&statBuff));
+
+  EXPECT_EQ(contents2.length(), statBuff.st_size);
 
   delete[] buff;
 }
