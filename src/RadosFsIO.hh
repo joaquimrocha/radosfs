@@ -53,6 +53,8 @@ public:
 
   size_t getLastStripeIndex(void) const;
 
+  int remove(void);
+
 private:
   const RadosFsPool *mPool;
   const std::string mInode;

@@ -44,7 +44,11 @@ RadosFsIO::~RadosFsIO()
   cleanCompletion();
 
   if (mLazyRemoval)
+<<<<<<< HEAD
     rados_remove(mPool->ioctx, mInode.c_str());
+=======
+    remove();
+>>>>>>> Reimplement file removal to consider stripes
 }
 
 ssize_t
@@ -182,6 +186,30 @@ RadosFsIO::cleanCompletion(bool sync)
     rados_aio_release(*it);
     it = mCompletionList.erase(it);
   }
+}
+
+int
+RadosFsIO::remove()
+{
+  int ret = 0;
+
+  size_t lastStripe = getLastStripeIndex();
+
+  for (int i = lastStripe; i >= 0; i--)
+  {
+    const std::string &stripe = makeFileStripeName(mPath, i);
+    ret = rados_remove(mPool->ioctx, stripe.c_str());
+
+    if (ret != 0)
+    {
+      radosfs_debug("Cannot remove file stripe %s: %s",
+                    stripe.c_str(),
+                    strerror(ret));
+      break;
+    }
+  }
+
+  return ret;
 }
 
 size_t
