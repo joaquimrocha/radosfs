@@ -406,6 +406,38 @@ TEST_F(RadosFsTest, RemoveFile)
   file.setPath("/testfile1");
 
   EXPECT_FALSE(file.exists());
+
+  // Make the files' stripe size small so many stripes will be generated
+
+  const size_t stripeSize = 128;
+  radosFs.setFileStripeSize(stripeSize);
+
+  // Create a file with several stripes
+
+  EXPECT_EQ(0, file.create());
+
+  std::string contents;
+
+  for (int i = 0; i < stripeSize * 3; i++)
+  {
+    contents += "test";
+  }
+
+  EXPECT_EQ(0, file.writeSync(contents.c_str(), 0, contents.length()));
+
+  // Remove the file, create it again and check if the size if 0
+  // (which means that no other stripes should exist)
+
+  EXPECT_EQ(0, file.remove());
+
+  EXPECT_EQ(0, file.create());
+
+  struct stat buff;
+  buff.st_size = 1;
+
+  EXPECT_EQ(0, file.stat(&buff));
+
+  EXPECT_EQ(0, buff.st_size);
 }
 
 TEST_F(RadosFsTest, CreateFileInDir)
