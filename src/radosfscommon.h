@@ -34,7 +34,7 @@
 
 typedef struct {
   std::string name;
-  int size;
+  size_t size;
   rados_ioctx_t ioctx;
 } RadosFsPool;
 

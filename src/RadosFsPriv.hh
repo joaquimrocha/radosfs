@@ -94,7 +94,7 @@ public:
               const std::string &prefix,
               std::map<std::string, RadosFsPool> *map,
               pthread_mutex_t *mutex,
-              int size = 0);
+              size_t size = 0);
 
   int createPrefixDir(const RadosFsPool &pool, const std::string &prefix);
 

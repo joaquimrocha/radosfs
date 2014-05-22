@@ -50,7 +50,8 @@ public:
   int init(const std::string &userName = "",
            const std::string &configurationFile = "");
 
-  int addPool(const std::string &name, const std::string &prefix, int size = 0);
+  int addPool(const std::string &name, const std::string &prefix,
+              size_t size = 0);
 
   int removePool(const std::string &name);
 

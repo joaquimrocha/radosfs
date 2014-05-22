@@ -362,7 +362,7 @@ RadosFsPriv::addPool(const std::string &name,
                      const std::string &prefix,
                      std::map<std::string, RadosFsPool> *map,
                      pthread_mutex_t *mutex,
-                     int size)
+                     size_t size)
 {
   int ret = -EPERM;
   const std::string &cleanPrefix = sanitizePath(prefix  + "/");
@@ -661,7 +661,7 @@ RadosFs::init(const std::string &userName, const std::string &configurationFile)
 int
 RadosFs::addPool(const std::string &name,
                  const std::string &prefix,
-                 int size)
+                 size_t size)
 {
   return mPriv->addPool(name, prefix, &mPriv->poolMap, &mPriv->poolMutex, size);
 }
