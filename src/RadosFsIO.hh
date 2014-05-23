@@ -28,6 +28,11 @@
 #include "RadosFs.hh"
 #include "radosfscommon.h"
 
+#define FILE_STRIPE_LOCKER "file-stripe-locker"
+#define FILE_STRIPE_LOCKER_COOKIE_WRITE "file-stripe-locker-cookie-write"
+#define FILE_STRIPE_LOCKER_COOKIE_OTHER "file-stripe-locker-cookie-other"
+#define FILE_STRIPE_LOCKER_TAG "file-stripe-locker-tag"
+
 RADOS_FS_BEGIN_NAMESPACE
 
 class RadosFsIO

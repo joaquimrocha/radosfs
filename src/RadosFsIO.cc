@@ -116,6 +116,16 @@ RadosFsIO::write(const char *buff, off_t offset, size_t blen)
   if (((size_t) offset + blen) > mPool->size)
     return -EFBIG;
 
+  while ((ret = rados_lock_shared(mPool->ioctx,
+                           inode().c_str(),
+                           FILE_STRIPE_LOCKER,
+                           FILE_STRIPE_LOCKER_COOKIE_WRITE,
+                           FILE_STRIPE_LOCKER_TAG,
+                           "",
+                           0,
+                           0)) == -EBUSY)
+  {}
+
   off_t currentOffset =  offset % mStripeSize;
   size_t bytesToWrite = blen;
 
@@ -159,6 +169,11 @@ RadosFsIO::write(const char *buff, off_t offset, size_t blen)
     buff += length;
   }
 
+  rados_unlock(mPool->ioctx,
+               inode().c_str(),
+               FILE_STRIPE_LOCKER,
+               FILE_STRIPE_LOCKER_COOKIE_WRITE);
+
   return ret;
 }
 
@@ -189,6 +204,15 @@ RadosFsIO::remove()
 {
   int ret = 0;
 
+  while (rados_lock_exclusive(mPool->ioctx,
+                              inode().c_str(),
+                              FILE_STRIPE_LOCKER,
+                              FILE_STRIPE_LOCKER_COOKIE_OTHER,
+                              "",
+                              0,
+                              0) != 0)
+  {}
+
   size_t lastStripe = getLastStripeIndex();
 
   for (int i = lastStripe; i >= 0; i--)
@@ -204,6 +228,11 @@ RadosFsIO::remove()
       break;
     }
   }
+
+  rados_unlock(mPool->ioctx,
+               inode().c_str(),
+               FILE_STRIPE_LOCKER,
+               FILE_STRIPE_LOCKER_COOKIE_OTHER);
 
   return ret;
 }

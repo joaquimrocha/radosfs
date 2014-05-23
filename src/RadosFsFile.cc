@@ -497,10 +497,21 @@ removeStripes(rados_ioctx_t ioctx,
 int
 RadosFsFile::truncate(unsigned long long size)
 {
+  int ret;
   struct stat statBuff;
   RadosFsStat *fsStat = mPriv->fsStat();
   rados_ioctx_t ioctx = mPriv->ioctx;
-  int ret = stat(&statBuff);
+
+  while (rados_lock_exclusive(ioctx,
+                              fsStat->translatedPath.c_str(),
+                              FILE_STRIPE_LOCKER,
+                              FILE_STRIPE_LOCKER_COOKIE_OTHER,
+                              "",
+                              0,
+                              0) != 0)
+  {}
+
+  ret = stat(&statBuff);
 
   if (ret != 0)
     return ret;
@@ -553,6 +564,11 @@ RadosFsFile::truncate(unsigned long long size)
   }
   else
     ret = -EACCES;
+
+  rados_unlock(mPriv->ioctx,
+               fsStat->translatedPath.c_str(),
+               FILE_STRIPE_LOCKER,
+               FILE_STRIPE_LOCKER_COOKIE_OTHER);
 
   return ret;
 }
