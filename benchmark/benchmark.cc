@@ -34,11 +34,17 @@
 #define LINES_PER_HEADER 30
 #define CREATE_IN_DIR_CONF_ARG "create-in-dir"
 #define CREATE_IN_DIR_CONF_ARG_CHAR 'd'
+#define BUFFER_SIZE_ARG "buffer-size"
+#define BUFFER_SIZE_ARG_CHAR 's'
+#define BUFFER_DIVISION_ARG "num-times"
+#define BUFFER_DIVISION_CHAR 'n'
 
 typedef struct
 {
   int threadId;
   BenchmarkMgr *benchmark;
+  size_t bufferSize;
+  size_t bufferDivision;
   std::vector<int> creationTimes;
   float minCreationTime;
   float maxCreationTime;
@@ -49,11 +55,15 @@ typedef struct
 void *
 createFiles(void *bInfo)
 {
+  char *buffer = 0;
   BenchmarkInfo *benchmarkInfo = (BenchmarkInfo *) bInfo;
   int threadId = benchmarkInfo->threadId;
   BenchmarkMgr *benchmark = benchmarkInfo->benchmark;
   benchmarkInfo->minCreationTime = std::numeric_limits<float>::max();
   benchmarkInfo->maxCreationTime = .0;
+
+  if (benchmarkInfo->bufferSize != 0)
+    buffer = new char[benchmarkInfo->bufferSize];
 
   std::stringstream prefix;
   prefix << "/t" << threadId;
@@ -94,6 +104,18 @@ createFiles(void *bInfo)
 
     int ret = file.create();
 
+    if (buffer)
+    {
+      off_t offset = 0;
+      const size_t bufferSize = benchmarkInfo->bufferSize;
+      const size_t slice = bufferSize / benchmarkInfo->bufferDivision;
+
+      for (offset = 0; offset + slice <= bufferSize; offset += slice)
+      {
+        file.write(buffer, offset, slice);
+      }
+    }
+
     clock_gettime(CLOCK_REALTIME, &timeAfter);
 
     if (ret == 0)
@@ -113,6 +135,8 @@ createFiles(void *bInfo)
       benchmarkInfo->maxCreationTime = diffTime;
 
   }
+
+  delete[] buffer;
 
   exitThread:
 
@@ -283,6 +307,8 @@ main(int argc, char **argv)
     info->exited = false;
     info->shouldExit = false;
     info->threadId = i;
+    info->bufferSize = bufferSize;
+    info->bufferDivision = bufferDivision;
 
     infos[i] = info;
 
