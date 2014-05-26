@@ -149,18 +149,28 @@ static void
 showUsage(const char *name)
 {
   fprintf(stderr, "Usage:\n%s DURATION [NUM_THREADS] [%sCLUSTER_CONF] "
-          "[--%s]\n"
+          "[--%s] [--%s=SIZE [--%s=NUM]]\n"
           "\tDURATION     - duration of the benchmark in seconds "
           "(has to be > 0)\n"
           "\tNUM_THREADS  - number of concurrent threads\n"
-          "\tCLUSTER_CONF - path to the cluster's configuration file\n"
+          "\t--%s, -%c - path to the cluster's configuration file\n"
           "\t--%s, -%c - make each thread work inside its own directory "
-          "instead of /\n",
+          "instead of /\n"
+          "\t--%s, -%c - buffer size to be written into each file\n"
+          "\t--%s, -%c - the number of writes it should take to write the buffer\n",
           name,
           CLUSTER_CONF_ARG,
           CREATE_IN_DIR_CONF_ARG,
+          BUFFER_SIZE_ARG,
+          BUFFER_DIVISION_ARG,
+          CLUSTER_CONF_ARG,
+          CLUSTER_CONF_ARG[0],
           CREATE_IN_DIR_CONF_ARG,
-          CREATE_IN_DIR_CONF_ARG_CHAR);
+          CREATE_IN_DIR_CONF_ARG_CHAR,
+          BUFFER_SIZE_ARG,
+          BUFFER_SIZE_ARG_CHAR,
+          BUFFER_DIVISION_ARG,
+          BUFFER_DIVISION_CHAR);
 }
 
 static int
