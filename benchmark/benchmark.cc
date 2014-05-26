@@ -144,12 +144,16 @@ parseArguments(int argc, char **argv,
                std::string &confPath,
                int *runTime,
                int *numThreads,
-               bool *createInDir)
+               bool *createInDir,
+               size_t *bufferSize,
+               size_t *bufferDivision)
 {
   confPath = "";
   const char *confFromEnv(getenv(CONF_ENV_VAR));
   int workers = -1;
   int duration = 0;
+  int bufSize = 0;
+  int bufDiv = 1;
 
   if (confFromEnv != 0)
     confPath = confFromEnv;
@@ -158,21 +162,21 @@ parseArguments(int argc, char **argv,
   struct option options[] =
   {{CLUSTER_CONF_ARG, required_argument, 0, CLUSTER_CONF_ARG[0]},
    {CREATE_IN_DIR_CONF_ARG, no_argument, 0, CREATE_IN_DIR_CONF_ARG_CHAR},
+   {BUFFER_SIZE_ARG, required_argument, 0, BUFFER_SIZE_ARG_CHAR},
+   {BUFFER_DIVISION_ARG, required_argument, 0, BUFFER_DIVISION_CHAR},
    {0, 0, 0, 0}
   };
 
   int c;
-
   std::string args;
 
   for (int i = 0; options[i].name != 0; i++)
   {
     args += options[i].val;
 
-    if (options[i].val != CREATE_IN_DIR_CONF_ARG_CHAR)
+    if (options[i].has_arg != no_argument)
       args += ":";
   }
-
 
   while ((c = getopt_long(argc, argv, args.c_str(), options, &optionIndex)) != -1)
   {
@@ -180,6 +184,10 @@ parseArguments(int argc, char **argv,
       confPath = optarg;
     else if (c == CREATE_IN_DIR_CONF_ARG_CHAR)
       *createInDir = true;
+    else if (c == BUFFER_SIZE_ARG_CHAR)
+      bufSize = atoi(optarg);
+    else if (c == BUFFER_DIVISION_CHAR)
+      bufDiv = atoi(optarg);
   }
 
   if (confPath == "")
@@ -201,6 +209,16 @@ parseArguments(int argc, char **argv,
     return -1;
   }
 
+  if (bufSize < 0)
+    bufSize = 0;
+
+  if (bufDiv <= 0)
+  {
+    fprintf(stderr, "Error: The buffer needs to be written a positive number "
+            "of times\n");
+    return -1;
+  }
+
   optionIndex++;
 
   if (optionIndex < argc)
@@ -213,6 +231,9 @@ parseArguments(int argc, char **argv,
 
   *numThreads = workers;
 
+  *bufferSize = bufSize;
+  *bufferDivision = bufDiv;
+
   return 0;
 }
 
@@ -222,9 +243,10 @@ main(int argc, char **argv)
   std::string confPath;
   int runTime, numThreads;
   bool createInDir;
+  size_t bufferSize, bufferDivision;
 
   int ret = parseArguments(argc, argv, confPath, &runTime, &numThreads,
-                           &createInDir);
+                           &createInDir, &bufferSize, &bufferDivision);
 
   if (ret != 0)
   {
