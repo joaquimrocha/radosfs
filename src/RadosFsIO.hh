@@ -52,6 +52,7 @@ private:
   std::vector<rados_completion_t> mCompletionList;
 
   void sync(void);
+  void cleanCompletion(bool sync = false);
 };
 
 RADOS_FS_END_NAMESPACE

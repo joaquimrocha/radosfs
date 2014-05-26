@@ -90,13 +90,21 @@ RadosFsIO::write(const char *buff, off_t offset, size_t blen)
 void
 RadosFsIO::sync()
 {
+  cleanCompletion(true);
+}
+
+void
+RadosFsIO::cleanCompletion(bool sync)
+{
   std::vector<rados_completion_t>::iterator it;
+
   it = mCompletionList.begin();
   while (it != mCompletionList.end())
   {
-    rados_aio_wait_for_complete(*it);
-    rados_aio_release(*it);
+    if (sync)
+      rados_aio_wait_for_complete(*it);
 
+    rados_aio_release(*it);
     it = mCompletionList.erase(it);
   }
 }
