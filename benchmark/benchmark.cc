@@ -164,9 +164,15 @@ parseArguments(int argc, char **argv,
   int c;
 
   std::string args;
-  args += CREATE_IN_DIR_CONF_ARG_CHAR;
-  args += CLUSTER_CONF_ARG[0];
-  args += ":";
+
+  for (int i = 0; options[i].name != 0; i++)
+  {
+    args += options[i].val;
+
+    if (options[i].val != CREATE_IN_DIR_CONF_ARG_CHAR)
+      args += ":";
+  }
+
 
   while ((c = getopt_long(argc, argv, args.c_str(), options, &optionIndex)) != -1)
   {
