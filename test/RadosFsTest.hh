@@ -64,6 +64,8 @@ protected:
   radosfs::RadosFsPriv *radosFsPriv(void) const { return radosFs.mPriv; }
   radosfs::RadosFsFilePriv *radosFsFilePriv(radosfs::RadosFsFile &file);
 
+  const char * conf(void) const { return mConf; }
+
 private:
   rados_t mCluster;
   const char *mConf;
