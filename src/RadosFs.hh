@@ -119,6 +119,9 @@ public:
   void setFileStripeSize(const size_t size);
   size_t fileStripeSize(void) const;
 
+  void setFileLocking(bool lock);
+  bool fileLocking(void) const;
+
 private:
   RadosFsPriv *mPriv;
 

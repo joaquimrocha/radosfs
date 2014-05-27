@@ -1020,4 +1020,17 @@ RadosFs::fileStripeSize(void) const
   return mPriv->fileStripeSize;
 }
 
+
+void
+RadosFs::setFileLocking(bool lock)
+{
+  mPriv->lockFiles = lock;
+}
+
+bool
+RadosFs::fileLocking(void) const
+{
+  return mPriv->lockFiles;
+}
+
 RADOS_FS_END_NAMESPACE
