@@ -25,8 +25,6 @@
 #include "RadosFsTest.hh"
 #include "radosfscommon.h"
 
-#define TEST_POOL "test-pool"
-
 RadosFsTest::RadosFsTest()
   : mConf(getenv(CONF_ENV_VAR))
 {

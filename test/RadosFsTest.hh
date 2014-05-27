@@ -32,6 +32,7 @@
 
 #define TEST_UID 1000
 #define TEST_GID 1000
+#define TEST_POOL "test-pool"
 
 class RadosFsTest : public testing::Test
 {
