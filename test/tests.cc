@@ -854,6 +854,187 @@ TEST_F(RadosFsTest, FileReadWrite)
   delete[] buff;
 }
 
+typedef struct
+{
+  radosfs::RadosFs *fs;
+  const std::string &fileName;
+  std::string action;
+  const char *contents;
+  const size_t length;
+  bool started;
+  pthread_mutex_t *mutex;
+  pthread_cond_t *cond;
+} FileActionInfo;
+
+void *
+runInThread(void *contents)
+{
+  FileActionInfo *actionInfo = reinterpret_cast<FileActionInfo *>(contents);
+
+
+  radosfs::RadosFs *fs = actionInfo->fs;
+
+  pthread_mutex_lock(actionInfo->mutex);
+
+  radosfs::RadosFsFile file(fs,
+                            actionInfo->fileName,
+                            radosfs::RadosFsFile::MODE_READ_WRITE);
+
+  actionInfo->started = true;
+
+  pthread_cond_signal(actionInfo->cond);
+  pthread_mutex_unlock(actionInfo->mutex);
+
+  if (actionInfo->action == "write")
+    EXPECT_EQ(0, file.write(actionInfo->contents, 0, actionInfo->length));
+  else if (actionInfo->action == "truncate")
+    EXPECT_EQ(0, file.truncate(actionInfo->length));
+  else if (actionInfo->action == "remove")
+    EXPECT_EQ(0, file.remove());
+
+  pthread_exit(0);
+}
+
+TEST_F(RadosFsTest, FileOpsMultipleClients)
+{
+  radosFs.addPool(TEST_POOL, "/", 50 * 1024);
+  radosFs.addMetadataPool(TEST_POOL, "/");
+
+  radosfs::RadosFs otherClient;
+  otherClient.init("", conf());
+
+  otherClient.addPool(TEST_POOL, "/", 50 * 1024);
+  otherClient.addMetadataPool(TEST_POOL, "/");
+
+  const size_t size = pow(1024, 3);
+
+  const size_t stripeSize = size / 30;
+  radosFs.setFileStripeSize(stripeSize);
+  otherClient.setFileStripeSize(stripeSize);
+
+  char *contents = new char[size];
+
+  radosfs::RadosFsFile file(&radosFs,
+                            "/file",
+                            radosfs::RadosFsFile::MODE_READ_WRITE);
+
+  EXPECT_EQ(0, file.create());
+
+  pthread_t t1, t2;
+  pthread_mutex_t mutex;
+  pthread_cond_t cond;
+
+  pthread_mutex_init(&mutex, 0);
+  pthread_cond_init(&cond, 0);
+
+  // Call truncate on a file from a different thread
+  // when a write is taking place
+
+  FileActionInfo c1 = {&radosFs,
+                       file.path(),
+                       "write",
+                       contents,
+                       size,
+                       false,
+                       &mutex,
+                       &cond};
+
+  FileActionInfo c2 = {&otherClient,
+                       file.path(),
+                       "truncate",
+                       0,
+                       0,
+                       false,
+                       &mutex,
+                       &cond};
+
+  pthread_create(&t1, 0, runInThread, &c1);
+
+  pthread_mutex_lock(&mutex);
+
+  if (!c1.started)
+    pthread_cond_wait(&cond, &mutex);
+
+  pthread_mutex_unlock(&mutex);
+
+  pthread_create(&t2, 0, runInThread, &c2);
+
+  void *status;
+  pthread_join(t1, &status);
+  pthread_join(t2, &status);
+
+  // Verify that the object has been correctly truncated
+
+  struct stat buff;
+  buff.st_size = 1;
+
+  EXPECT_EQ(0, file.stat(&buff));
+
+  EXPECT_EQ(0, buff.st_size);
+
+  // Call truncate on a file from a different thread
+  // when a write is taking place
+
+  c2.action = "remove";
+
+  c1.started = false;
+
+  pthread_create(&t1, 0, runInThread, &c1);
+
+  pthread_mutex_lock(&mutex);
+
+  if (!c1.started)
+    pthread_cond_wait(&cond, &mutex);
+
+  pthread_mutex_unlock(&mutex);
+
+  pthread_create(&t2, 0, runInThread, &c2);
+
+  pthread_join(t1, &status);
+  pthread_join(t2, &status);
+
+  // Verify the file has been removed
+
+  EXPECT_EQ(-ENOENT, file.stat(&buff));
+
+  // Create the file again and verify that the size is 0 (no stripes
+  // mistakenly left over)
+
+  EXPECT_EQ(0, file.create());
+
+  buff.st_size = 1;
+
+  EXPECT_EQ(0, file.stat(&buff));
+
+  EXPECT_EQ(0, buff.st_size);
+
+  // Call remove on a file from a different thread
+  // when a truncate is taking place
+
+  c1.action = "truncate";
+  c1.started = false;
+
+  pthread_create(&t1, 0, runInThread, &c1);
+
+  pthread_mutex_lock(&mutex);
+
+  if (!c1.started)
+    pthread_cond_wait(&cond, &mutex);
+
+  pthread_mutex_unlock(&mutex);
+
+  pthread_create(&t2, 0, runInThread, &c2);
+
+  pthread_join(t1, &status);
+  pthread_join(t2, &status);
+
+  // Verify the file has been removed
+
+  EXPECT_EQ(-ENOENT, file.stat(&buff));
+
+  delete[] contents;
+}
+
 TEST_F(RadosFsTest, StatCluster)
 {
   AddPool();
