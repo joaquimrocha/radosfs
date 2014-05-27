@@ -51,7 +51,7 @@ TEST_F(RadosFsTest, Pools)
 
   // Create a pool
 
-  const std::string poolName("test-pool");
+  const std::string poolName(TEST_POOL);
   const std::string poolPrefix("/");
   const int poolSize(10);
 
