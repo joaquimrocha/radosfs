@@ -28,10 +28,12 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
-RadosFsIO::RadosFsIO(const RadosFsPool *pool,
+RadosFsIO::RadosFsIO(RadosFs *radosFs,
+                     const RadosFsPool *pool,
                      const std::string &iNode,
                      size_t stripeSize)
-  : mPool(pool),
+  : mRadosFs(radosFs),
+    mPool(pool),
     mInode(iNode),
     mLazyRemoval(false),
     mStripeSize(stripeSize)
@@ -116,15 +118,20 @@ RadosFsIO::write(const char *buff, off_t offset, size_t blen)
   if (((size_t) offset + blen) > mPool->size)
     return -EFBIG;
 
-  while ((ret = rados_lock_shared(mPool->ioctx,
-                           inode().c_str(),
-                           FILE_STRIPE_LOCKER,
-                           FILE_STRIPE_LOCKER_COOKIE_WRITE,
-                           FILE_STRIPE_LOCKER_TAG,
-                           "",
-                           0,
-                           0)) == -EBUSY)
-  {}
+  const bool lockFiles =  mRadosFs->fileLocking();
+
+  if (lockFiles)
+  {
+    while ((ret = rados_lock_shared(mPool->ioctx,
+                                    inode().c_str(),
+                                    FILE_STRIPE_LOCKER,
+                                    FILE_STRIPE_LOCKER_COOKIE_WRITE,
+                                    FILE_STRIPE_LOCKER_TAG,
+                                    "",
+                                    0,
+                                    0)) == -EBUSY)
+    {}
+  }
 
   off_t currentOffset =  offset % mStripeSize;
   size_t bytesToWrite = blen;
@@ -169,10 +176,13 @@ RadosFsIO::write(const char *buff, off_t offset, size_t blen)
     buff += length;
   }
 
-  rados_unlock(mPool->ioctx,
-               inode().c_str(),
-               FILE_STRIPE_LOCKER,
-               FILE_STRIPE_LOCKER_COOKIE_WRITE);
+  if (lockFiles)
+  {
+    rados_unlock(mPool->ioctx,
+                 inode().c_str(),
+                 FILE_STRIPE_LOCKER,
+                 FILE_STRIPE_LOCKER_COOKIE_WRITE);
+  }
 
   return ret;
 }
@@ -204,14 +214,19 @@ RadosFsIO::remove()
 {
   int ret = 0;
 
-  while (rados_lock_exclusive(mPool->ioctx,
-                              inode().c_str(),
-                              FILE_STRIPE_LOCKER,
-                              FILE_STRIPE_LOCKER_COOKIE_OTHER,
-                              "",
-                              0,
-                              0) != 0)
-  {}
+  const bool lockFiles =  mRadosFs->fileLocking();
+
+  if (lockFiles)
+  {
+    while (rados_lock_exclusive(mPool->ioctx,
+                                inode().c_str(),
+                                FILE_STRIPE_LOCKER,
+                                FILE_STRIPE_LOCKER_COOKIE_OTHER,
+                                "",
+                                0,
+                                0) != 0)
+    {}
+  }
 
   size_t lastStripe = getLastStripeIndex();
 
@@ -229,10 +244,13 @@ RadosFsIO::remove()
     }
   }
 
-  rados_unlock(mPool->ioctx,
-               inode().c_str(),
-               FILE_STRIPE_LOCKER,
-               FILE_STRIPE_LOCKER_COOKIE_OTHER);
+  if (lockFiles)
+  {
+    rados_unlock(mPool->ioctx,
+                 inode().c_str(),
+                 FILE_STRIPE_LOCKER,
+                 FILE_STRIPE_LOCKER_COOKIE_OTHER);
+  }
 
   return ret;
 }

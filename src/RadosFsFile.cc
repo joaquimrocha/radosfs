@@ -122,8 +122,8 @@ RadosFsFilePriv::updatePath()
       if (stripeSize == 0)
         stripeSize = radosFs->fileStripeSize();
 
-      RadosFsIO *fsIO = new RadosFsIO(dataPool, stat->translatedPath,
-                                      stripeSize);
+      RadosFsIO *fsIO = new RadosFsIO(fsFile->filesystem(), dataPool,
+                                      stat->translatedPath, stripeSize);
 
       radosFsIO = std::tr1::shared_ptr<RadosFsIO>(fsIO);
       radosFs->mPriv->setRadosFsIO(radosFsIO);
@@ -501,6 +501,7 @@ RadosFsFile::truncate(unsigned long long size)
   struct stat statBuff;
   RadosFsStat *fsStat = mPriv->fsStat();
   rados_ioctx_t ioctx = mPriv->ioctx;
+  const bool lockFiles = filesystem()->fileLocking();
 
   while (rados_lock_exclusive(ioctx,
                               fsStat->translatedPath.c_str(),

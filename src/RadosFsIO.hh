@@ -38,7 +38,8 @@ RADOS_FS_BEGIN_NAMESPACE
 class RadosFsIO
 {
 public:
-  RadosFsIO(const RadosFsPool *pool,
+  RadosFsIO(RadosFs *radosFs,
+            const RadosFsPool *pool,
             const std::string &iNode,
             size_t stripeSize);
   ~RadosFsIO();
@@ -61,6 +62,7 @@ public:
   int remove(void);
 
 private:
+  RadosFs *mRadosFs;
   const RadosFsPool *mPool;
   const std::string mInode;
   size_t mStripeSize;
