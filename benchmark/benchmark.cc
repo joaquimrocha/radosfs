@@ -148,7 +148,7 @@ createFiles(void *bInfo)
 static void
 showUsage(const char *name)
 {
-  fprintf(stderr, "Usage:\n%s DURATION [NUM_THREADS] [%sCLUSTER_CONF] "
+  fprintf(stderr, "Usage:\n%s DURATION [NUM_THREADS] [--%s=CLUSTER_CONF] "
           "[--%s] [--%s=SIZE [--%s=NUM]]\n"
           "\tDURATION     - duration of the benchmark in seconds "
           "(has to be > 0)\n"
