@@ -158,6 +158,7 @@ public:
   RadosFsLogger logger;
   RadosFsFinder finder;
   size_t fileStripeSize;
+  bool lockFiles;
 };
 
 RADOS_FS_END_NAMESPACE

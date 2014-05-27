@@ -34,7 +34,8 @@ RadosFsPriv::RadosFsPriv(RadosFs *radosFs)
   : radosCluster(0),
     dirCompactRatio(DEFAULT_DIR_COMPACT_RATIO),
     finder(radosFs),
-    fileStripeSize(FILE_STRIPE_SIZE)
+    fileStripeSize(FILE_STRIPE_SIZE),
+    lockFiles(true)
 {
   uid = 0;
   gid = 0;
