@@ -125,7 +125,6 @@ public:
   static __thread gid_t gid;
   std::vector<rados_completion_t> completionList;
   std::map<std::string, RadosFsPool> poolMap;
-  std::set<std::string> poolPrefixSet;
   pthread_mutex_t poolMutex;
   PriorityCache dirCache;
   pthread_mutex_t dirCacheMutex;

@@ -347,10 +347,6 @@ RadosFsPriv::addPool(const std::string &name,
 
   poolMap[prefix.c_str()] = pool;
 
-  // We keep a set to quickly look for the prefix though
-  // in the future we could implement a trie for improved efficiency
-  poolPrefixSet.insert(prefix.c_str());
-
   pthread_mutex_unlock(&poolMutex);
 
   return ret;
@@ -361,14 +357,22 @@ RadosFsPriv::getPoolFromPath(const std::string &path)
 {
   RadosFsPool *pool = 0;
 
+  size_t maxLength = 0;
   pthread_mutex_lock(&poolMutex);
 
-  std::set<std::string>::reverse_iterator it;
-  for (it = poolPrefixSet.rbegin(); it != poolPrefixSet.rend(); it++)
+  std::map<std::string, RadosFsPool>::const_iterator it;
+  for (it = poolMap.begin(); it != poolMap.end(); it++)
   {
-    if (path.compare(0, (*it).length(), *it) == 0)
+    const std::string &prefix = (*it).first;
+    const size_t prefixLength = prefix.length();
+
+    if (prefixLength < maxLength)
+      continue;
+
+    if (path.compare(0, prefixLength, prefix) == 0)
     {
-      pool = &poolMap[*it];
+      pool = &poolMap[prefix];
+      maxLength = prefixLength;
       break;
     }
   }
@@ -561,7 +565,6 @@ RadosFs::removePool(const std::string &name)
     RadosFsPool pool = mPriv->poolMap[prefix];
     rados_ioctx_destroy(pool.ioctx);
     mPriv->poolMap.erase(prefix);
-    mPriv->poolPrefixSet.erase(prefix);
     ret = 0;
   }
 
