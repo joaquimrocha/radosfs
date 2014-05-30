@@ -49,6 +49,17 @@ TEST_F(RadosFsTest, Pools)
 
   EXPECT_GT(allPools.size(), 0);
 
+  radosfs::RadosFsFile file(&radosFs,
+                            "/file",
+                            radosfs::RadosFsFile::MODE_READ_WRITE);
+
+  EXPECT_EQ(-ENODEV, file.create());
+
+  radosfs::RadosFsDir dir(&radosFs,
+                          "/dir");
+
+  EXPECT_EQ(-ENODEV, dir.create());
+
   // Create a pool
 
   const std::string poolName(TEST_POOL);
