@@ -30,6 +30,7 @@ RADOS_FS_BEGIN_NAMESPACE
 RadosFsInfoPriv::RadosFsInfoPriv(RadosFs *radosFs, const std::string &objPath)
   : radosFs(radosFs),
     target(0),
+    ioctx(0),
     fileType(0),
     exists(false)
 {
@@ -247,6 +248,9 @@ RadosFsInfo::stat(struct stat *buff)
 void
 RadosFsInfo::update()
 {
+  if (mPriv->ioctx == 0)
+    return;
+
   char *linkTarget = 0;
   mPriv->exists = checkIfPathExists(mPriv->ioctx,
                                     mPriv->path.c_str(),
