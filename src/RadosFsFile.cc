@@ -33,7 +33,8 @@ RadosFsFilePriv::RadosFsFilePriv(RadosFsFile *fsFile,
   : fsFile(fsFile),
     permissions(RadosFsFile::MODE_NONE),
     mode(mode),
-    target(0)
+    target(0),
+    ioctx(0)
 {
   updatePath();
 }
@@ -280,6 +281,9 @@ int
 RadosFsFile::create(int mode)
 {
   int ret;
+
+  if (mPriv->ioctx == 0)
+    return -ENODEV;
 
   // we don't allow object names that end in a path separator
   const std::string filePath = path();
