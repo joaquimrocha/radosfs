@@ -106,6 +106,10 @@ public:
 
   const RadosFsPool * getDataPoolFromPath(const std::string &path);
 
+  std::string poolPrefix(const std::string &pool,
+                         std::map<std::string, RadosFsPool> *map,
+                         pthread_mutex_t *mutex) const;
+
   const std::string getParentDir(const std::string &obj, int *pos);
 
   int indexObject(rados_ioctx_t &ioctx, const std::string &obj, char op);

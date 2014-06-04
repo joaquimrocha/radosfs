@@ -403,6 +403,30 @@ RadosFsPriv::getPool(const std::string &path,
   return pool;
 }
 
+std::string
+RadosFsPriv::poolPrefix(const std::string &pool,
+                        std::map<std::string, RadosFsPool> *map,
+                        pthread_mutex_t *mutex) const
+{
+  std::string prefix("");
+
+  pthread_mutex_lock(mutex);
+
+  std::map<std::string, RadosFsPool>::iterator it;
+  for (it = map->begin(); it != map->end(); it++)
+  {
+    if ((*it).second.name == pool)
+    {
+      prefix = (*it).first;
+      break;
+    }
+  }
+
+  pthread_mutex_unlock(mutex);
+
+  return prefix;
+}
+
 int
 RadosFsPriv::checkIfPathExists(rados_ioctx_t &ioctx,
                                const char *path,
@@ -615,23 +639,7 @@ RadosFs::pools() const
 std::string
 RadosFs::poolPrefix(const std::string &pool) const
 {
-  std::string prefix("");
-
-  pthread_mutex_lock(&mPriv->poolMutex);
-
-  std::map<std::string, RadosFsPool>::iterator it;
-  for (it = mPriv->poolMap.begin(); it != mPriv->poolMap.end(); it++)
-  {
-    if ((*it).second.name == pool)
-    {
-      prefix = (*it).first;
-      break;
-    }
-  }
-
-  pthread_mutex_unlock(&mPriv->poolMutex);
-
-  return prefix;
+  return mPriv->poolPrefix(pool, &mPriv->poolMap, &mPriv->poolMutex);
 }
 
 std::string
@@ -678,6 +686,12 @@ RadosFs::addMetadataPool(const std::string &name, const std::string &prefix)
                         prefix,
                         &mPriv->mtdPoolMap,
                         &mPriv->mtdPoolMutex);
+}
+
+std::string
+RadosFs::metadataPoolPrefix(const std::string &pool) const
+{
+  return mPriv->poolPrefix(pool, &mPriv->mtdPoolMap, &mPriv->mtdPoolMutex);
 }
 
 void
