@@ -64,6 +64,8 @@ public:
 
   int addMetadataPool(const std::string &name, const std::string &prefix);
 
+  int removeMetadataPool(const std::string &name);
+
   std::string metadataPoolPrefix(const std::string &pool) const;
 
   void setIds(uid_t uid, gid_t gid);

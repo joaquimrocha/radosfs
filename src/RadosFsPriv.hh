@@ -110,6 +110,10 @@ public:
                          std::map<std::string, RadosFsPool> *map,
                          pthread_mutex_t *mutex) const;
 
+  int removePool(const std::string &name,
+                 std::map<std::string, RadosFsPool> *map,
+                 pthread_mutex_t *mutex);
+
   const std::string getParentDir(const std::string &obj, int *pos);
 
   int indexObject(rados_ioctx_t &ioctx, const std::string &obj, char op);
