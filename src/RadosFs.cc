@@ -363,13 +363,27 @@ RadosFsPriv::addPool(const std::string &name,
 const RadosFsPool *
 RadosFsPriv::getDataPoolFromPath(const std::string &path)
 {
-  RadosFsPool *pool = 0;
+  return getPool(path, &poolMap, &poolMutex);
+}
 
+const RadosFsPool *
+RadosFsPriv::getMetadataPoolFromPath(const std::string &path)
+{
+  return getPool(path, &mtdPoolMap, &mtdPoolMutex);
+}
+
+const RadosFsPool *
+RadosFsPriv::getPool(const std::string &path,
+                     std::map<std::string, RadosFsPool> *map,
+                     pthread_mutex_t *mutex)
+{
+  RadosFsPool *pool = 0;
   size_t maxLength = 0;
-  pthread_mutex_lock(&poolMutex);
+
+  pthread_mutex_lock(mutex);
 
   std::map<std::string, RadosFsPool>::const_iterator it;
-  for (it = poolMap.begin(); it != poolMap.end(); it++)
+  for (it = map->begin(); it != map->end(); it++)
   {
     const std::string &prefix = (*it).first;
     const size_t prefixLength = prefix.length();
@@ -379,13 +393,12 @@ RadosFsPriv::getDataPoolFromPath(const std::string &path)
 
     if (path.compare(0, prefixLength, prefix) == 0)
     {
-      pool = &poolMap[prefix];
+      pool = &map->at(prefix);
       maxLength = prefixLength;
-      break;
     }
   }
 
-  pthread_mutex_unlock(&poolMutex);
+  pthread_mutex_unlock(mutex);
 
   return pool;
 }

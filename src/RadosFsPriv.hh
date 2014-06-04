@@ -98,6 +98,12 @@ public:
 
   int createRootIfNeeded(const RadosFsPool &pool);
 
+  const RadosFsPool * getPool(const std::string &path,
+                              std::map<std::string, RadosFsPool> *map,
+                              pthread_mutex_t *mutex);
+
+  const RadosFsPool * getMetadataPoolFromPath(const std::string &path);
+
   const RadosFsPool * getDataPoolFromPath(const std::string &path);
 
   const std::string getParentDir(const std::string &obj, int *pos);
