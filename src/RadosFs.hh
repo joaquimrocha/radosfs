@@ -68,6 +68,8 @@ public:
 
   std::string metadataPoolPrefix(const std::string &pool) const;
 
+  std::string metadataPoolFromPrefix(const std::string &prefix) const;
+
   void setIds(uid_t uid, gid_t gid);
 
   void getIds(uid_t *uid, gid_t *gid) const;

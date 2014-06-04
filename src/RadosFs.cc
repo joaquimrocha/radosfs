@@ -450,6 +450,23 @@ RadosFsPriv::removePool(const std::string &name,
   return ret;
 }
 
+std::string
+RadosFsPriv::poolFromPrefix(const std::string &prefix,
+                            std::map<std::string, RadosFsPool> *map,
+                            pthread_mutex_t *mutex) const
+{
+  std::string pool("");
+
+  pthread_mutex_lock(mutex);
+
+  if (map->count(prefix) > 0)
+    pool = map->at(prefix).name;
+
+  pthread_mutex_unlock(mutex);
+
+  return pool;
+}
+
 int
 RadosFsPriv::checkIfPathExists(rados_ioctx_t &ioctx,
                                const char *path,
@@ -653,16 +670,7 @@ RadosFs::poolPrefix(const std::string &pool) const
 std::string
 RadosFs::poolFromPrefix(const std::string &prefix) const
 {
-  std::string pool("");
-
-  pthread_mutex_lock(&mPriv->poolMutex);
-
-  if (mPriv->poolMap.count(prefix) > 0)
-    pool = mPriv->poolMap[prefix].name;
-
-  pthread_mutex_unlock(&mPriv->poolMutex);
-
-  return pool;
+  return mPriv->poolFromPrefix(prefix, &mPriv->poolMap, &mPriv->poolMutex);
 }
 
 int
@@ -706,6 +714,12 @@ std::string
 RadosFs::metadataPoolPrefix(const std::string &pool) const
 {
   return mPriv->poolPrefix(pool, &mPriv->mtdPoolMap, &mPriv->mtdPoolMutex);
+}
+
+std::string
+RadosFs::metadataPoolFromPrefix(const std::string &prefix) const
+{
+  return mPriv->poolFromPrefix(prefix, &mPriv->mtdPoolMap, &mPriv->mtdPoolMutex);
 }
 
 void
