@@ -286,6 +286,67 @@ RadosFsPriv::getIoctxFromPath(const std::string &objectName,
 }
 
 int
+RadosFsPriv::stat(const std::string &path,
+                  struct stat *buff,
+                  const RadosFsPool **pathPool,
+                  std::string *pathFound)
+{
+  const RadosFsPool *pool;
+  int ret = -ENODEV;
+  std::string realPath(path);
+
+  bool isDir = realPath[realPath.length() - 1] == PATH_SEP;
+
+  if (isDir)
+    pool = getMetadataPoolFromPath(path);
+  else
+    pool = getDataPoolFromPath(path);
+
+  if (!pool)
+    return -ENODEV;
+
+  if (pathPool)
+    *pathPool = pool;
+
+  rados_ioctx_t ioctx = pool->ioctx;
+  ret = genericStat(ioctx, path.c_str(), buff);
+
+  if (ret != 0)
+  {
+    if (!isDir)
+    {
+      pool = getMetadataPoolFromPath(path);
+    }
+    else
+    {
+      pool = getDataPoolFromPath(path);
+      realPath.erase(realPath.length() - 1, 1);
+    }
+
+    if (!pool)
+      return -ENODEV;
+
+    rados_ioctx_t ioctx = pool->ioctx;
+
+    ret = genericStat(ioctx, realPath.c_str(), buff);
+
+    if (ret != 0 && !isDir)
+    {
+      realPath += PATH_SEP;
+      ret = genericStat(ioctx, realPath.c_str(), buff);
+    }
+
+    if (ret == 0 && pathPool)
+      *pathPool = pool;
+  }
+
+  if (ret == 0 && pathFound)
+    pathFound->assign(realPath);
+
+  return ret;
+}
+
+int
 RadosFsPriv::createRootIfNeeded(const RadosFsPool &pool)
 {
   int ret = 0;
@@ -764,14 +825,7 @@ RadosFs::gid(void) const
 int
 RadosFs::stat(const std::string &path, struct stat *buff)
 {
-  rados_ioctx_t ioctx;
-
-  int ret = mPriv->getIoctxFromPath(path, &ioctx);
-
-  if (ret != 0)
-    return ret;
-
-  return genericStat(ioctx, path.c_str(), buff);
+  return mPriv->stat(sanitizePath(path), buff);
 }
 
 std::vector<std::string>
