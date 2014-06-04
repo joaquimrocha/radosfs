@@ -60,37 +60,54 @@ TEST_F(RadosFsTest, Pools)
 
   EXPECT_EQ(-ENODEV, dir.create());
 
-  // Create a pool
+  // Create a data and a metadata pool
 
-  const std::string poolName(TEST_POOL);
+  const std::string dataPoolName(TEST_POOL);
+  const std::string mtdPoolName(TEST_POOL_MTD);
   const std::string poolPrefix("/");
   const int poolSize(10);
 
-  EXPECT_EQ(0, radosFs.addPool(poolName, poolPrefix, poolSize));
+  EXPECT_EQ(0, radosFs.addPool(dataPoolName, poolPrefix, poolSize));
 
-  EXPECT_EQ(-EEXIST, radosFs.addPool(poolName, poolPrefix, poolSize));
+  EXPECT_EQ(0, radosFs.addMetadataPool(mtdPoolName, poolPrefix));
+
+  EXPECT_EQ(-EEXIST, radosFs.addPool(dataPoolName, poolPrefix, 0));
+
+  EXPECT_EQ(-EEXIST, radosFs.addMetadataPool(mtdPoolName, poolPrefix));
 
   EXPECT_EQ(1, radosFs.pools().size());
 
-  // Check pool's name from prefix
+  EXPECT_EQ(1, radosFs.metadataPools().size());
 
-  EXPECT_EQ(poolName, radosFs.poolFromPrefix(poolPrefix));
+  // Check the pools' names from prefix
 
-  // Check pool's prefix from name
+  EXPECT_EQ(dataPoolName, radosFs.poolFromPrefix(poolPrefix));
 
-  EXPECT_EQ(poolPrefix, radosFs.poolPrefix(poolName));
+  EXPECT_EQ(mtdPoolName, radosFs.metadataPoolFromPrefix(poolPrefix));
+
+  // Check the pools' prefix from name
+
+  EXPECT_EQ(poolPrefix, radosFs.poolPrefix(dataPoolName));
+
+  EXPECT_EQ(poolPrefix, radosFs.metadataPoolPrefix(mtdPoolName));
 
   // Check pool's size (it's MB) from name
 
-  EXPECT_EQ(poolSize * 1024 * 1024, radosFs.poolSize(poolName));
+  EXPECT_EQ(poolSize * 1024 * 1024, radosFs.poolSize(dataPoolName));
 
-  // Remove the pool
 
-  EXPECT_EQ(0, radosFs.removePool(poolName));
+
+  // Remove the pools
+
+  EXPECT_EQ(0, radosFs.removePool(dataPoolName));
+
+  EXPECT_EQ(0, radosFs.removeMetadataPool(mtdPoolName));
 
   // Verify there are no pools now
 
   EXPECT_EQ(0, radosFs.pools().size());
+
+  EXPECT_EQ(0, radosFs.metadataPools().size());
 }
 
 TEST_F(RadosFsTest, CharacterConsistency)
