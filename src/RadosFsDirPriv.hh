@@ -39,7 +39,7 @@ public:
 
   virtual ~RadosFsDirPriv();
 
-  int makeDirsRecursively(rados_ioctx_t &ioctx,
+  int makeDirsRecursively(rados_ioctx_t *ioctx,
                           const char *path,
                           uid_t uid,
                           gid_t gid);

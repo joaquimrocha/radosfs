@@ -87,46 +87,55 @@ RadosFsDirPriv::updateFsDirCache()
 int
 RadosFsDirPriv::updateIoctx()
 {
-  return dir->filesystem()->mPriv->getIoctxFromPath(dir->path(), &ioctx);
+  const RadosFsPool *pool =
+      dir->filesystem()->mPriv->getMetadataPoolFromPath(dir->path());
+
+  ioctx = 0;
+
+  if (!pool)
+    return -ENODEV;
+
+  ioctx = pool->ioctx;
+
+  return 0;
 }
 
 int
-RadosFsDirPriv::makeDirsRecursively(rados_ioctx_t &ioctx,
+RadosFsDirPriv::makeDirsRecursively(rados_ioctx_t *ioctx,
                                     const char *path,
                                     uid_t uid,
                                     gid_t gid)
 {
   int index;
   int ret = 0;
-  mode_t fileType;
   struct stat buff;
-  const std::string dir = getDirPath(path);
+  const std::string dirPath = getDirPath(path);
   const std::string parentDir = getParentDir(path, &index);
+  RadosFsPriv *radosFsPriv = dir->filesystem()->mPriv;
+  const RadosFsPool *pool = 0;
 
   if (parentDir == "")
     return 0;
 
-  if (checkIfPathExists(ioctx, dir.c_str(), &fileType))
+  if (radosFsPriv->stat(dirPath.c_str(), &buff, &pool) == 0)
   {
-    if (fileType == S_IFDIR)
+    *ioctx = pool->ioctx;
+
+    if (buff.st_mode & S_IFDIR)
       return 0;
 
-    if (fileType == S_IFREG)
+    if (buff.st_mode & S_IFREG)
       return -ENOTDIR;
   }
 
-  if (!checkIfPathExists(ioctx, parentDir.c_str(), &fileType))
-  {
-    fileType = S_IFDIR;
-    ret = makeDirsRecursively(ioctx, parentDir.c_str(), uid, gid);
-  }
+  ret = makeDirsRecursively(ioctx, parentDir.c_str(), uid, gid);
 
   if (ret == 0)
   {
-    if (fileType == S_IFREG)
-      return -ENOTDIR;
+    radosFsPriv->stat(parentDir.c_str(), &buff, 0);
 
-    ret = genericStat(ioctx, parentDir.c_str(), &buff);
+    if (buff.st_mode & S_IFREG)
+      return -ENOTDIR;
 
     if (ret != 0)
       return ret;
@@ -135,14 +144,14 @@ RadosFsDirPriv::makeDirsRecursively(rados_ioctx_t &ioctx,
       return -EACCES;
 
     std::string dir = getDirPath(path);
-    ret = rados_write(ioctx, dir.c_str(), 0, 0, 0);
+    ret = rados_write(*ioctx, dir.c_str(), 0, 0, 0);
 
     if (ret != 0)
       return ret;
 
-    ret = setPermissionsXAttr(ioctx, dir.c_str(), buff.st_mode, uid, gid);
+    ret = setPermissionsXAttr(*ioctx, dir.c_str(), buff.st_mode, uid, gid);
 
-    indexObject(ioctx, dir.c_str(), '+');
+    indexObject(*ioctx, dir.c_str(), '+');
   }
 
   return ret;
@@ -300,9 +309,9 @@ RadosFsDir::create(int mode,
 
   rados_ioctx_t ioctx = mPriv->ioctx;
 
-  if (checkIfPathExists(ioctx, dir.c_str(), &fileType))
+  if (exists())
   {
-    if (fileType != S_IFDIR)
+    if (isFile())
       return -ENOTDIR;
 
     if (mkpath)
@@ -327,7 +336,8 @@ RadosFsDir::create(int mode,
 
   if (mkpath)
   {
-    ret = mPriv->makeDirsRecursively(ioctx, mPriv->parentDir.c_str(), uid, gid);
+    rados_ioctx_t parentIoctx;
+    ret = mPriv->makeDirsRecursively(&parentIoctx, mPriv->parentDir.c_str(), uid, gid);
 
     if (ret != 0)
       return ret;
