@@ -20,6 +20,7 @@
 #include <rados/librados.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <utility>
 
 #include "RadosFs.hh"
 #include "RadosFsPriv.hh"
@@ -304,6 +305,8 @@ RadosFsPriv::createRootIfNeeded(const RadosFsPool &pool)
 int
 RadosFsPriv::addPool(const std::string &name,
                      const std::string &prefix,
+                     std::map<std::string, RadosFsPool> *map,
+                     pthread_mutex_t *mutex,
                      int size)
 {
   int ret = -1;
@@ -323,7 +326,7 @@ RadosFsPriv::addPool(const std::string &name,
     return -EINVAL;
   }
 
-  if (poolMap.count(prefix) > 0)
+  if (map->count(prefix) > 0)
   {
     radosfs_debug("There is already a pool with the prefix %s. "
                   "Not adding.", prefix.c_str());
@@ -339,16 +342,20 @@ RadosFsPriv::addPool(const std::string &name,
 
   RadosFsPool pool = {name.c_str(), size * MEGABYTE_CONVERSION, ioctx};
 
-  ret = createRootIfNeeded(pool);
+  if (size == 0)
+  {
+    ret = createRootIfNeeded(pool);
 
-  if (ret < 0)
-    return ret;
+    if (ret < 0)
+      return ret;
+  }
 
-  pthread_mutex_lock(&poolMutex);
+  pthread_mutex_lock(mutex);
 
-  poolMap[prefix.c_str()] = pool;
+  const std::pair<std::string, RadosFsPool> entry(prefix.c_str(), pool);
+  map->insert(entry);
 
-  pthread_mutex_unlock(&poolMutex);
+  pthread_mutex_unlock(mutex);
 
   return ret;
 }
@@ -550,7 +557,7 @@ RadosFs::addPool(const std::string &name,
                  const std::string &prefix,
                  int size)
 {
-  return mPriv->addPool(name, prefix, size);
+  return mPriv->addPool(name, prefix, &mPriv->poolMap, &mPriv->poolMutex, size);
 }
 
 int

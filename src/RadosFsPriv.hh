@@ -92,7 +92,9 @@ public:
 
   int addPool(const std::string &name,
               const std::string &prefix,
-              int size);
+              std::map<std::string, RadosFsPool> *map,
+              pthread_mutex_t *mutex,
+              int size = 0);
 
   int createRootIfNeeded(const RadosFsPool &pool);
 
