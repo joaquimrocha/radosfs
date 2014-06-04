@@ -126,6 +126,8 @@ public:
   std::vector<rados_completion_t> completionList;
   std::map<std::string, RadosFsPool> poolMap;
   pthread_mutex_t poolMutex;
+  std::map<std::string, RadosFsPool> mtdPoolMap;
+  pthread_mutex_t mtdPoolMutex;
   PriorityCache dirCache;
   pthread_mutex_t dirCacheMutex;
   std::map<std::string, std::tr1::weak_ptr<RadosFsIO> > operations;

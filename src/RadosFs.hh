@@ -62,6 +62,8 @@ public:
 
   int poolSize(const std::string &pool) const;
 
+  int addMetadataPool(const std::string &name, const std::string &prefix);
+
   void setIds(uid_t uid, gid_t gid);
 
   void getIds(uid_t *uid, gid_t *gid) const;

@@ -39,6 +39,7 @@ RadosFsPriv::RadosFsPriv(RadosFs *radosFs)
   dirCache.maxCacheSize = DEFAULT_DIR_CACHE_MAX_SIZE;
 
   pthread_mutex_init(&poolMutex, 0);
+  pthread_mutex_init(&mtdPoolMutex, 0);
   pthread_mutex_init(&dirCacheMutex, 0);
   pthread_mutex_init(&operationsMutex, 0);
 }
@@ -650,6 +651,14 @@ RadosFs::poolSize(const std::string &pool) const
   return size;
 }
 
+int
+RadosFs::addMetadataPool(const std::string &name, const std::string &prefix)
+{
+  return mPriv->addPool(name,
+                        prefix,
+                        &mPriv->mtdPoolMap,
+                        &mPriv->mtdPoolMutex);
+}
 
 void
 RadosFs::setIds(uid_t uid, gid_t gid)
