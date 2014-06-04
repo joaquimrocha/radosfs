@@ -34,7 +34,8 @@ RadosFsFilePriv::RadosFsFilePriv(RadosFsFile *fsFile,
     permissions(RadosFsFile::MODE_NONE),
     mode(mode),
     target(0),
-    ioctx(0)
+    ioctx(0),
+    mtdIoctx(0)
 {
   updatePath();
 }
@@ -54,19 +55,25 @@ RadosFsFilePriv::~RadosFsFilePriv()
 void
 RadosFsFilePriv::updatePath()
 {
-  int ret;
+  const RadosFsPool *dataPool, *mtdPool, *presencePool = 0;
 
   parentDir = getParentDir(fsFile->path(), 0);
 
   RadosFs *radosFs = fsFile->filesystem();
 
-  const RadosFsPool *pool = radosFs->mPriv->getDataPoolFromPath(fsFile->path());
+  dataPool = radosFs->mPriv->getDataPoolFromPath(fsFile->path());
+  mtdPool = radosFs->mPriv->getMetadataPoolFromPath(fsFile->path());
 
-  if (!pool)
+  if (!dataPool || !mtdPool)
     return;
 
-  ioctx = pool->ioctx;
-  ret = genericStat(ioctx, fsFile->path().c_str(), &statBuff);
+  radosFs->mPriv->stat(fsFile->path(), &statBuff, &presencePool);
+
+  if (!presencePool)
+    presencePool = dataPool;
+
+  ioctx = presencePool->ioctx;
+  mtdIoctx = mtdPool->ioctx;
 
   updatePermissions();
 
@@ -82,7 +89,7 @@ RadosFsFilePriv::updatePath()
 
   if (!radosFsIO.get())
   {
-    RadosFsIO *fsIO = new RadosFsIO(pool, fsFile->path());
+    RadosFsIO *fsIO = new RadosFsIO(presencePool, fsFile->path());
 
     radosFsIO = std::tr1::shared_ptr<RadosFsIO>(fsIO);
     radosFs->mPriv->setRadosFsIO(radosFsIO);
@@ -117,7 +124,10 @@ RadosFsFilePriv::updatePermissions()
   struct stat buff;
   permissions = RadosFsFile::MODE_NONE;
 
-  int ret = genericStat(ioctx, parentDir.c_str(), &buff);
+  if (!mtdIoctx)
+    return;
+
+  int ret = genericStat(mtdIoctx, parentDir.c_str(), &buff);
 
   if (ret != 0)
     return;
@@ -311,7 +321,7 @@ RadosFsFile::create(int mode)
 
   ret = rados_write(mPriv->ioctx, filePath.c_str(), 0, 0, 0);
 
-  indexObject(mPriv->ioctx, filePath, '+');
+  indexObject(mPriv->mtdIoctx, filePath, '+');
 
   if (ret != 0)
     return ret;
@@ -356,7 +366,7 @@ RadosFsFile::remove()
   if (statBuffHasPermission(mPriv->statBuff, uid, gid, O_WRONLY | O_RDWR))
   {
     ret = mPriv->removeFile();
-    indexObject(ioctx, filePath, '-');
+    indexObject(mPriv->mtdIoctx, filePath, '-');
   }
   else
     return -EACCES;
