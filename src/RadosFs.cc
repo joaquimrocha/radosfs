@@ -934,25 +934,16 @@ int
 RadosFs::getXAttrsMap(const std::string &path,
                       std::map<std::string, std::string> &map)
 {
-  rados_ioctx_t ioctx;
-
-  int ret = mPriv->getIoctxFromPath(path, &ioctx);
-
-  if (ret != 0)
-    return ret;
-
-  const std::string &realPath = getRealPath(ioctx, path);
-
-  if (realPath == "")
-    return -ENOENT;
-
   struct stat buff;
-  ret = genericStat(ioctx, realPath.c_str(), &buff);
+  const RadosFsPool *pool;
+  std::string pathFound;
+
+  int ret = mPriv->stat(path, &buff, &pool, &pathFound);
 
   if (ret != 0)
     return ret;
 
-  return getMapOfXAttrFromPath(ioctx, buff, uid(), gid(), realPath, map);
+  return getMapOfXAttrFromPath(pool->ioctx, buff, uid(), gid(), pathFound, map);
 }
 
 void
