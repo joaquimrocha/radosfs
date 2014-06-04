@@ -309,7 +309,7 @@ RadosFsPriv::addPool(const std::string &name,
                      pthread_mutex_t *mutex,
                      int size)
 {
-  int ret = -1;
+  int ret = -EPERM;
 
   if (radosCluster == 0)
     return ret;
