@@ -275,7 +275,7 @@ int
 RadosFsPriv::getIoctxFromPath(const std::string &objectName,
                               rados_ioctx_t *ioctx)
 {
-  const RadosFsPool *pool = getPoolFromPath(objectName);
+  const RadosFsPool *pool = getDataPoolFromPath(objectName);
 
   if (!pool)
     return -ENODEV;
@@ -361,7 +361,7 @@ RadosFsPriv::addPool(const std::string &name,
 }
 
 const RadosFsPool *
-RadosFsPriv::getPoolFromPath(const std::string &path)
+RadosFsPriv::getDataPoolFromPath(const std::string &path)
 {
   RadosFsPool *pool = 0;
 

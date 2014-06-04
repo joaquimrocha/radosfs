@@ -98,7 +98,7 @@ public:
 
   int createRootIfNeeded(const RadosFsPool &pool);
 
-  const RadosFsPool * getPoolFromPath(const std::string &path);
+  const RadosFsPool * getDataPoolFromPath(const std::string &path);
 
   const std::string getParentDir(const std::string &obj, int *pos);
 
