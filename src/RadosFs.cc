@@ -635,13 +635,15 @@ RadosFsPriv::getDirInfo(const char *path, bool addToCache)
 
   if (dirCache.cacheMap.count(path) == 0)
   {
-    rados_ioctx_t ioctx;
-    int ret = getIoctxFromPath(path, &ioctx);
+    const RadosFsPool *pool = getMetadataPoolFromPath(path);
 
-    if (ret != 0)
+    if (!pool)
+    {
+      radosfs_debug("Could not get metadata pool for %s", path);
       return cache;
+    }
 
-    DirCache *dirInfo = new DirCache(path, ioctx);
+    DirCache *dirInfo = new DirCache(path, pool->ioctx);
     cache = std::tr1::shared_ptr<DirCache>(dirInfo);
 
     if (addToCache)
