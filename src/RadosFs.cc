@@ -917,25 +917,17 @@ int
 RadosFs::removeXAttr(const std::string &path,
                      const std::string &attrName)
 {
-  rados_ioctx_t ioctx;
-
-  int ret = mPriv->getIoctxFromPath(path, &ioctx);
-
-  if (ret != 0)
-    return ret;
-
-  const std::string &realPath = getRealPath(ioctx, path);
-
-  if (realPath == "")
-    return -ENOENT;
-
   struct stat buff;
-  ret = genericStat(ioctx, realPath.c_str(), &buff);
+  const RadosFsPool *pool;
+  std::string pathFound;
+
+  int ret = mPriv->stat(path, &buff, &pool, &pathFound);
 
   if (ret != 0)
     return ret;
 
-  return removeXAttrFromPath(ioctx, buff, uid(), gid(), realPath, attrName);
+  return removeXAttrFromPath(pool->ioctx, buff, uid(), gid(), pathFound,
+                             attrName);
 }
 
 int
