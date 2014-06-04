@@ -33,6 +33,7 @@
 #define TEST_UID 1000
 #define TEST_GID 1000
 #define TEST_POOL "radosfs-unit-tests-pool-data"
+#define TEST_POOL_MTD "radosfs-unit-tests-pool-mtd"
 
 class RadosFsTest : public testing::Test
 {

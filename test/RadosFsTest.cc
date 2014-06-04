@@ -41,6 +41,7 @@ RadosFsTest::RadosFsTest()
   rados_connect(mCluster);
 
   rados_pool_create(mCluster, TEST_POOL);
+  rados_pool_create(mCluster, TEST_POOL_MTD);
 
   rados_shutdown(mCluster);
 
@@ -55,6 +56,7 @@ RadosFsTest::~RadosFsTest()
   rados_connect(mCluster);
 
   rados_pool_delete(mCluster, TEST_POOL);
+  rados_pool_delete(mCluster, TEST_POOL_MTD);
 
   rados_shutdown(mCluster);
 }
