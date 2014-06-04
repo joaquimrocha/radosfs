@@ -881,25 +881,17 @@ RadosFs::setXAttr(const std::string &path,
                   const std::string &attrName,
                   const std::string &value)
 {
-  rados_ioctx_t ioctx;
-
-  int ret = mPriv->getIoctxFromPath(path, &ioctx);
-
-  if (ret != 0)
-    return ret;
-
-  const std::string &realPath = getRealPath(ioctx, path);
-
-  if (realPath == "")
-    return -ENOENT;
-
   struct stat buff;
-  ret = genericStat(ioctx, realPath.c_str(), &buff);
+  const RadosFsPool *pool;
+  std::string pathFound;
+
+  int ret = mPriv->stat(path, &buff, &pool, &pathFound);
 
   if (ret != 0)
     return ret;
 
-  return setXAttrFromPath(ioctx, buff, uid(), gid(), realPath, attrName, value);
+  return setXAttrFromPath(pool->ioctx, buff, uid(), gid(), pathFound, attrName,
+                          value);
 }
 
 int
