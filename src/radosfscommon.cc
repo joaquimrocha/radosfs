@@ -202,33 +202,11 @@ checkIfPathExists(rados_ioctx_t &ioctx,
     }
   }
 
-  if (size == 0)
+  if (size == 0 && getLinkTarget(ioctx, realPath, linkTarget) > 0)
   {
-    char *buff = new char[XATTR_LINK_LENGTH];
-    int ret = rados_getxattr(ioctx,
-                             realPath.c_str(),
-                             XATTR_LINK,
-                             buff,
-                             XATTR_LINK_LENGTH);
+    *filetype = S_IFLNK;
 
-    if (ret > 0)
-    {
-      *filetype = S_IFLNK;
-
-      if (ret < XATTR_LINK_LENGTH)
-        buff[ret] = '\0';
-      else
-        buff[XATTR_LINK_LENGTH - 1] = '\0';
-
-      if (linkTarget)
-        *linkTarget = buff;
-      else
-        delete[] buff;
-
-      return true;
-    }
-
-    delete[] buff;
+    return true;
   }
 
   if (isDirPath)
@@ -237,6 +215,36 @@ checkIfPathExists(rados_ioctx_t &ioctx,
     *filetype = S_IFREG;
 
   return true;
+}
+
+int
+getLinkTarget(rados_ioctx_t ioctx, const std::string &path, char **linkTarget)
+{
+  char *buff = new char[XATTR_LINK_LENGTH];
+  int ret = rados_getxattr(ioctx,
+                           path.c_str(),
+                           XATTR_LINK,
+                           buff,
+                           XATTR_LINK_LENGTH);
+
+  if (ret > 0)
+  {
+    if (ret < XATTR_LINK_LENGTH)
+      buff[ret] = '\0';
+    else
+      buff[XATTR_LINK_LENGTH - 1] = '\0';
+
+    if (linkTarget)
+      *linkTarget = buff;
+    else
+      delete[] buff;
+
+    return ret;
+  }
+
+  delete[] buff;
+
+  return ret;
 }
 
 std::string

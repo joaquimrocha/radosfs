@@ -47,28 +47,30 @@ RadosFsInfoPriv::makeRealPath(std::string &path, rados_ioctx_t *ioctxOut)
 {
   char *linkTarget = 0;
   std::string parent = getParentDir(path, 0);
+  const RadosFsPool *pool;
 
-  rados_ioctx_t ioctx;
-  mode_t fileType;
+  struct stat buff;
+  while (parent != "")
+  {
+    int ret = radosFs->mPriv->stat(parent, &buff, &pool);
 
-  if (parent == "" || radosFs->mPriv->getIoctxFromPath(parent, &ioctx) != 0)
+    if (ret == -ENOENT)
+      parent = getParentDir(parent, 0);
+    else if (ret == 0)
+      break;
+    else
+      return ret;
+  }
+
+  if (parent == "")
     return -ENODEV;
 
-  while (parent != "" &&
-         !checkIfPathExists(ioctx, parent.c_str(), &fileType, &linkTarget))
-    parent = getParentDir(parent, 0);
+  rados_ioctx_t ioctx = pool->ioctx;
 
   if (ioctxOut != 0)
     *ioctxOut = ioctx;
 
-  if (fileType == S_IFREG)
-  {
-    radosfs_debug("Problem with part of the path, it is a file: %s",
-                  parent.c_str());
-    return -ENOTDIR;
-  }
-
-  if (fileType == S_IFLNK)
+  if (buff.st_mode & S_IFLNK && getLinkTarget(ioctx, parent, &linkTarget) > 0)
   {
     path.erase(0, parent.length());
     path = linkTarget + path;
@@ -78,6 +80,13 @@ RadosFsInfoPriv::makeRealPath(std::string &path, rados_ioctx_t *ioctxOut)
     return -EAGAIN;
   }
 
+  if (buff.st_mode & S_IFREG)
+  {
+    radosfs_debug("Problem with part of the path, it is a file: %s",
+                  parent.c_str());
+    return -ENOTDIR;
+  }
+
   return 0;
 }
 
@@ -85,12 +94,14 @@ void
 RadosFsInfoPriv::setPath(const std::string &path)
 {
   int ret;
+  const RadosFsPool *pool;
   this->path = sanitizePath(path);
 
   while ((ret = makeRealPath(this->path)) == -EAGAIN)
   {}
 
-  radosFs->mPriv->getIoctxFromPath(this->path, &ioctx);
+  if (radosFs->mPriv->stat(this->path, &statBuff, &pool) != -ENODEV)
+    ioctx = pool->ioctx;
 }
 
 int
@@ -99,8 +110,15 @@ RadosFsInfoPriv::makeLink(std::string &linkPath)
   int ret;
   rados_ioctx_t ioctx;
 
-  while ((ret = makeRealPath(linkPath, &ioctx)) == -EAGAIN)
+  while ((ret = makeRealPath(linkPath)) == -EAGAIN)
   {}
+
+  const RadosFsPool *pool = radosFs->mPriv->getMetadataPoolFromPath(linkPath);
+
+  if (!pool)
+    return -ENODEV;
+
+  ioctx = pool->ioctx;
 
   if (ret != 0)
   {

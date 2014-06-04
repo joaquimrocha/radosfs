@@ -73,6 +73,10 @@ bool checkIfPathExists(rados_ioctx_t &ioctx,
                        mode_t *filetype,
                        char **linkTarget = 0);
 
+int getLinkTarget(rados_ioctx_t ioctx,
+                  const std::string &path,
+                  char **linkTarget);
+
 std::string getParentDir(const std::string &path, int *pos);
 
 std::string escapeObjName(const std::string &obj);
