@@ -467,6 +467,25 @@ RadosFsPriv::poolFromPrefix(const std::string &prefix,
   return pool;
 }
 
+std::vector<std::string>
+RadosFsPriv::pools(std::map<std::string, RadosFsPool> *map,
+                   pthread_mutex_t *mutex) const
+{
+  pthread_mutex_lock(mutex);
+
+  std::vector<std::string> pools;
+
+  std::map<std::string, RadosFsPool>::iterator it;
+  for (it = map->begin(); it != map->end(); it++)
+  {
+    pools.push_back((*it).second.name);
+  }
+
+  pthread_mutex_unlock(mutex);
+
+  return pools;
+}
+
 int
 RadosFsPriv::checkIfPathExists(rados_ioctx_t &ioctx,
                                const char *path,
@@ -646,19 +665,7 @@ RadosFs::removePool(const std::string &name)
 std::vector<std::string>
 RadosFs::pools() const
 {
-  pthread_mutex_lock(&mPriv->poolMutex);
-
-  std::vector<std::string> pools;
-
-  std::map<std::string, RadosFsPool>::iterator it;
-  for (it = mPriv->poolMap.begin(); it != mPriv->poolMap.end(); it++)
-  {
-    pools.push_back((*it).second.name);
-  }
-
-  pthread_mutex_unlock(&mPriv->poolMutex);
-
-  return pools;
+  return mPriv->pools(&mPriv->poolMap, &mPriv->poolMutex);
 }
 
 std::string
@@ -708,6 +715,12 @@ int
 RadosFs::removeMetadataPool(const std::string &name)
 {
   return mPriv->removePool(name, &mPriv->mtdPoolMap, &mPriv->mtdPoolMutex);
+}
+
+std::vector<std::string>
+RadosFs::metadataPools() const
+{
+  return mPriv->pools(&mPriv->mtdPoolMap, &mPriv->mtdPoolMutex);
 }
 
 std::string

@@ -66,6 +66,8 @@ public:
 
   int removeMetadataPool(const std::string &name);
 
+  std::vector<std::string> metadataPools() const;
+
   std::string metadataPoolPrefix(const std::string &pool) const;
 
   std::string metadataPoolFromPrefix(const std::string &prefix) const;
