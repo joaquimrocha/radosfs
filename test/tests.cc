@@ -64,7 +64,7 @@ TEST_F(RadosFsTest, Pools)
 
   const std::string dataPoolName(TEST_POOL);
   const std::string mtdPoolName(TEST_POOL_MTD);
-  const std::string poolPrefix("/");
+  std::string poolPrefix("/");
   const int poolSize(10);
 
   EXPECT_EQ(0, radosFs.addPool(dataPoolName, poolPrefix, poolSize));
@@ -127,6 +127,32 @@ TEST_F(RadosFsTest, Pools)
   EXPECT_EQ(0, radosFs.pools().size());
 
   EXPECT_EQ(0, radosFs.metadataPools().size());
+
+  // Create a pool for a non root prefix
+  poolPrefix = "/test";
+
+  EXPECT_EQ(0, radosFs.addPool(dataPoolName, poolPrefix, poolSize));
+
+  EXPECT_EQ(0, radosFs.addMetadataPool(mtdPoolName, poolPrefix));
+
+  // Verify that one cannot create a dir in a path that doesn't start with
+  // the pool's prefix
+
+  dir.setPath("/dir");
+
+  EXPECT_EQ(-ENODEV, dir.create(-1, true));
+
+  // Verify that the pool's prefix dir exists
+
+  dir.setPath(poolPrefix);
+
+  EXPECT_TRUE(dir.exists());
+
+  // Create a dir inside the pool's prefix dir
+
+  dir.setPath(poolPrefix + "/dir");
+
+  EXPECT_EQ(0, dir.create());
 }
 
 TEST_F(RadosFsTest, CharacterConsistency)
