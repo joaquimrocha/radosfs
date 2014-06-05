@@ -311,15 +311,13 @@ RadosFsPriv::stat(const std::string &path,
 }
 
 int
-RadosFsPriv::createRootIfNeeded(const RadosFsPool &pool)
+RadosFsPriv::createPrefixDir(const RadosFsPool &pool, const std::string &prefix)
 {
   int ret = 0;
 
-  const char root[] = {PATH_SEP, 0};
-
-  if (rados_stat(pool.ioctx, root, 0, 0) != 0)
+  if (rados_stat(pool.ioctx, prefix.c_str(), 0, 0) != 0)
   {
-    int nBytes = rados_write(pool.ioctx, root, 0, 0, 0);
+    int nBytes = rados_write(pool.ioctx, prefix.c_str(), 0, 0, 0);
     if (nBytes < 0)
       ret = nBytes;
   }
@@ -335,15 +333,10 @@ RadosFsPriv::addPool(const std::string &name,
                      int size)
 {
   int ret = -EPERM;
+  const std::string &cleanPrefix = sanitizePath(prefix  + "/");
 
   if (radosCluster == 0)
     return ret;
-
-  if (name == "")
-  {
-    radosfs_debug("The pool's name cannot be an empty string");
-    return -EINVAL;
-  }
 
   if (prefix == "")
   {
@@ -351,10 +344,10 @@ RadosFsPriv::addPool(const std::string &name,
     return -EINVAL;
   }
 
-  if (map->count(prefix) > 0)
+  if (map->count(cleanPrefix) > 0)
   {
     radosfs_debug("There is already a pool with the prefix %s. "
-                  "Not adding.", prefix.c_str());
+                  "Not adding.", cleanPrefix.c_str());
     return -EEXIST;
   }
 
@@ -369,7 +362,7 @@ RadosFsPriv::addPool(const std::string &name,
 
   if (size == 0)
   {
-    ret = createRootIfNeeded(pool);
+    ret = createPrefixDir(pool, cleanPrefix);
 
     if (ret < 0)
       return ret;
@@ -377,7 +370,7 @@ RadosFsPriv::addPool(const std::string &name,
 
   pthread_mutex_lock(mutex);
 
-  const std::pair<std::string, RadosFsPool> entry(prefix.c_str(), pool);
+  const std::pair<std::string, RadosFsPool> entry(cleanPrefix.c_str(), pool);
   map->insert(entry);
 
   pthread_mutex_unlock(mutex);

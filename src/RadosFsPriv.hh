@@ -96,7 +96,7 @@ public:
               pthread_mutex_t *mutex,
               int size = 0);
 
-  int createRootIfNeeded(const RadosFsPool &pool);
+  int createPrefixDir(const RadosFsPool &pool, const std::string &prefix);
 
   const RadosFsPool * getPool(const std::string &path,
                               std::map<std::string, RadosFsPool> *map,
