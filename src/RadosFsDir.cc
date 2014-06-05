@@ -102,45 +102,45 @@ RadosFsDirPriv::updateIoctx()
 
 int
 RadosFsDirPriv::makeDirsRecursively(rados_ioctx_t *ioctx,
+                                    struct stat *buff,
                                     const char *path,
                                     uid_t uid,
                                     gid_t gid)
 {
   int index;
   int ret = 0;
-  struct stat buff;
   const std::string dirPath = getDirPath(path);
   const std::string parentDir = getParentDir(path, &index);
   RadosFsPriv *radosFsPriv = dir->filesystem()->mPriv;
   const RadosFsPool *pool = 0;
 
   if (parentDir == "")
-    return 0;
+    return -ENODEV;
 
-  if (radosFsPriv->stat(dirPath.c_str(), &buff, &pool) == 0)
+  if (radosFsPriv->stat(dirPath.c_str(), buff, &pool) == 0)
   {
     *ioctx = pool->ioctx;
 
-    if (buff.st_mode & S_IFDIR)
+    if (buff->st_mode & S_IFDIR)
       return 0;
 
-    if (buff.st_mode & S_IFREG)
+    if (buff->st_mode & S_IFREG)
       return -ENOTDIR;
   }
 
-  ret = makeDirsRecursively(ioctx, parentDir.c_str(), uid, gid);
+  ret = makeDirsRecursively(ioctx, buff, parentDir.c_str(), uid, gid);
 
   if (ret == 0)
   {
-    radosFsPriv->stat(parentDir.c_str(), &buff, 0);
+    radosFsPriv->stat(parentDir.c_str(), buff, 0);
 
-    if (buff.st_mode & S_IFREG)
+    if (buff->st_mode & S_IFREG)
       return -ENOTDIR;
 
     if (ret != 0)
       return ret;
 
-    if (!statBuffHasPermission(buff, uid, gid, O_WRONLY | O_RDWR))
+    if (!statBuffHasPermission(*buff, uid, gid, O_WRONLY | O_RDWR))
       return -EACCES;
 
     std::string dir = getDirPath(path);
@@ -149,7 +149,7 @@ RadosFsDirPriv::makeDirsRecursively(rados_ioctx_t *ioctx,
     if (ret != 0)
       return ret;
 
-    ret = setPermissionsXAttr(*ioctx, dir.c_str(), buff.st_mode, uid, gid);
+    ret = setPermissionsXAttr(*ioctx, dir.c_str(), buff->st_mode, uid, gid);
 
     indexObject(*ioctx, dir.c_str(), '+');
   }
@@ -301,8 +301,8 @@ RadosFsDir::create(int mode,
                    int group)
 {
   int ret;
-  mode_t fileType;
-  const std::string dir = path();
+  const std::string &dir = path();
+  rados_ioctx_t ioctx, parentIoctx;
   RadosFs *radosFs = filesystem();
 
   if (!mPriv->ioctx)
@@ -313,7 +313,7 @@ RadosFsDir::create(int mode,
       return ret;
   }
 
-  rados_ioctx_t ioctx = mPriv->ioctx;
+  ioctx = mPriv->ioctx;
 
   if (exists())
   {
@@ -340,20 +340,26 @@ RadosFsDir::create(int mode,
   if (mode >= 0)
     permOctal = mode | S_IFDIR;
 
+  struct stat buff;
+
   if (mkpath)
   {
-    rados_ioctx_t parentIoctx;
-    ret = mPriv->makeDirsRecursively(&parentIoctx, mPriv->parentDir.c_str(), uid, gid);
+    ret = mPriv->makeDirsRecursively(&parentIoctx, &buff,
+                                     mPriv->parentDir.c_str(), uid, gid);
 
     if (ret != 0)
       return ret;
   }
+  else
+  {
+    const RadosFsPool *pool;
+    ret = mPriv->radosFsPriv()->stat(mPriv->parentDir, &buff, &pool);
 
-  struct stat buff;
-  ret = genericStat(ioctx, mPriv->parentDir.c_str(), &buff);
+    if (ret != 0)
+      return ret;
 
-  if (ret != 0)
-    return ret;
+    parentIoctx = pool->ioctx;
+  }
 
   if (!statBuffHasPermission(buff, uid, gid, O_WRONLY | O_RDWR))
     return -EACCES;
@@ -365,7 +371,7 @@ RadosFsDir::create(int mode,
 
   ret = setPermissionsXAttr(ioctx, dir.c_str(), permOctal, owner, group);
 
-  indexObject(ioctx, dir.c_str(), '+');
+  indexObject(parentIoctx, dir.c_str(), '+');
 
   RadosFsInfo::update();
   mPriv->updateDirInfoPtr();
