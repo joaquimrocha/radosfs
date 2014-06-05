@@ -388,8 +388,9 @@ RadosFsDir::remove()
   const std::string &dirPath = path();
   rados_ioctx_t ioctx = mPriv->ioctx;
   RadosFs *radosFs = filesystem();
+  const RadosFsPool *pool;
 
-  ret = genericStat(ioctx, mPriv->parentDir.c_str(), &buff);
+  ret = mPriv->radosFsPriv()->stat(mPriv->parentDir, &buff, &pool);
 
   if (ret != 0 || (!mPriv->dirInfo && !mPriv->updateDirInfoPtr()))
     return -ENOENT;
@@ -419,7 +420,7 @@ RadosFsDir::remove()
   ret = rados_remove(ioctx, dirPath.c_str());
 
   if (ret == 0)
-    indexObject(ioctx, dirPath.c_str(), '-');
+    indexObject(pool->ioctx, dirPath.c_str(), '-');
 
   RadosFsInfo::update();
   mPriv->updateFsDirCache();
