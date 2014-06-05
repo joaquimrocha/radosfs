@@ -111,8 +111,6 @@ public:
                         const char *path,
                         mode_t *filetype);
 
-  std::string getDirPath(const char *path);
-
   std::tr1::shared_ptr<RadosFsIO> getRadosFsIO(const std::string &path);
 
   void setRadosFsIO(std::tr1::shared_ptr<RadosFsIO> sharedFsIO);
