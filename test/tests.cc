@@ -95,7 +95,26 @@ TEST_F(RadosFsTest, Pools)
 
   EXPECT_EQ(poolSize * 1024 * 1024, radosFs.poolSize(dataPoolName));
 
+  // Create a dir and check if it got into the data pool
 
+  const RadosFsPool *dataPool, *mtdPool;
+  struct stat buff;
+
+  EXPECT_EQ(0, dir.create());
+
+  EXPECT_EQ(0, radosFsPriv()->stat(dir.path(), &buff, &mtdPool));
+
+  EXPECT_EQ(TEST_POOL_MTD, mtdPool->name);
+
+  // Create a file and check if it got into the data pool
+
+  file.setPath(dir.path() + "file");
+
+  EXPECT_EQ(0, file.create());
+
+  EXPECT_EQ(0, radosFsPriv()->stat(file.path(), &buff, &dataPool));
+
+  EXPECT_EQ(TEST_POOL, dataPool->name);
 
   // Remove the pools
 
