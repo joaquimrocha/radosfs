@@ -447,30 +447,6 @@ getDirPath(const char *path)
   return dir;
 }
 
-std::string
-getRealPath(rados_ioctx_t ioctx, const std::string &path)
-{
-  mode_t fileType;
-
-  if (!checkIfPathExists(ioctx, path.c_str(), &fileType))
-    return "";
-
-  std::string realPath(path);
-
-  if (realPath[realPath.length() - 1] == PATH_SEP)
-  {
-    if (fileType == S_IFREG)
-      realPath.erase(realPath.length() - 1, 1);
-  }
-  else
-  {
-    if (fileType == S_IFDIR)
-      realPath += PATH_SEP;
-  }
-
-  return realPath;
-}
-
 int
 checkPermissionsForXAttr(const struct stat &statBuff,
                          const std::string &attrName,

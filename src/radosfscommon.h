@@ -96,8 +96,6 @@ bool verifyIsOctal(const char *mode);
 
 std::string getDirPath(const char *path);
 
-std::string getRealPath(rados_ioctx_t ioctx, const std::string &path);
-
 int setXAttrFromPath(rados_ioctx_t ioctx,
                      const struct stat &statBuff,
                      uid_t uid,
