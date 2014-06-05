@@ -383,7 +383,6 @@ int
 RadosFsDir::remove()
 {
   int ret;
-  mode_t fileType;
   struct stat buff;
   const std::string &dirPath = path();
   rados_ioctx_t ioctx = mPriv->ioctx;
@@ -392,7 +391,10 @@ RadosFsDir::remove()
 
   ret = mPriv->radosFsPriv()->stat(mPriv->parentDir, &buff, &pool);
 
-  if (ret != 0 || (!mPriv->dirInfo && !mPriv->updateDirInfoPtr()))
+  if (ret != 0)
+    return ret;
+
+  if (!mPriv->dirInfo && !mPriv->updateDirInfoPtr())
     return -ENOENT;
 
   if (!statBuffHasPermission(buff,
@@ -401,10 +403,12 @@ RadosFsDir::remove()
                              O_WRONLY | O_RDWR))
     return -EACCES;
 
-  if (!checkIfPathExists(ioctx, dirPath.c_str(), &fileType))
+  RadosFsInfo::update();
+
+  if (!exists())
     return -ENOENT;
 
-  if (fileType == S_IFREG)
+  if (isFile())
     return -ENOTDIR;
 
   if (!isLink())
