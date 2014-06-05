@@ -56,6 +56,8 @@ public:
            std::set<std::string> &results,
            const std::map<RadosFsFinder::FindOptions, FinderArg> &args);
 
+  RadosFsPriv *radosFsPriv(void);
+
   RadosFsDir *dir;
   struct stat statBuff;
   std::string parentDir;

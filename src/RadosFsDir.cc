@@ -227,6 +227,12 @@ RadosFsDirPriv::find(std::set<std::string> &entries,
   return ret;
 }
 
+RadosFsPriv *
+RadosFsDirPriv::radosFsPriv(void)
+{
+  return dir->filesystem()->mPriv;
+}
+
 RadosFsDir::RadosFsDir(RadosFs *radosFs, const std::string &path)
   : RadosFsInfo(radosFs, getDirPath(path.c_str())),
     mPriv(new RadosFsDirPriv(this))
