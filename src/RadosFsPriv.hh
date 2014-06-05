@@ -123,16 +123,8 @@ public:
 
   const std::string getParentDir(const std::string &obj, int *pos);
 
-  int indexObject(rados_ioctx_t &ioctx, const std::string &obj, char op);
-
-  int getIoctxFromPath(const std::string &objectName, rados_ioctx_t *ioctx);
-
   std::tr1::shared_ptr<DirCache> getDirInfo(const char *path,
                                             bool addToCache = true);
-
-  int checkIfPathExists(rados_ioctx_t &ioctx,
-                        const char *path,
-                        mode_t *filetype);
 
   std::tr1::shared_ptr<RadosFsIO> getRadosFsIO(const std::string &path);
 

@@ -250,42 +250,6 @@ RadosFsPriv::createCluster(const std::string &userName,
 }
 
 int
-RadosFsPriv::indexObject(rados_ioctx_t &ioctx,
-                         const std::string &obj,
-                         char op)
-{
-  int index;
-  std::string contents;
-  const std::string &dirName = getParentDir(obj, &index);
-
-  if (dirName == "")
-    return 0;
-
-  const std::string &baseName = obj.substr(index, std::string::npos);
-
-  contents += op;
-  contents += INDEX_NAME_KEY "=\"" + escapeObjName(baseName) + "\" ";
-  contents += "\n";
-
-  return rados_append(ioctx, dirName.c_str(),
-                      contents.c_str(), strlen(contents.c_str()));
-}
-
-int
-RadosFsPriv::getIoctxFromPath(const std::string &objectName,
-                              rados_ioctx_t *ioctx)
-{
-  const RadosFsPool *pool = getDataPoolFromPath(objectName);
-
-  if (!pool)
-    return -ENODEV;
-
-  *ioctx = pool->ioctx;
-
-  return 0;
-}
-
-int
 RadosFsPriv::stat(const std::string &path,
                   struct stat *buff,
                   const RadosFsPool **pathPool,
@@ -545,48 +509,6 @@ RadosFsPriv::pools(std::map<std::string, RadosFsPool> *map,
   pthread_mutex_unlock(mutex);
 
   return pools;
-}
-
-int
-RadosFsPriv::checkIfPathExists(rados_ioctx_t &ioctx,
-                               const char *path,
-                               mode_t *filetype)
-{
-  const int length = strlen(path);
-  bool isDirPath = path[length - 1] == PATH_SEP;
-
-  if (rados_stat(ioctx, path, 0, 0) == 0)
-  {
-    if (isDirPath)
-      *filetype = S_IFDIR;
-    else
-      *filetype = S_IFREG;
-    return 0;
-  }
-
-  std::string otherPath(path);
-
-  if (isDirPath)
-  {
-    // delete the last separator
-    otherPath.erase(length - 1, 1);
-  }
-  else
-  {
-    otherPath += PATH_SEP;
-  }
-
-  if (rados_stat(ioctx, otherPath.c_str(), 0, 0) == 0)
-  {
-    if (isDirPath)
-      *filetype = S_IFREG;
-    else
-      *filetype = S_IFDIR;
-
-    return 0;
-  }
-
-  return -1;
 }
 
 const std::string
