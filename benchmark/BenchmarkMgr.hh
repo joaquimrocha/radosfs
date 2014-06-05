@@ -8,7 +8,8 @@
 #include "RadosFsDir.hh"
 #include "RadosFsFile.hh"
 
-#define TEST_POOL "test-pool"
+#define TEST_POOL_DATA "radosfs-benchmark-data-pool"
+#define TEST_POOL_MTD "radosfs-benchmark-data-pool"
 
 class BenchmarkMgr
 {

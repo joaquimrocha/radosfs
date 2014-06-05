@@ -14,7 +14,8 @@ BenchmarkMgr::BenchmarkMgr(const char *conf)
 
   rados_connect(mCluster);
 
-  rados_pool_create(mCluster, TEST_POOL);
+  rados_pool_create(mCluster, TEST_POOL_DATA);
+  rados_pool_create(mCluster, TEST_POOL_MTD);
 
   rados_shutdown(mCluster);
 
@@ -30,7 +31,8 @@ BenchmarkMgr::~BenchmarkMgr()
   rados_conf_read_file(mCluster, mConf);
   rados_connect(mCluster);
 
-  rados_pool_delete(mCluster, TEST_POOL);
+  rados_pool_delete(mCluster, TEST_POOL_DATA);
+  rados_pool_delete(mCluster, TEST_POOL_MTD);
 
   rados_shutdown(mCluster);
 
