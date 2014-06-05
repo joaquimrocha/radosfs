@@ -79,6 +79,10 @@ RadosFsTest::AddPool()
   EXPECT_EQ(0, ret);
 
   EXPECT_EQ(1, radosFs.pools().size());
+
+  ret = radosFs.addMetadataPool(TEST_POOL_MTD, "/");
+
+  EXPECT_EQ(0, ret);
 }
 
 radosfs::RadosFsFilePriv *
