@@ -60,7 +60,6 @@ public:
   RadosFsPriv *radosFsPriv(void);
 
   RadosFsDir *dir;
-  struct stat statBuff;
   std::string parentDir;
   std::tr1::shared_ptr<DirCache> dirInfo;
   rados_ioctx_t ioctx;

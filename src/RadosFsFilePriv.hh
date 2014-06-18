@@ -57,7 +57,6 @@ public:
   RadosFsFile *target;
   rados_ioctx_t ioctx;
   rados_ioctx_t mtdIoctx;
-  struct stat statBuff;
   std::string inode;
   std::string parentDir;
   RadosFsFile::OpenMode permissions;

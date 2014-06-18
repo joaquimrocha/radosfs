@@ -50,7 +50,6 @@ public:
   RadosFs *radosFs;
   RadosFsInfo *target;
   rados_ioctx_t ioctx;
-  struct stat statBuff;
   mode_t fileType;
   RadosFsStat stat;
   bool exists;
