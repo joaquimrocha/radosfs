@@ -1295,7 +1295,8 @@ TEST_F(RadosFsTest, LinkDir)
 
   EXPECT_GT(map.size(), 0);
 
-  EXPECT_EQ(-ENODATA, radosFs.getXAttr(dirLink.path(), mdKey, value, 1024));
+  EXPECT_EQ(mdValue.length(), radosFs.getXAttr(dirLink.path(), mdKey, value,
+                                               1024));
 
   // Create a dir using the link as parent
 
