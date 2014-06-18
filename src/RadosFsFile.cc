@@ -128,13 +128,14 @@ RadosFsFilePriv::verifyExistanceAndType()
 void
 RadosFsFilePriv::updatePermissions()
 {
-  struct stat buff;
   permissions = RadosFsFile::MODE_NONE;
+  RadosFsStat stat, *fileStat;
 
   if (!mtdIoctx)
     return;
 
-  int ret = genericStat(mtdIoctx, parentDir.c_str(), &buff);
+  int ret = fsFile->filesystem()->mPriv->stat(parentDir, &stat);
+  parentDir = stat.path;
 
   if (ret != 0)
     return;
@@ -145,10 +146,12 @@ RadosFsFilePriv::updatePermissions()
   fsFile->filesystem()->getIds(&uid, &gid);
 
   bool canWriteParent =
-      statBuffHasPermission(buff, uid, gid, O_WRONLY);
+      statBuffHasPermission(stat.statBuff, uid, gid, O_WRONLY);
 
   bool canReadParent =
-      statBuffHasPermission(buff, uid, gid, O_RDONLY);
+      statBuffHasPermission(stat.statBuff, uid, gid, O_RDONLY);
+
+  fileStat = fsStat();
 
   fsFile->RadosFsInfo::update();
 
@@ -157,13 +160,14 @@ RadosFsFilePriv::updatePermissions()
 
   if (canWriteParent && (mode & RadosFsFile::MODE_WRITE))
   {
-    if (!fsFile->exists() || statBuffHasPermission(statBuff, uid, gid, O_WRONLY))
+    if (!fsFile->exists() ||
+        statBuffHasPermission(fileStat->statBuff, uid, gid, O_WRONLY))
       permissions =
           (RadosFsFile::OpenMode) (permissions | RadosFsFile::MODE_WRITE);
   }
 
   if (canReadParent && (mode & RadosFsFile::MODE_READ) &&
-      statBuffHasPermission(statBuff, uid, gid, O_RDONLY))
+      statBuffHasPermission(fileStat->statBuff, uid, gid, O_RDONLY))
   {
     permissions = (RadosFsFile::OpenMode) (permissions | RadosFsFile::MODE_READ);
   }
