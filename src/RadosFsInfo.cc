@@ -299,22 +299,19 @@ int
 RadosFsInfo::setXAttr(const std::string &attrName,
                       const std::string &value)
 {
-  int ret;
-  struct stat buff;
+  // We don't call the similar methods from RadosFs for avoiding extra stat calls
 
-  if (isLink())
-  {
-    return filesystem()->setXAttr(targetPath(), attrName, value);
-  }
+  if (mPriv->stat.ioctx == 0)
+    return -ENOENT;
 
-  ret = stat(&buff);
+  std::string &path = mPriv->stat.translatedPath;
 
-  if (ret != 0)
-    return ret;
+  if (path == "")
+    path = mPriv->stat.path;
 
-  return setXAttrFromPath(mPriv->ioctx, buff,
+  return setXAttrFromPath(mPriv->stat.ioctx, mPriv->stat.statBuff,
                           mPriv->radosFs->uid(), mPriv->radosFs->gid(),
-                          path(), attrName, value);
+                          path, attrName, value);
 }
 
 int
@@ -322,64 +319,55 @@ RadosFsInfo::getXAttr(const std::string &attrName,
                       std::string &value,
                       size_t length)
 {
-  int ret;
-  struct stat buff;
+  // We don't call the similar methods from RadosFs for avoiding extra stat calls
 
-  if (isLink())
-  {
-    return filesystem()->getXAttr(targetPath(), attrName, value, length);
-  }
+  if (mPriv->stat.ioctx == 0)
+    return -ENOENT;
 
-  ret = stat(&buff);
+  std::string &path = mPriv->stat.translatedPath;
 
-  if (ret != 0)
-    return ret;
+  if (path == "")
+    path = mPriv->stat.path;
 
-  return getXAttrFromPath(mPriv->ioctx, buff,
+  return getXAttrFromPath(mPriv->stat.ioctx, mPriv->stat.statBuff,
                           mPriv->radosFs->uid(), mPriv->radosFs->gid(),
-                          path(), attrName, value, length);
+                          path, attrName, value, length);
 }
 
 int
 RadosFsInfo::removeXAttr(const std::string &attrName)
 {
-  int ret;
-  struct stat buff;
+  // We don't call the similar methods from RadosFs for avoiding extra stat calls
 
-  if (isLink())
-  {
-    return filesystem()->removeXAttr(targetPath(), attrName);
-  }
+  if (mPriv->stat.ioctx == 0)
+    return -ENOENT;
 
-  ret = stat(&buff);
+  std::string &path = mPriv->stat.translatedPath;
 
-  if (ret != 0)
-    return ret;
+  if (path == "")
+    path = mPriv->stat.path;
 
-  return removeXAttrFromPath(mPriv->ioctx, buff,
+  return removeXAttrFromPath(mPriv->stat.ioctx, mPriv->stat.statBuff,
                              mPriv->radosFs->uid(), mPriv->radosFs->gid(),
-                             path(), attrName);
+                             path, attrName);
 }
 
 int
 RadosFsInfo::getXAttrsMap(std::map<std::string, std::string> &map)
 {
-  int ret;
-  struct stat buff;
+  // We don't call the similar methods from RadosFs for avoiding extra stat calls
 
-  if (isLink())
-  {
-    return filesystem()->getXAttrsMap(targetPath(), map);
-  }
+  if (mPriv->stat.ioctx == 0)
+    return -ENOENT;
 
-  ret = stat(&buff);
+  std::string &path = mPriv->stat.translatedPath;
 
-  if (ret != 0)
-    return ret;
+  if (path == "")
+    path = mPriv->stat.path;
 
-  return getMapOfXAttrFromPath(mPriv->ioctx, buff,
+  return getMapOfXAttrFromPath(mPriv->ioctx, mPriv->stat.statBuff,
                                mPriv->radosFs->uid(), mPriv->radosFs->gid(),
-                               path(), map);
+                               path, map);
 }
 
 int
