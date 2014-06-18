@@ -47,11 +47,18 @@ public:
 
   int removeFile(void);
 
+  RadosFsStat *fsStat(void);
+
+  int createInode(rados_ioctx_t ioctx, const std::string &name,
+                  const std::string &hardLink, long int mode, uid_t uid,
+                  gid_t gid);
+
   RadosFsFile *fsFile;
   RadosFsFile *target;
   rados_ioctx_t ioctx;
   rados_ioctx_t mtdIoctx;
   struct stat statBuff;
+  std::string inode;
   std::string parentDir;
   RadosFsFile::OpenMode permissions;
   RadosFsFile::OpenMode mode;

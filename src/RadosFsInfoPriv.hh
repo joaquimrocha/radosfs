@@ -23,7 +23,9 @@
 #include <tr1/memory>
 #include <rados/librados.h>
 
+#include "radosfscommon.h"
 #include "radosfsdefines.h"
+#include "RadosFsPriv.hh"
 
 RADOS_FS_BEGIN_NAMESPACE
 
@@ -42,12 +44,15 @@ public:
 
   int makeRealPath(std::string &path, rados_ioctx_t *ioctxOut = 0);
 
+  RadosFsPriv * radosFsPriv(void) const { return radosFs->mPriv; }
+
   std::string path;
   RadosFs *radosFs;
   RadosFsInfo *target;
   rados_ioctx_t ioctx;
   struct stat statBuff;
   mode_t fileType;
+  RadosFsStat stat;
   bool exists;
 };
 

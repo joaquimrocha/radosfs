@@ -64,12 +64,10 @@ getPermissionsXAttr(rados_ioctx_t &ioctx,
   return 0;
 }
 
-int
-setPermissionsXAttr(rados_ioctx_t &ioctx,
-                    const char *obj,
-                    long int mode,
-                    uid_t uid,
-                    gid_t gid)
+std::string
+makePermissionsXAttr(long int mode,
+                     uid_t uid,
+                     gid_t gid)
 {
   std::ostringstream convert;
 
@@ -82,8 +80,20 @@ setPermissionsXAttr(rados_ioctx_t &ioctx,
   convert << " " << XATTR_GID;
   convert << std::dec << gid;
 
-  return rados_setxattr(ioctx, obj, XATTR_PERMISSIONS,
-                        convert.str().c_str(), convert.str().length() + 1);
+  return convert.str();
+}
+
+int
+setPermissionsXAttr(rados_ioctx_t &ioctx,
+                    const char *obj,
+                    long int mode,
+                    uid_t uid,
+                    gid_t gid)
+{
+  const std::string &permissions = makePermissionsXAttr(mode, uid, gid);
+
+  return rados_setxattr(ioctx, obj, XATTR_PERMISSIONS, permissions.c_str(),
+                        permissions.length() + 1);
 }
 
 bool
@@ -164,6 +174,66 @@ genericStat(rados_ioctx_t &ioctx,
   buff->st_size = psize;
   buff->st_blksize = 4;
   buff->st_blocks = buff->st_size / buff->st_blksize;
+  buff->st_atime = pmtime;
+  buff->st_mtime = pmtime;
+  buff->st_ctime = pmtime;
+
+  return ret;
+}
+
+int
+statFromXAttr(const std::string &path,
+              const std::string &xattrValue,
+              struct stat *buff,
+              std::string &link)
+{
+  int ret = 0;
+  time_t pmtime;
+  uid_t uid = 0;
+  gid_t gid = 0;
+  mode_t permissions = DEFAULT_MODE_FILE;
+  std::string realPath(path);
+
+  int startPos = 0, lastPos = 0;
+  std::string key, value;
+
+  while ((lastPos = splitToken(xattrValue, startPos, key, value)) != startPos)
+  {
+    if (key == "link")
+    {
+      link = value;
+    }
+    else if (key == "mode")
+    {
+      permissions = (mode_t) strtoul(value.c_str(), 0, 8);
+    }
+    else if (key == "uid")
+    {
+      uid = (uid_t) atoi(value.c_str());
+    }
+    else if (key == "gid")
+    {
+      gid = (gid_t) atoi(value.c_str());
+    }
+    else if (key == "time")
+    {
+      pmtime = (time_t) strtoul(value.c_str(), 0, 10);
+    }
+
+    startPos = lastPos;
+    key = value = "";
+  }
+
+  buff->st_dev = 0;
+  buff->st_ino = hash(realPath.c_str());
+  buff->st_mode = permissions;
+  buff->st_nlink = 1;
+  buff->st_uid = uid;
+  buff->st_gid = gid;
+  buff->st_rdev = 0;
+  buff->st_size = 0;
+  buff->st_blksize = 4;
+  buff->st_blocks = 0;
   buff->st_atime = pmtime;
   buff->st_mtime = pmtime;
   buff->st_ctime = pmtime;
@@ -332,22 +402,41 @@ unescapeObjName(const std::string &obj)
 }
 
 int
-indexObject(rados_ioctx_t ioctx,
-            const std::string &obj,
-            char op)
+indexObject(const RadosFsStat *stat, char op)
 {
   int index;
   std::string contents;
-  const std::string &dirName = getParentDir(obj, &index);
+  const std::string &dirName = getParentDir(stat->path, &index);
+  std::string xAttrKey("");
+  std::ostringstream xAttrValue("");
 
   if (dirName == "")
     return 0;
 
-  const std::string &baseName = obj.substr(index, std::string::npos);
+  const std::string &baseName = stat->path.substr(index, std::string::npos);
 
   contents = getObjectIndexLine(baseName, op);
 
-  return writeContentsAtomically(ioctx, dirName.c_str(), contents);;
+  if ((stat->statBuff.st_mode & S_IFDIR) == 0)
+  {
+    xAttrKey = XATTR_FILE_PREFIX + baseName;
+
+    if (op == '+')
+    {
+      xAttrValue << "link=\"" << stat->translatedPath << "\"";
+
+      if (stat->translatedPath[0] == PATH_SEP)
+      {
+        xAttrValue << " " << XATTR_UID << "\"" << stat->statBuff.st_uid << "\" ";
+        xAttrValue << XATTR_GID << "\"" << stat->statBuff.st_gid << "\" ";
+        xAttrValue << "time=" << "\""  << stat->statBuff.st_ctime << "\" " ;
+        xAttrValue << XATTR_MODE << "\"" << std::oct << stat->statBuff.st_mode << "\" ";
+      }
+    }
+  }
+
+  return writeContentsAtomically(stat->ioctx, dirName.c_str(), contents,
+                                 xAttrKey, xAttrValue.str());
 }
 
 std::string
@@ -403,7 +492,9 @@ indexObjectMetadata(rados_ioctx_t ioctx,
 int
 writeContentsAtomically(rados_ioctx_t ioctx,
                         const std::string &obj,
-                        const std::string &contents)
+                        const std::string &contents,
+                        const std::string &xattrKey,
+                        const std::string &xattrValue)
 {
   const char *keys[] = { DIR_LOG_UPDATED };
   const char *values[] = { DIR_LOG_UPDATED_TRUE };
@@ -414,6 +505,19 @@ writeContentsAtomically(rados_ioctx_t ioctx,
   rados_write_op_omap_set(writeOp, keys, values, lengths, 1);
 
   rados_write_op_append(writeOp, contents.c_str(), contents.length());
+
+  if (xattrKey != "")
+  {
+    if (xattrValue != "")
+    {
+      rados_write_op_setxattr(writeOp, xattrKey.c_str(), xattrValue.c_str(),
+                              xattrValue.length());
+    }
+    else
+    {
+      rados_write_op_rmxattr(writeOp, xattrKey.c_str());
+    }
+  }
 
   int ret = rados_write_op_operate(writeOp, ioctx, obj.c_str(), NULL, 0);
 
@@ -445,6 +549,17 @@ getDirPath(const std::string &path)
     dir += PATH_SEP;
 
   return dir;
+}
+
+std::string
+getFilePath(const std::string &path)
+{
+  std::string file(path);
+
+  if (file != "" && file[file.length() - 1] == PATH_SEP)
+    file.erase(file.length() - 1, 1);
+
+  return file;
 }
 
 int

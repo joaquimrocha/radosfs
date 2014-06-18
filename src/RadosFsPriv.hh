@@ -136,9 +136,11 @@ public:
   void removeDirCache(std::tr1::shared_ptr<DirCache> &cache);
 
   int stat(const std::string &path,
-           struct stat *statBuff,
-           const RadosFsPool **pathPool = 0,
-           std::string *pathFound = 0);
+           RadosFsStat *stat);
+
+  int statLink(rados_ioctx_t dataIoctx,
+               rados_ioctx_t mtdIoctx,
+               RadosFsStat *stat);
 
   rados_t radosCluster;
   static __thread uid_t uid;

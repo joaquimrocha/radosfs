@@ -17,6 +17,8 @@
  * for more details.
  */
 
+#include <sys/stat.h>
+
 #include "radosfsdefines.h"
 #include "radosfscommon.h"
 #include "RadosFsInfo.hh"
@@ -45,14 +47,12 @@ RadosFsInfoPriv::~RadosFsInfoPriv()
 int
 RadosFsInfoPriv::makeRealPath(std::string &path, rados_ioctx_t *ioctxOut)
 {
-  char *linkTarget = 0;
   std::string parent = getParentDir(path, 0);
-  const RadosFsPool *pool;
+  RadosFsStat stat;
 
-  struct stat buff;
   while (parent != "")
   {
-    int ret = radosFs->mPriv->stat(parent, &buff, &pool);
+    int ret = radosFs->mPriv->stat(parent, &stat);
 
     if (ret == -ENOENT)
       parent = getParentDir(parent, 0);
@@ -65,22 +65,20 @@ RadosFsInfoPriv::makeRealPath(std::string &path, rados_ioctx_t *ioctxOut)
   if (parent == "")
     return -ENODEV;
 
-  rados_ioctx_t ioctx = pool->ioctx;
+  rados_ioctx_t ioctx = stat.ioctx;
 
   if (ioctxOut != 0)
     *ioctxOut = ioctx;
 
-  if (buff.st_mode & S_IFLNK && getLinkTarget(ioctx, parent, &linkTarget) > 0)
+  if (S_ISLNK(stat.statBuff.st_mode))
   {
     path.erase(0, parent.length());
-    path = linkTarget + path;
-
-    delete[] linkTarget;
+    path = stat.translatedPath + path;
 
     return -EAGAIN;
   }
 
-  if (buff.st_mode & S_IFREG)
+  if (S_ISREG(stat.statBuff.st_mode))
   {
     radosfs_debug("Problem with part of the path, it is a file: %s",
                   parent.c_str());
@@ -94,14 +92,18 @@ void
 RadosFsInfoPriv::setPath(const std::string &path)
 {
   int ret;
-  const RadosFsPool *pool;
   this->path = sanitizePath(path);
+
+  stat.path = "";
+  stat.ioctx = 0;
 
   while ((ret = makeRealPath(this->path)) == -EAGAIN)
   {}
 
-  if (radosFs->mPriv->stat(this->path, &statBuff, &pool) != -ENODEV)
-    ioctx = pool->ioctx;
+  ioctx = 0;
+
+  if (radosFs->mPriv->stat(this->path, &stat) != -ENODEV)
+    ioctx = stat.ioctx;
 }
 
 int
@@ -183,14 +185,15 @@ RadosFsInfoPriv::makeLink(std::string &linkPath)
     return ret;
   }
 
-  rados_write(ioctx, linkPath.c_str(), "", 0, 0);
-  indexObject(ioctx, linkPath.c_str(), '+');
+  RadosFsStat linkStat = stat;
+  linkStat.path = linkPath;
+  linkStat.ioctx = pool->ioctx;
+  linkStat.translatedPath = this->path;
+  linkStat.statBuff.st_uid = uid;
+  linkStat.statBuff.st_gid = gid;
+  linkStat.statBuff.st_mode = DEFAULT_MODE_LINK;
 
-  setPermissionsXAttr(ioctx, linkPath.c_str(), DEFAULT_MODE_LINK, uid, gid);
-
-  return setXAttrFromPath(ioctx, buff,
-                          ROOT_UID, ROOT_UID,
-                          linkPath, XATTR_LINK, this->path);
+  return indexObject(&linkStat, '+');
 }
 
 RadosFsInfo::RadosFsInfo(RadosFs *radosFs, const std::string &path)
@@ -260,20 +263,13 @@ RadosFsInfo::exists() const
 int
 RadosFsInfo::stat(struct stat *buff)
 {
-  return genericStat(mPriv->ioctx, mPriv->path.c_str(), buff);
+  return filesystem()->stat(path(), buff);
 }
 
 void
 RadosFsInfo::update()
 {
-  if (mPriv->ioctx == 0)
-    return;
-
-  char *linkTarget = 0;
-  mPriv->exists = checkIfPathExists(mPriv->ioctx,
-                                    mPriv->path.c_str(),
-                                    &mPriv->fileType,
-                                    &linkTarget);
+  mPriv->exists = false;
 
   if (mPriv->target)
   {
@@ -281,21 +277,21 @@ RadosFsInfo::update()
     mPriv->target = 0;
   }
 
-  if (!mPriv->exists)
-  {
-    mPriv->fileType = 0;
-    return;
-  }
+  mPriv->exists = mPriv->radosFsPriv()->stat(mPriv->path, &mPriv->stat) == 0;
 
-  if (isLink() && linkTarget != 0)
+  if (!mPriv->exists)
+    return;
+
+  mPriv->ioctx = mPriv->stat.ioctx;
+
+  if (isLink())
   {
-    if (linkTarget[strlen(linkTarget) - 1] == PATH_SEP)
+    const std::string &linkTarget = mPriv->stat.translatedPath;
+    if (linkTarget[linkTarget.length() - 1] == PATH_SEP)
       mPriv->target = new RadosFsDir(filesystem(), linkTarget);
     else
       mPriv->target = new RadosFsFile(filesystem(), linkTarget,
                                       RadosFsFile::MODE_READ_WRITE);
-
-    delete[] linkTarget;
   }
 }
 
@@ -429,6 +425,18 @@ RadosFsInfo::targetPath() const
     return "";
 
   return mPriv->target->path();
+}
+
+void *
+RadosFsInfo::fsStat(void)
+{
+  return &mPriv->stat;
+}
+
+void
+RadosFsInfo::setFsStat(void *stat)
+{
+  mPriv->stat = *reinterpret_cast<RadosFsStat *>(stat);
 }
 
 RADOS_FS_END_NAMESPACE

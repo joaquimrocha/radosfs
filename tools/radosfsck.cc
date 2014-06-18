@@ -192,10 +192,10 @@ fsck(radosfs::RadosFs &radosFs,
         }
         else
         {
-          if (indexObject(ioctx, path, '-') >= 0)
-            action = "Deindexed";
-          else
-            action = "Failed to deindex";
+//          if (indexObject(ioctx, path, '-') >= 0)
+//            action = "Deindexed";
+//          else
+//            action = "Failed to deindex";
         }
       }
     }
@@ -218,10 +218,10 @@ fsck(radosfs::RadosFs &radosFs,
         action = "Would index";
       else
       {
-        if (indexObject(ioctx, path, '+') >= 0)
-          action = "Indexed";
-        else
-          action = "Failed to index";
+//        if (indexObject(ioctx, path, '+') >= 0)
+//          action = "Indexed";
+//        else
+//          action = "Failed to index";
       }
     }
 

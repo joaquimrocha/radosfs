@@ -38,6 +38,13 @@ typedef struct {
   rados_ioctx_t ioctx;
 } RadosFsPool;
 
+typedef struct {
+  std::string path;
+  std::string translatedPath;
+  struct stat statBuff;
+  rados_ioctx_t ioctx;
+} RadosFsStat;
+
 static ino_t
 hash(const char *path)
 {
@@ -68,6 +75,8 @@ setPermissionsXAttr(rados_ioctx_t &ioctx,
                     uid_t uid,
                     gid_t gid);
 
+std::string makePermissionsXAttr(long int mode, uid_t uid, gid_t gid);
+
 bool checkIfPathExists(rados_ioctx_t &ioctx,
                        const char *path,
                        mode_t *filetype,
@@ -83,7 +92,7 @@ std::string escapeObjName(const std::string &obj);
 
 std::string unescapeObjName(const std::string &obj);
 
-int indexObject(rados_ioctx_t ioctx, const std::string &obj, char op);
+int indexObject(const RadosFsStat *stat, char op);
 
 std::string getObjectIndexLine(const std::string &obj, char op);
 
@@ -95,6 +104,8 @@ int indexObjectMetadata(rados_ioctx_t ioctx,
 bool verifyIsOctal(const char *mode);
 
 std::string getDirPath(const std::string &path);
+
+std::string getFilePath(const std::string &path);
 
 int setXAttrFromPath(rados_ioctx_t ioctx,
                      const struct stat &statBuff,
@@ -135,8 +146,16 @@ int splitToken(const std::string &line,
 
 int writeContentsAtomically(rados_ioctx_t ioctx,
                             const std::string &obj,
-                            const std::string &contents);
+                            const std::string &contents,
+                            const std::string &xattrKey = "",
+                            const std::string &xattrValue = "");
 
 std::string sanitizePath(const std::string &path);
+
+int statFromXAttr(const std::string &path,
+                  const std::string &xattrValue,
+                  struct stat* buff,
+                  std::string &link);
+
 
 #endif /* __RADOS_FS_COMMON_HH__ */

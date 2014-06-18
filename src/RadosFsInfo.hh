@@ -78,6 +78,11 @@ public:
 
   virtual std::string targetPath(void) const;
 
+protected:
+  void * fsStat(void);
+
+  void setFsStat(void *stat);
+
 private:
   std::auto_ptr<RadosFsInfoPriv> mPriv;
 };

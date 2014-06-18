@@ -75,12 +75,11 @@ public:
 
   void setPath(const std::string &path);
 
-  int stat(struct stat *buff);
-
 private:
   std::auto_ptr<RadosFsFilePriv> mPriv;
 
 friend class ::RadosFsTest;
+friend class RadosFsFilePriv;
 };
 
 RADOS_FS_END_NAMESPACE

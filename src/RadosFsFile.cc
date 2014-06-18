@@ -18,6 +18,7 @@
  */
 
 #include <stdexcept>
+#include <uuid/uuid.h>
 
 #include "radosfsdefines.h"
 #include "radosfscommon.h"
@@ -25,6 +26,8 @@
 #include "RadosFsFilePriv.hh"
 #include "RadosFsDir.hh"
 #include "RadosFsPriv.hh"
+
+#define UUID_STRING_SIZE 36
 
 RADOS_FS_BEGIN_NAMESPACE
 
@@ -55,7 +58,8 @@ RadosFsFilePriv::~RadosFsFilePriv()
 void
 RadosFsFilePriv::updatePath()
 {
-  const RadosFsPool *dataPool, *mtdPool, *presencePool = 0;
+  RadosFsStat *stat = fsStat();
+  const RadosFsPool *dataPool, *mtdPool;
 
   parentDir = getParentDir(fsFile->path(), 0);
 
@@ -67,12 +71,7 @@ RadosFsFilePriv::updatePath()
   if (!dataPool || !mtdPool)
     return;
 
-  radosFs->mPriv->stat(fsFile->path(), &statBuff, &presencePool);
-
-  if (!presencePool)
-    presencePool = dataPool;
-
-  ioctx = presencePool->ioctx;
+  ioctx = dataPool->ioctx;
   mtdIoctx = mtdPool->ioctx;
 
   updatePermissions();
@@ -89,7 +88,7 @@ RadosFsFilePriv::updatePath()
 
   if (!radosFsIO.get())
   {
-    RadosFsIO *fsIO = new RadosFsIO(presencePool, fsFile->path());
+    RadosFsIO *fsIO = new RadosFsIO(dataPool, fsFile->path());
 
     radosFsIO = std::tr1::shared_ptr<RadosFsIO>(fsIO);
     radosFs->mPriv->setRadosFsIO(radosFsIO);
@@ -195,6 +194,37 @@ RadosFsFilePriv::removeFile()
   return ret;
 }
 
+RadosFsStat *
+RadosFsFilePriv::fsStat(void)
+{
+  return reinterpret_cast<RadosFsStat *>(fsFile->fsStat());
+}
+
+int
+RadosFsFilePriv::createInode(rados_ioctx_t ioctx,
+                             const std::string &name,
+                             const std::string &hardLink,
+                             long int mode,
+                             uid_t uid,
+                             gid_t gid)
+{
+  rados_write_op_t writeOp = rados_create_write_op();
+
+  rados_write_op_setxattr(writeOp, XATTR_INODE_HARD_LINK, hardLink.c_str(),
+                          hardLink.length());
+
+  const std::string &permissions = makePermissionsXAttr(mode, uid, gid);
+
+  rados_write_op_setxattr(writeOp, XATTR_PERMISSIONS, permissions.c_str(),
+                          permissions.length() + 1);
+
+  int ret = rados_write_op_operate(writeOp, ioctx, name.c_str(), NULL, 0);
+
+  rados_release_write_op(writeOp);
+
+  return ret;
+}
+
 RadosFsFile::RadosFsFile(RadosFs *radosFs,
                          const std::string &path,
                          RadosFsFile::OpenMode mode)
@@ -290,6 +320,7 @@ RadosFsFile::writeSync(const char *buff, off_t offset, size_t blen)
 int
 RadosFsFile::create(int mode)
 {
+  RadosFsStat *stat = reinterpret_cast<RadosFsStat *>(fsStat());
   int ret;
 
   if (mPriv->ioctx == 0)
@@ -319,24 +350,37 @@ RadosFsFile::create(int mode)
   if ((mPriv->permissions & RadosFsFile::MODE_WRITE) == 0)
     return -EACCES;
 
-  ret = rados_write(mPriv->ioctx, filePath.c_str(), 0, 0, 0);
-
-  indexObject(mPriv->mtdIoctx, filePath, '+');
-
-  if (ret != 0)
-    return ret;
-
-  long int permOctal = mode;
-
-  if (mode < 0)
-    permOctal = DEFAULT_MODE_FILE;
-
   uid_t uid;
   gid_t gid;
 
   filesystem()->getIds(&uid, &gid);
 
-  ret = setPermissionsXAttr(mPriv->ioctx, filePath.c_str(), permOctal, uid, gid);
+  long int permOctal = DEFAULT_MODE_FILE;
+
+  if (mode >= 0)
+    permOctal = mode | S_IFREG;
+
+  uuid_t inode;
+  char inodeStr[UUID_STRING_SIZE + 1];
+
+  uuid_generate(inode);
+  uuid_unparse(inode, inodeStr);
+
+  mPriv->inode = inodeStr;
+  stat->path = path();
+  stat->translatedPath = mPriv->inode;
+  stat->statBuff.st_mode = permOctal;
+  stat->statBuff.st_uid = uid;
+  stat->statBuff.st_gid = gid;
+  stat->ioctx = mPriv->mtdIoctx;
+
+  ret = mPriv->createInode(mPriv->ioctx, inodeStr, filePath, permOctal, uid,
+                           gid);
+
+  if (ret != 0)
+    return ret;
+
+  indexObject(stat, '+');
 
   if (ret != 0)
     return ret;
@@ -350,8 +394,8 @@ int
 RadosFsFile::remove()
 {
   int ret;
-  rados_ioctx_t ioctx = mPriv->ioctx;
-  const char *filePath = path().c_str();
+
+  RadosFsInfo::update();
 
   ret = mPriv->verifyExistanceAndType();
 
@@ -363,10 +407,12 @@ RadosFsFile::remove()
 
   filesystem()->getIds(&uid, &gid);
 
-  if (statBuffHasPermission(mPriv->statBuff, uid, gid, O_WRONLY | O_RDWR))
+  if (statBuffHasPermission(mPriv->fsStat()->statBuff, uid, gid,
+                            O_WRONLY | O_RDWR))
   {
     ret = mPriv->removeFile();
-    indexObject(mPriv->mtdIoctx, filePath, '-');
+    RadosFsStat *stat = mPriv->fsStat();
+    indexObject(stat, '-');
   }
   else
     return -EACCES;
@@ -430,17 +476,6 @@ RadosFsFile::setPath(const std::string &path)
   std::string filePath = RadosFsFilePriv::sanitizePath(path);
 
   RadosFsInfo::setPath(filePath);
-
-  mPriv->updatePath();
-}
-
-int
-RadosFsFile::stat(struct stat *buff)
-{
-  if (exists())
-    *buff = mPriv->statBuff;
-
-  return RadosFsInfo::stat(buff);
 }
 
 RADOS_FS_END_NAMESPACE

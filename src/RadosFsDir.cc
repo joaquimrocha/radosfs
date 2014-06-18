@@ -102,7 +102,7 @@ RadosFsDirPriv::updateIoctx()
 
 int
 RadosFsDirPriv::makeDirsRecursively(rados_ioctx_t *ioctx,
-                                    struct stat *buff,
+                                    RadosFsStat *stat,
                                     const char *path,
                                     uid_t uid,
                                     gid_t gid)
@@ -112,14 +112,15 @@ RadosFsDirPriv::makeDirsRecursively(rados_ioctx_t *ioctx,
   const std::string dirPath = getDirPath(path);
   const std::string parentDir = getParentDir(path, &index);
   RadosFsPriv *radosFsPriv = dir->filesystem()->mPriv;
-  const RadosFsPool *pool = 0;
+  struct stat *buff;
 
   if (parentDir == "")
     return -ENODEV;
 
-  if (radosFsPriv->stat(dirPath.c_str(), buff, &pool) == 0)
+  if (radosFsPriv->stat(dirPath.c_str(), stat) == 0)
   {
-    *ioctx = pool->ioctx;
+    buff = &stat->statBuff;
+    *ioctx = stat->ioctx;
 
     if (buff->st_mode & S_IFDIR)
       return 0;
@@ -128,11 +129,13 @@ RadosFsDirPriv::makeDirsRecursively(rados_ioctx_t *ioctx,
       return -ENOTDIR;
   }
 
-  ret = makeDirsRecursively(ioctx, buff, parentDir.c_str(), uid, gid);
+  ret = makeDirsRecursively(ioctx, stat, parentDir.c_str(), uid, gid);
 
   if (ret == 0)
   {
-    radosFsPriv->stat(parentDir.c_str(), buff, 0);
+    radosFsPriv->stat(parentDir.c_str(), stat);
+
+    buff = &stat->statBuff;
 
     if (buff->st_mode & S_IFREG)
       return -ENOTDIR;
@@ -151,7 +154,7 @@ RadosFsDirPriv::makeDirsRecursively(rados_ioctx_t *ioctx,
 
     ret = setPermissionsXAttr(*ioctx, dir.c_str(), buff->st_mode, uid, gid);
 
-    indexObject(*ioctx, dir.c_str(), '+');
+    indexObject(stat, '+');
   }
 
   return ret;
@@ -340,28 +343,29 @@ RadosFsDir::create(int mode,
   if (mode >= 0)
     permOctal = mode | S_IFDIR;
 
-  struct stat buff;
+  RadosFsStat stat;
 
   if (mkpath)
   {
-    ret = mPriv->makeDirsRecursively(&parentIoctx, &buff,
+    ret = mPriv->makeDirsRecursively(&parentIoctx, &stat,
                                      mPriv->parentDir.c_str(), uid, gid);
 
     if (ret != 0)
       return ret;
+
+    stat.path = dir;
   }
   else
   {
-    const RadosFsPool *pool;
-    ret = mPriv->radosFsPriv()->stat(mPriv->parentDir, &buff, &pool);
+    ret = mPriv->radosFsPriv()->stat(mPriv->parentDir, &stat);
 
     if (ret != 0)
       return ret;
 
-    parentIoctx = pool->ioctx;
+    parentIoctx = stat.ioctx;
   }
 
-  if (!statBuffHasPermission(buff, uid, gid, O_WRONLY | O_RDWR))
+  if (!statBuffHasPermission(stat.statBuff, uid, gid, O_WRONLY | O_RDWR))
     return -EACCES;
 
   ret = rados_write(ioctx, dir.c_str(), 0, 0, 0);
@@ -369,9 +373,12 @@ RadosFsDir::create(int mode,
   if (ret != 0)
     return ret;
 
+  stat.path = dir;
+
   ret = setPermissionsXAttr(ioctx, dir.c_str(), permOctal, owner, group);
 
-  indexObject(parentIoctx, dir.c_str(), '+');
+
+  indexObject(&stat, '+');
 
   RadosFsInfo::update();
   mPriv->updateDirInfoPtr();
@@ -383,13 +390,14 @@ int
 RadosFsDir::remove()
 {
   int ret;
-  struct stat buff;
   const std::string &dirPath = path();
   rados_ioctx_t ioctx = mPriv->ioctx;
   RadosFs *radosFs = filesystem();
-  const RadosFsPool *pool;
+  RadosFsStat stat, *statPtr;
 
-  ret = mPriv->radosFsPriv()->stat(mPriv->parentDir, &buff, &pool);
+  RadosFsInfo::update();
+
+  ret = mPriv->radosFsPriv()->stat(mPriv->parentDir, &stat);
 
   if (ret != 0)
     return ret;
@@ -397,7 +405,7 @@ RadosFsDir::remove()
   if (!mPriv->dirInfo && !mPriv->updateDirInfoPtr())
     return -ENOENT;
 
-  if (!statBuffHasPermission(buff,
+  if (!statBuffHasPermission(stat.statBuff,
                              radosFs->uid(),
                              radosFs->gid(),
                              O_WRONLY | O_RDWR))
@@ -411,6 +419,8 @@ RadosFsDir::remove()
   if (isFile())
     return -ENOTDIR;
 
+  statPtr = reinterpret_cast<RadosFsStat *>(fsStat());
+
   if (!isLink())
   {
     DirCache *info = mPriv->dirInfo.get();
@@ -419,12 +429,12 @@ RadosFsDir::remove()
 
     if (info->getEntry(0) != "")
       return -ENOTEMPTY;
+
+    ret = rados_remove(statPtr->ioctx, dirPath.c_str());
   }
 
-  ret = rados_remove(ioctx, dirPath.c_str());
-
   if (ret == 0)
-    indexObject(pool->ioctx, dirPath.c_str(), '-');
+    indexObject(statPtr, '-');
 
   RadosFsInfo::update();
   mPriv->updateFsDirCache();

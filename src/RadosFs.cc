@@ -250,62 +250,93 @@ RadosFsPriv::createCluster(const std::string &userName,
 }
 
 int
-RadosFsPriv::stat(const std::string &path,
-                  struct stat *buff,
-                  const RadosFsPool **pathPool,
-                  std::string *pathFound)
+RadosFsPriv::statLink(rados_ioctx_t dataIoctx,
+                      rados_ioctx_t mtdIoctx,
+                      RadosFsStat *stat)
 {
-  const RadosFsPool *pool;
-  int ret = -ENODEV;
-  std::string realPath(path);
+  int ret;
+  const std::string &parentDir = getParentDir(stat->path, 0);
+  char fileXAttr[XATTR_FILE_LENGTH + 1];
 
-  bool isDir = realPath[realPath.length() - 1] == PATH_SEP;
+  const std::string &pathXAttr = XATTR_FILE_PREFIX +
+                                 stat->path.substr(parentDir.length());
 
-  if (isDir)
-    pool = getMetadataPoolFromPath(path);
-  else
-    pool = getDataPoolFromPath(path);
+  stat->statBuff.st_size = 0;
 
-  if (!pool)
+  if (dataIoctx == 0)
     return -ENODEV;
 
-  if (pathPool)
-    *pathPool = pool;
+  int length = rados_getxattr(mtdIoctx, parentDir.c_str(),
+                              pathXAttr.c_str(), fileXAttr,
+                              XATTR_FILE_LENGTH);
 
-  rados_ioctx_t ioctx = pool->ioctx;
-  ret = genericStat(ioctx, path.c_str(), buff);
+  if (length > 0)
+  {
+    fileXAttr[length] = '\0';
+    ret = statFromXAttr(stat->path, fileXAttr, &stat->statBuff,
+                        stat->translatedPath);
+
+    if (stat->translatedPath == "")
+    {
+      ret = -ENOLINK;
+    }
+    else if (stat->translatedPath[0] != PATH_SEP)
+    {
+      ret = genericStat(dataIoctx, stat->translatedPath.c_str(), &stat->statBuff);
+    }
+  }
+  else if (length == -ENODATA)
+  {
+    ret = -ENOENT;
+  }
+  else
+  {
+    ret = length;
+  }
+
+  return ret;
+}
+
+int
+RadosFsPriv::stat(const std::string &path,
+                  RadosFsStat *stat)
+{
+  const RadosFsPool *dataPool, *mtdPool;
+  int ret = -ENODEV;
+  stat->path = getDirPath(path);
+  struct stat buff;
+  stat->statBuff = buff;
+  stat->ioctx = 0;
+  stat->translatedPath = "";
+
+  mtdPool = getMetadataPoolFromPath(stat->path);
+
+  if (!mtdPool)
+    return -ENODEV;
+
+  rados_ioctx_t ioctx = mtdPool->ioctx;
+  ret = genericStat(ioctx, path.c_str(), &stat->statBuff);
 
   if (ret != 0)
   {
-    if (!isDir)
+    dataPool = getDataPoolFromPath(stat->path);
+    stat->path = getFilePath(stat->path);
+    ret = statLink(dataPool->ioctx, mtdPool->ioctx, stat);
+
+    if (ret == -ENOENT)
     {
-      pool = getMetadataPoolFromPath(path);
+      stat->path = getDirPath(stat->path);
+      ret = statLink(dataPool->ioctx, mtdPool->ioctx, stat);
     }
-    else
-    {
-      pool = getDataPoolFromPath(path);
-      realPath.erase(realPath.length() - 1, 1);
-    }
-
-    if (!pool)
-      return -ENODEV;
-
-    rados_ioctx_t ioctx = pool->ioctx;
-
-    ret = genericStat(ioctx, realPath.c_str(), buff);
-
-    if (ret != 0 && !isDir)
-    {
-      realPath += PATH_SEP;
-      ret = genericStat(ioctx, realPath.c_str(), buff);
-    }
-
-    if (ret == 0 && pathPool)
-      *pathPool = pool;
   }
 
-  if (ret == 0 && pathFound)
-    pathFound->assign(realPath);
+  if (ret == 0)
+  {
+    if (stat->path[stat->path.length() - 1] == PATH_SEP)
+      stat->ioctx = mtdPool->ioctx;
+    else
+      stat->ioctx = dataPool->ioctx;
+  }
 
   return ret;
 }
@@ -742,7 +773,12 @@ RadosFs::gid(void) const
 int
 RadosFs::stat(const std::string &path, struct stat *buff)
 {
-  return mPriv->stat(sanitizePath(path), buff);
+  RadosFsStat stat;
+  int ret = mPriv->stat(sanitizePath(path), &stat);
+
+  *buff = stat.statBuff;
+
+  return ret;
 }
 
 std::vector<std::string>
@@ -798,17 +834,15 @@ RadosFs::setXAttr(const std::string &path,
                   const std::string &attrName,
                   const std::string &value)
 {
-  struct stat buff;
-  const RadosFsPool *pool;
-  std::string pathFound;
+  RadosFsStat stat;
 
-  int ret = mPriv->stat(path, &buff, &pool, &pathFound);
+  int ret = mPriv->stat(path, &stat);
 
   if (ret != 0)
     return ret;
 
-  return setXAttrFromPath(pool->ioctx, buff, uid(), gid(), pathFound, attrName,
-                          value);
+  return setXAttrFromPath(stat.ioctx, stat.statBuff, uid(), gid(), stat.path,
+                          attrName, value);
 }
 
 int
@@ -817,50 +851,45 @@ RadosFs::getXAttr(const std::string &path,
                   std::string &value,
                   size_t length)
 {
-  struct stat buff;
-  const RadosFsPool *pool;
-  std::string pathFound;
+  RadosFsStat stat;
 
-  int ret = mPriv->stat(path, &buff, &pool, &pathFound);
+  int ret = mPriv->stat(path, &stat);
 
   if (ret != 0)
     return ret;
 
-  return getXAttrFromPath(pool->ioctx, buff, uid(), gid(),
-                          pathFound, attrName, value, length);
+  return getXAttrFromPath(stat.ioctx, stat.statBuff, uid(), gid(),
+                          stat.path, attrName, value, length);
 }
 
 int
 RadosFs::removeXAttr(const std::string &path,
                      const std::string &attrName)
 {
-  struct stat buff;
-  const RadosFsPool *pool;
-  std::string pathFound;
+  RadosFsStat stat;
 
-  int ret = mPriv->stat(path, &buff, &pool, &pathFound);
+  int ret = mPriv->stat(path, &stat);
 
   if (ret != 0)
     return ret;
 
-  return removeXAttrFromPath(pool->ioctx, buff, uid(), gid(), pathFound,
-                             attrName);
+  return removeXAttrFromPath(stat.ioctx, stat.statBuff, uid(), gid(),
+                             stat.path, attrName);
 }
 
 int
 RadosFs::getXAttrsMap(const std::string &path,
                       std::map<std::string, std::string> &map)
 {
-  struct stat buff;
-  const RadosFsPool *pool;
-  std::string pathFound;
+  RadosFsStat stat;
 
-  int ret = mPriv->stat(path, &buff, &pool, &pathFound);
+  int ret = mPriv->stat(path, &stat);
 
   if (ret != 0)
     return ret;
 
-  return getMapOfXAttrFromPath(pool->ioctx, buff, uid(), gid(), pathFound, map);
+  return getMapOfXAttrFromPath(stat.ioctx, stat.statBuff, uid(), gid(),
+                               stat.path, map);
 }
 
 void
