@@ -398,7 +398,7 @@ TEST_F(RadosFsTest, RemoveFile)
 
   file2->update();
 
-  EXPECT_TRUE(file2->exists());
+  EXPECT_FALSE(file2->exists());
 
   delete file2;
   delete file1;
