@@ -623,7 +623,7 @@ RadosFsPriv::setRadosFsIO(std::tr1::shared_ptr<RadosFsIO> sharedFsIO)
 {
   pthread_mutex_lock(&operationsMutex);
 
-  operations[sharedFsIO->path()] = sharedFsIO;
+  operations[sharedFsIO->inode()] = sharedFsIO;
 
   pthread_mutex_unlock(&operationsMutex);
 }
@@ -633,8 +633,8 @@ RadosFsPriv::removeRadosFsIO(std::tr1::shared_ptr<RadosFsIO> sharedFsIO)
 {
   pthread_mutex_lock(&operationsMutex);
 
-  if (operations.count(sharedFsIO->path()))
-    operations.erase(sharedFsIO->path());
+  if (operations.count(sharedFsIO->inode()))
+    operations.erase(sharedFsIO->inode());
 
   pthread_mutex_unlock(&operationsMutex);
 }

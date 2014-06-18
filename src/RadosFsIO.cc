@@ -26,9 +26,9 @@
 RADOS_FS_BEGIN_NAMESPACE
 
 RadosFsIO::RadosFsIO(const RadosFsPool *pool,
-                     const std::string &path)
+                     const std::string &iNode)
   : mPool(pool),
-    mPath(path),
+    mInode(iNode),
     mLazyRemoval(false)
 {}
 
@@ -37,7 +37,7 @@ RadosFsIO::~RadosFsIO()
   cleanCompletion();
 
   if (mLazyRemoval)
-    rados_remove(mPool->ioctx, mPath.c_str());
+    rados_remove(mPool->ioctx, mInode.c_str());
 }
 
 ssize_t
@@ -45,7 +45,7 @@ RadosFsIO::read(char *buff, off_t offset, size_t blen)
 {
   sync();
 
-  return rados_read(mPool->ioctx, mPath.c_str(), buff, blen, offset);
+  return rados_read(mPool->ioctx, mInode.c_str(), buff, blen, offset);
 }
 
 ssize_t
@@ -53,7 +53,7 @@ RadosFsIO::writeSync(const char *buff, off_t offset, size_t blen)
 {
   sync();
 
-  return rados_write(mPool->ioctx, mPath.c_str(), buff, blen, offset);
+  return rados_write(mPool->ioctx, mInode.c_str(), buff, blen, offset);
 }
 
 ssize_t
@@ -71,7 +71,7 @@ RadosFsIO::write(const char *buff, off_t offset, size_t blen)
   compIndex = mCompletionList.size() - 1;
 
   rados_aio_create_completion(0, 0, 0, &mCompletionList[compIndex]);
-  ret = rados_aio_write(mPool->ioctx, mPath.c_str(),
+  ret = rados_aio_write(mPool->ioctx, mInode.c_str(),
                         mCompletionList[compIndex], (const char *) buff,
                         blen, offset);
 

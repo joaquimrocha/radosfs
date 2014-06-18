@@ -78,27 +78,35 @@ RadosFsFilePriv::updatePath()
 
   radosFsIO.reset();
 
+  if (!fsFile->exists())
+    return;
+
   if (target)
   {
     delete target;
     target = 0;
   }
 
-  radosFsIO = radosFs->mPriv->getRadosFsIO(fsFile->path());
-
-  if (!radosFsIO.get())
-  {
-    RadosFsIO *fsIO = new RadosFsIO(dataPool, fsFile->path());
-
-    radosFsIO = std::tr1::shared_ptr<RadosFsIO>(fsIO);
-    radosFs->mPriv->setRadosFsIO(radosFsIO);
-  }
+  if (!fsFile->isFile())
+    return;
 
   if (fsFile->isLink())
   {
     target = new RadosFsFile(fsFile->filesystem(),
                              fsFile->targetPath(),
                              mode);
+  }
+  else if (stat && stat->translatedPath != "")
+  {
+    radosFsIO = radosFs->mPriv->getRadosFsIO(stat->translatedPath);
+
+    if (!radosFsIO.get())
+    {
+      RadosFsIO *fsIO = new RadosFsIO(dataPool, stat->translatedPath);
+
+      radosFsIO = std::tr1::shared_ptr<RadosFsIO>(fsIO);
+      radosFs->mPriv->setRadosFsIO(radosFsIO);
+    }
   }
 }
 

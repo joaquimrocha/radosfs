@@ -33,21 +33,22 @@ RADOS_FS_BEGIN_NAMESPACE
 class RadosFsIO
 {
 public:
-  RadosFsIO(const RadosFsPool *pool, const std::string &path);
+  RadosFsIO(const RadosFsPool *pool,
+            const std::string &iNode);
   ~RadosFsIO();
 
   ssize_t read(char *buff, off_t offset, size_t blen);
   ssize_t write(const char *buff, off_t offset, size_t blen);
   ssize_t writeSync(const char *buff, off_t offset, size_t blen);
 
-  std::string path(void) const { return mPath; }
+  std::string inode(void) const { return mInode; }
 
   void setLazyRemoval(bool remove) { mLazyRemoval = remove; }
   bool lazyRemoval(void) const { return mLazyRemoval; }
 
 private:
   const RadosFsPool *mPool;
-  const std::string mPath;
+  const std::string mInode;
   bool mLazyRemoval;
   std::vector<rados_completion_t> mCompletionList;
 
