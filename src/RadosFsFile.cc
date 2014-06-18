@@ -351,7 +351,7 @@ RadosFsFile::create(int mode)
   // we should check if this is desired behavior
   if (exists())
   {
-    if (mPriv->radosFsIO->lazyRemoval())
+    if (mPriv->radosFsIO && mPriv->radosFsIO->lazyRemoval())
     {
       mPriv->radosFsIO->setLazyRemoval(false);
     }
