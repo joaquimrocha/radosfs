@@ -192,16 +192,18 @@ RadosFsFilePriv::removeFile()
 {
   int ret;
 
-  const std::string &filePath = fsFile->path().c_str();
-
-  if (radosFsIO.use_count() > 1)
+  if (radosFsIO)
   {
-    radosFsIO->setLazyRemoval(true);
-
-    return 0;
+    if (radosFsIO.use_count() > 1)
+    {
+      radosFsIO->setLazyRemoval(true);
+      ret = 0;
+    }
+    else
+    {
+      ret = rados_remove(ioctx, fsStat()->translatedPath.c_str());
+    }
   }
-
-  ret = rados_remove(ioctx, filePath.c_str());
 
   return ret;
 }
