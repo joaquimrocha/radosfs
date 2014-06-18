@@ -841,8 +841,25 @@ RadosFs::setXAttr(const std::string &path,
   if (ret != 0)
     return ret;
 
-  return setXAttrFromPath(stat.ioctx, stat.statBuff, uid(), gid(), stat.path,
-                          attrName, value);
+  if (S_ISLNK(stat.statBuff.st_mode))
+    return setXAttr(stat.translatedPath, attrName, value);
+
+  if (S_ISDIR(stat.statBuff.st_mode))
+    return setXAttrFromPath(stat.ioctx, stat.statBuff, uid(), gid(),
+                            stat.path, attrName, value);
+
+  if (S_ISREG(stat.statBuff.st_mode))
+  {
+    const RadosFsPool *pool = mPriv->getDataPoolFromPath(path);
+
+    if (!pool)
+      return -ENODEV;
+
+    return setXAttrFromPath(pool->ioctx, stat.statBuff, uid(), gid(),
+                            stat.translatedPath, attrName, value);
+  }
+
+  return -EPERM;
 }
 
 int
@@ -858,8 +875,25 @@ RadosFs::getXAttr(const std::string &path,
   if (ret != 0)
     return ret;
 
-  return getXAttrFromPath(stat.ioctx, stat.statBuff, uid(), gid(),
-                          stat.path, attrName, value, length);
+  if (S_ISLNK(stat.statBuff.st_mode))
+    return getXAttr(stat.translatedPath, attrName, value, length);
+
+  if (S_ISDIR(stat.statBuff.st_mode))
+    return getXAttrFromPath(stat.ioctx, stat.statBuff, uid(), gid(),
+                            stat.path, attrName, value, length);
+
+  if (S_ISREG(stat.statBuff.st_mode))
+  {
+    const RadosFsPool *pool = mPriv->getDataPoolFromPath(path);
+
+    if (!pool)
+      return -ENODEV;
+
+    return getXAttrFromPath(stat.ioctx, stat.statBuff, uid(), gid(),
+                            stat.translatedPath, attrName, value, length);
+  }
+
+  return -EPERM;
 }
 
 int
@@ -873,8 +907,25 @@ RadosFs::removeXAttr(const std::string &path,
   if (ret != 0)
     return ret;
 
-  return removeXAttrFromPath(stat.ioctx, stat.statBuff, uid(), gid(),
-                             stat.path, attrName);
+  if (S_ISLNK(stat.statBuff.st_mode))
+    return removeXAttr(stat.translatedPath, attrName);
+
+  if (S_ISDIR(stat.statBuff.st_mode))
+    return removeXAttrFromPath(stat.ioctx, stat.statBuff, uid(), gid(), path,
+                               attrName);
+
+  if (S_ISREG(stat.statBuff.st_mode))
+  {
+    const RadosFsPool *pool = mPriv->getDataPoolFromPath(path);
+
+    if (!pool)
+      return -ENODEV;
+
+    return removeXAttrFromPath(pool->ioctx, stat.statBuff, uid(), gid(),
+                               stat.translatedPath, attrName);
+  }
+
+  return -EPERM;
 }
 
 int
@@ -888,8 +939,25 @@ RadosFs::getXAttrsMap(const std::string &path,
   if (ret != 0)
     return ret;
 
-  return getMapOfXAttrFromPath(stat.ioctx, stat.statBuff, uid(), gid(),
-                               stat.path, map);
+  if (S_ISLNK(stat.statBuff.st_mode))
+    return getXAttrsMap(stat.translatedPath, map);
+
+  if (S_ISDIR(stat.statBuff.st_mode))
+    return getMapOfXAttrFromPath(stat.ioctx, stat.statBuff, uid(), gid(),
+                                 stat.path, map);
+
+  if (S_ISREG(stat.statBuff.st_mode))
+  {
+    const RadosFsPool *pool = mPriv->getDataPoolFromPath(path);
+
+    if (!pool)
+      return -ENODEV;
+
+    return getMapOfXAttrFromPath(pool->ioctx, stat.statBuff, uid(), gid(),
+                                 stat.translatedPath, map);
+  }
+
+  return -EPERM;
 }
 
 void
