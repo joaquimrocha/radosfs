@@ -97,24 +97,30 @@ TEST_F(RadosFsTest, Pools)
 
   // Create a dir and check if it got into the data pool
 
+  RadosFsStat stat;
   const RadosFsPool *dataPool, *mtdPool;
-  struct stat buff;
+
+  mtdPool = radosFsPriv()->getMetadataPoolFromPath(dir.path());
 
   EXPECT_EQ(0, dir.create());
 
-//  EXPECT_EQ(0, radosFsPriv()->stat(dir.path(), &buff, &mtdPool));
-
-  EXPECT_EQ(TEST_POOL_MTD, mtdPool->name);
+  EXPECT_EQ(0, radosFsPriv()->stat(dir.path(), &stat));
 
   // Create a file and check if it got into the data pool
 
   file.setPath(dir.path() + "file");
 
+  dataPool = radosFsPriv()->getDataPoolFromPath(file.path());
+
   EXPECT_EQ(0, file.create());
 
-//  EXPECT_EQ(0, radosFsPriv()->stat(file.path(), &buff, &dataPool));
+  EXPECT_EQ(0, radosFsPriv()->stat(file.path(), &stat));
 
-  EXPECT_EQ(TEST_POOL, dataPool->name);
+  EXPECT_EQ(dataPool->ioctx, stat.ioctx);
+
+  EXPECT_EQ(0, rados_stat(dataPool->ioctx, stat.translatedPath.c_str(), 0, 0));
+
+  EXPECT_EQ(dataPool->ioctx, stat.ioctx);
 
   // Remove the pools
 
@@ -138,7 +144,7 @@ TEST_F(RadosFsTest, Pools)
   // Verify that one cannot create a dir in a path that doesn't start with
   // the pool's prefix
 
-  dir.setPath("/dir");
+  dir.setPath("/new-dir");
 
   EXPECT_EQ(-ENODEV, dir.create(-1, true));
 
