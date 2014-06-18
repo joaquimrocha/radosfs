@@ -94,7 +94,7 @@ int indexObjectMetadata(rados_ioctx_t ioctx,
 
 bool verifyIsOctal(const char *mode);
 
-std::string getDirPath(const char *path);
+std::string getDirPath(const std::string &path);
 
 int setXAttrFromPath(rados_ioctx_t ioctx,
                      const struct stat &statBuff,

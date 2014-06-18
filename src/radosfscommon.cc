@@ -437,7 +437,7 @@ verifyIsOctal(const char *mode)
 }
 
 std::string
-getDirPath(const char *path)
+getDirPath(const std::string &path)
 {
   std::string dir(path);
 
