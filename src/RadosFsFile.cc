@@ -440,9 +440,6 @@ RadosFsFile::remove()
 int
 RadosFsFile::truncate(unsigned long long size)
 {
-  rados_ioctx_t ioctx = mPriv->ioctx;
-  const char *filePath = path().c_str();
-
   int ret = mPriv->verifyExistanceAndType();
 
   if (ret != 0)
@@ -453,12 +450,14 @@ RadosFsFile::truncate(unsigned long long size)
 
   filesystem()->getIds(&uid, &gid);
 
-  if (statBuffHasPermission(mPriv->statBuff, uid, gid, O_WRONLY | O_RDWR))
+  if (statBuffHasPermission(mPriv->fsStat()->statBuff, uid, gid,
+                            O_WRONLY | O_RDWR))
   {
     if (isLink())
       return mPriv->target->truncate(size);
 
-    ret = rados_trunc(ioctx, filePath, size);
+    ret = rados_trunc(mPriv->ioctx,
+                      mPriv->fsStat()->translatedPath.c_str(), size);
   }
   else
     ret = -EACCES;
