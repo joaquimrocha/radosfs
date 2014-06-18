@@ -277,7 +277,7 @@ TEST_F(RadosFsTest, RemoveDir)
 
   // Remove non-empty dir
 
-  EXPECT_NE(0, dir.remove());
+  EXPECT_EQ(-ENOTEMPTY, dir.remove());
 
   EXPECT_TRUE(dir.exists());
 
