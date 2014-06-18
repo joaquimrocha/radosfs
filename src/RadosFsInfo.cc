@@ -33,7 +33,6 @@ RadosFsInfoPriv::RadosFsInfoPriv(RadosFs *radosFs, const std::string &objPath)
   : radosFs(radosFs),
     target(0),
     ioctx(0),
-    fileType(0),
     exists(false)
 {
   setPath(objPath);
@@ -151,7 +150,7 @@ RadosFsInfoPriv::makeLink(std::string &linkPath)
 
   std::string alternativeName;
 
-  if (fileType == S_IFDIR)
+  if (S_ISDIR(stat.statBuff.st_mode))
   {
     linkPath = getDirPath(linkPath.c_str());
     alternativeName = linkPath;
@@ -239,10 +238,7 @@ RadosFsInfo::setFilesystem(RadosFs *radosFs)
 bool
 RadosFsInfo::isFile() const
 {
-  if (isLink())
-    return mPriv->target->isFile();
-
-  return mPriv->fileType == S_IFREG;
+  return !isDir();
 }
 
 bool
@@ -251,7 +247,7 @@ RadosFsInfo::isDir() const
   if (isLink())
     return mPriv->target->isDir();
 
-  return mPriv->fileType == S_IFDIR;
+  return S_ISDIR(mPriv->stat.statBuff.st_mode);
 }
 
 bool
@@ -403,7 +399,7 @@ RadosFsInfo::createLink(const std::string &linkName)
 bool
 RadosFsInfo::isLink() const
 {
-  return mPriv->fileType == S_IFLNK;
+  return S_ISLNK(mPriv->stat.statBuff.st_mode);
 }
 
 std::string
