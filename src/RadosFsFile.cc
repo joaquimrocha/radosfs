@@ -426,6 +426,7 @@ RadosFsFile::remove()
   {
     ret = mPriv->removeFile();
     RadosFsStat *stat = mPriv->fsStat();
+    stat->ioctx = mPriv->mtdIoctx;
     indexObject(stat, '-');
   }
   else
