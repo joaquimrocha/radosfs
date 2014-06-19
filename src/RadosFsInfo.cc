@@ -244,6 +244,9 @@ RadosFsInfo::isFile() const
 bool
 RadosFsInfo::isDir() const
 {
+  if (!exists())
+    return mPriv->path[mPriv->path.length() - 1] == PATH_SEP;
+
   if (isLink())
     return mPriv->target->isDir();
 
