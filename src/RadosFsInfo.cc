@@ -32,7 +32,6 @@ RADOS_FS_BEGIN_NAMESPACE
 RadosFsInfoPriv::RadosFsInfoPriv(RadosFs *radosFs, const std::string &objPath)
   : radosFs(radosFs),
     target(0),
-    ioctx(0),
     exists(false)
 {
   setPath(objPath);
@@ -99,10 +98,7 @@ RadosFsInfoPriv::setPath(const std::string &path)
   while ((ret = makeRealPath(this->path)) == -EAGAIN)
   {}
 
-  ioctx = 0;
-
-  if (radosFs->mPriv->stat(this->path, &stat) != -ENODEV)
-    ioctx = stat.ioctx;
+  radosFs->mPriv->stat(this->path, &stat);
 }
 
 int
@@ -281,8 +277,6 @@ RadosFsInfo::update()
   if (!mPriv->exists)
     return;
 
-  mPriv->ioctx = mPriv->stat.ioctx;
-
   if (isLink())
   {
     const std::string &linkTarget = mPriv->stat.translatedPath;
@@ -364,7 +358,7 @@ RadosFsInfo::getXAttrsMap(std::map<std::string, std::string> &map)
   if (path == "")
     path = mPriv->stat.path;
 
-  return getMapOfXAttrFromPath(mPriv->ioctx, mPriv->stat.statBuff,
+  return getMapOfXAttrFromPath(mPriv->stat.ioctx, mPriv->stat.statBuff,
                                mPriv->radosFs->uid(), mPriv->radosFs->gid(),
                                path, map);
 }

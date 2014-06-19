@@ -49,7 +49,6 @@ public:
   std::string path;
   RadosFs *radosFs;
   RadosFsInfo *target;
-  rados_ioctx_t ioctx;
   RadosFsStat stat;
   bool exists;
 };
