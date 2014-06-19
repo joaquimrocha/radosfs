@@ -402,6 +402,9 @@ RadosFsInfo::createLink(const std::string &linkName)
 bool
 RadosFsInfo::isLink() const
 {
+  if (!exists())
+    return false;
+
   return S_ISLNK(mPriv->stat.statBuff.st_mode);
 }
 
