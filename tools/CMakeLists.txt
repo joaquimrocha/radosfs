@@ -20,5 +20,5 @@ find_package( LibRados REQUIRED )
 
 include_directories( ${PROJECT_SOURCE_DIR}/src ${RADOS_INCLUDE_DIR} )
 
-add_executable( radosfsck radosfsck.cc )
+add_executable( radosfsck radosfsck.cc RadosFsChecker.cc RadosFsChecker.hh)
 target_link_libraries( radosfsck ${RADOS_LIB} radosfs )

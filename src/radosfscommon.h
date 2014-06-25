@@ -159,4 +159,6 @@ int statFromXAttr(const std::string &path,
 
 std::string makeFileStripeName(const std::string &filePath, size_t stripeIndex);
 
+bool nameIsStripe(const std::string &name);
+
 #endif /* __RADOS_FS_COMMON_HH__ */

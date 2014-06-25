@@ -819,3 +819,16 @@ makeFileStripeName(const std::string &filePath, size_t stripeIndex)
 
   return stream.str();
 }
+
+bool
+nameIsStripe(const std::string &name)
+{
+  const size_t nameLength = name.length();
+
+  // we add 2 because of the // that comes before the stripe index
+  if (nameLength < FILE_STRIPE_LENGTH + 2)
+    return false;
+
+  return name[nameLength - FILE_STRIPE_LENGTH - 1] == PATH_SEP &&
+      name[nameLength - FILE_STRIPE_LENGTH - 2] == PATH_SEP;
+}

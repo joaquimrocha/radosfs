@@ -30,6 +30,7 @@
 #define RADOS_FS_END_NAMESPACE }
 
 class RadosFsTest;
+class RadosFsChecker;
 
 RADOS_FS_BEGIN_NAMESPACE
 
@@ -126,6 +127,7 @@ private:
   RadosFsPriv *mPriv;
 
 friend class ::RadosFsTest;
+friend class ::RadosFsChecker;
 friend class RadosFsInfoPriv;
 friend class RadosFsFilePriv;
 friend class RadosFsDirPriv;

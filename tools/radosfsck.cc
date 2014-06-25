@@ -21,15 +21,9 @@
 #include <cstdlib>
 #include <errno.h>
 #include <getopt.h>
-#include <rados/librados.h>
-#include <set>
-#include <sstream>
-#include <sys/stat.h>
 
 #include "RadosFs.hh"
-#include "RadosFsDir.hh"
-#include "RadosFsFile.hh"
-#include "radosfscommon.h"
+#include "RadosFsChecker.hh"
 
 #define CONF_ENV_VAR "RADOSFS_CLUSTER_CONF"
 #define CLUSTER_CONF_ARG "conf"
@@ -40,222 +34,37 @@
 #define VERBOSE_ARG_CHAR 'v'
 #define DRY_ARG "dry"
 #define DRY_ARG_CHAR 'n'
-
-static int
-getObjectsFromCluster(rados_ioctx_t ioctx, std::set<std::string> &entries)
-{
-  int ret;
-  rados_list_ctx_t list;
-
-  if ((ret = rados_objects_list_open(ioctx, &list)) != 0)
-    return ret;
-
-  const char *obj, *c;
-  while (rados_objects_list_next(list, &obj, &c) == 0 && obj != 0)
-  {
-    entries.insert(obj);
-  }
-
-  rados_objects_list_close(list);
-
-  return 0;
-}
-
-static int
-getListsOfIssues(radosfs::RadosFs &radosFs,
-                 rados_ioctx_t ioctx,
-                 std::set<std::string> &notIndexed,
-                 std::set<std::string> &nonExistent)
-{
-  int ret;
-  std::set<std::string>::iterator it;
-  std::set<std::string> entries;
-  std::map<std::string, std::set<std::string> > contentsMap;
-
-  ret = getObjectsFromCluster(ioctx, entries);
-
-  if (ret != 0)
-    return ret;
-
-  for(it = entries.begin(); it != entries.end(); it++)
-  {
-    std::string path(*it);
-    const std::string &dirPath = radosfs::RadosFsDir::getParent(*it);
-    std::string basePath(path, dirPath.length());
-    std::set<std::string> dirContents;
-
-    if (path[path.length() - 1] == PATH_SEP && contentsMap.count(path) == 0)
-    {
-      radosfs::RadosFsDir dir(&radosFs, path);
-
-      dir.update();
-      dir.entryList(dirContents);
-      contentsMap[path] = dirContents;
-    }
-
-    if (dirPath == "")
-      continue;
-
-    if (contentsMap.count(dirPath) == 0)
-    {
-      nonExistent.insert(dirPath);
-      notIndexed.insert(path);
-      continue;
-    }
-
-    std::set<std::string> &contents = contentsMap[dirPath];
-    if (contents.count(basePath) == 0)
-    {
-      notIndexed.insert(path);
-    }
-    else
-    {
-      contents.erase(basePath);
-    }
-  }
-
-  std::map<std::string, std::set<std::string> >::iterator mapIt;
-  for(mapIt = contentsMap.begin(); mapIt != contentsMap.end(); mapIt++)
-  {
-    std::set<std::string> cont = (*mapIt).second;
-    for(it = cont.begin(); it != cont.end(); it++)
-      nonExistent.insert((*mapIt).first + *it);
-  }
-
-  return 0;
-}
-
-static int
-fsck(radosfs::RadosFs &radosFs,
-     rados_t radosCluster,
-     const std::string &poolName,
-     bool fix,
-     bool dry,
-     bool verbose)
-{
-  std::set<std::string> entries;
-  rados_ioctx_t ioctx;
-
-  int ret = rados_ioctx_create(radosCluster, poolName.c_str(), &ioctx);
-
-  if (ret != 0)
-    return ret;
-
-  std::set<std::string> notIndexed, nonExistent;
-
-  ret = getListsOfIssues(radosFs, ioctx, notIndexed, nonExistent);
-
-  if (ret != 0)
-    return ret;
-
-  const int numNonExistent = nonExistent.size();
-  const int numNotIndexed = notIndexed.size();
-  const int numIssues = numNonExistent + numNotIndexed;
-
-  if (numIssues > 0)
-    fprintf(stdout, "%d issues found\n", numIssues);
-  else
-    fprintf(stdout, "No issues found\n");
-
-  if (fix)
-    fprintf(stdout, "Fixing...\n");
-
-  std::set<std::string>::iterator it;
-
-  if (verbose && numNonExistent > 0)
-    fprintf(stdout, "\n%d non-existent objects:\n", numNonExistent);
-
-  for(it = nonExistent.begin(); it != nonExistent.end(); it++)
-  {
-    const char *action = "";
-    const std::string &path(*it);
-    bool isDir = path[path.length() - 1] == PATH_SEP;
-
-    if (fix)
-    {
-      if (dry)
-      {
-        if (isDir)
-          action = "Would create";
-        else
-          action = "Would deindex";
-      }
-      else
-      {
-        if (isDir)
-        {
-          radosfs::RadosFsDir dir(&radosFs, path);
-          if (dir.create(-1, true) == 0)
-            action = "Created";
-          else
-            action = "Failed to create";
-        }
-        else
-        {
-//          if (indexObject(ioctx, path, '-') >= 0)
-//            action = "Deindexed";
-//          else
-//            action = "Failed to deindex";
-        }
-      }
-    }
-
-    if (verbose)
-      fprintf(stdout, "\t%s %s\n", action, path.c_str());
-  }
-
-  if (verbose && numNotIndexed)
-    fprintf(stdout, "\n%d not-indexed objects:\n", numNotIndexed);
-
-  for(it = notIndexed.begin(); it != notIndexed.end(); it++)
-  {
-    const char *action = "";
-    const std::string &path(*it);
-
-    if (fix)
-    {
-      if (dry)
-        action = "Would index";
-      else
-      {
-//        if (indexObject(ioctx, path, '+') >= 0)
-//          action = "Indexed";
-//        else
-//          action = "Failed to index";
-      }
-    }
-
-    if (verbose)
-      fprintf(stdout, "\t%s %s\n", action, path.c_str());
-  }
-
-  rados_ioctx_destroy(ioctx);
-
-  return ret;
-}
+#define HELP_ARG "help"
+#define HELP_ARG_CHAR 'h'
 
 static void
 showUsage(const char *name)
 {
-  fprintf(stderr, "Usage:\n%s [OPTIONS] --%s=CLUSTER_CONF POOL "
-          "[POOL_PREFIX [POOL1 POOL_PREFIX1]]\n",
+  fprintf(stdout, "Usage:\n%s [OPTIONS] --%s=CLUSTER_CONF POOL "
+          "POOL_PREFIX DATA_POOL MTD_POOL "
+          "[POOL_PREFIX_2 DATA_POOL_2 MTD_POOL_2]\n\n",
           name,
           CLUSTER_CONF_ARG
          );
-  fprintf(stderr,
-          "CLUSTER_CONF - path to the cluster's configuration file\n"
-          "POOL         - is the name of the pool to be checked\n"
-          "  if POOL_PREFIX is not specified, the root (/) will be used\n"
-          "  more pools and prefixes can also be specified.\n"
-          "\nOPTIONS can be:\n"
+  fprintf(stdout,
+          " CLUSTER_CONF\t- path to the cluster's configuration file\n"
+          " POOL_PREFIX\t- is the path prefix corresponding to the pools "
+          " DATA_POOL and MTD_POOL\n"
+          " DATA_POOL\t- is the name of the data pool to assign to POOL_PREFIX\n"
+          " MTD_POOL\t- is the name of the metadata pool to assign to "
+          "POOL_PREFIX\n"
+          "   more pools and prefixes can also be specified.\n"
+          " \nOPTIONS can be:\n"
          );
-  fprintf(stderr, "\t--%s, -%c \t fix the issues found\n",
+  fprintf(stdout, "\t--%s, -%c \t fix the issues found\n",
           FIX_ARG, FIX_ARG_CHAR);
-  fprintf(stderr, "\t--%s, -%c \t dry run (to use with the fix option), shows "
+  fprintf(stdout, "\t--%s, -%c \t dry run (to use with the fix option), shows "
           "what would be done to fix the issues\n",
-          DRY_ARG, VERBOSE_ARG_CHAR);
-  fprintf(stderr, "\t--%s, -%c \t display more details about the issues\n",
+          DRY_ARG, DRY_ARG_CHAR);
+  fprintf(stdout, "\t--%s, -%c \t display more details about the issues\n",
           VERBOSE_ARG, VERBOSE_ARG_CHAR);
+  fprintf(stdout, "\t--%s, -%c \t displays help information\n",
+          HELP_ARG, HELP_ARG_CHAR);
 }
 
 static int
@@ -278,11 +87,12 @@ parseArguments(int argc, char **argv,
    {FIX_ARG, no_argument, 0, FIX_ARG_CHAR},
    {DRY_ARG, no_argument, 0, DRY_ARG_CHAR},
    {VERBOSE_ARG, no_argument, 0, VERBOSE_ARG_CHAR},
+   {HELP_ARG, no_argument, 0, HELP_ARG_CHAR},
    {0, 0, 0, 0}
   };
 
   int c;
-  while ((c = getopt_long(argc, argv, "fnvc:", options, &optionIndex)) != -1)
+  while ((c = getopt_long(argc, argv, "hfnvc:", options, &optionIndex)) != -1)
   {
     switch(c)
     {
@@ -298,6 +108,8 @@ parseArguments(int argc, char **argv,
       case VERBOSE_ARG_CHAR:
         *verbose = true;
         break;
+      case HELP_ARG_CHAR:
+        showUsage(argv[0]);
       default:
         return -1;
     }
@@ -305,8 +117,8 @@ parseArguments(int argc, char **argv,
 
   if (confPath == "")
   {
-    fprintf(stderr, "Error: Please specify the " CONF_ENV_VAR " environment "
-            "variable or use the --" CLUSTER_CONF_ARG "=... argument.\n");
+    fprintf(stdout, "Error: Please specify the " CONF_ENV_VAR " environment "
+            "variable or use the --" CLUSTER_CONF_ARG "=... argument.\n\n");
 
     showUsage(argv[0]);
 
@@ -314,18 +126,18 @@ parseArguments(int argc, char **argv,
   }
 
   int numPosArgs = argc - optind;
-  if (numPosArgs == 1 || (numPosArgs > 1 && (numPosArgs % 2) == 0))
+  if (numPosArgs > 0 && (numPosArgs % 3) == 0)
   {
     *position = optind;
 
     return 0;
   }
 
-  fprintf(stderr, "Please specify the pool name and prefix pairs...\n");
+  fprintf(stdout, "Error: Please specify the pool name and prefix pairs...\n\n");
 
   showUsage(argv[0]);
 
-  return -1;
+  return -EINVAL;
 }
 
 int
@@ -354,46 +166,41 @@ main(int argc, char **argv)
 
   while (i < position + numPosArgs)
   {
-    const char *poolName, *pathPrefix;
+    const char *dataPoolName, *mtdPoolName, *pathPrefix;
 
-    poolName = argv[i];
+    pathPrefix = argv[i];
+    dataPoolName = argv[i + 1];
+    mtdPoolName = argv[i + 2];
 
-    if (numPosArgs == 1)
+    if ((ret = radosFs.addPool(dataPoolName, pathPrefix)) != 0)
     {
-      char root[] = {PATH_SEP, '\0'};
-      pathPrefix = root;
-    }
-    else
-      pathPrefix = argv[i + 1];
-
-
-    if ((ret = radosFs.addPool(poolName, pathPrefix)) != 0)
-    {
-      fprintf(stderr, "Problem adding pool '%s'\n", poolName);
+      fprintf(stdout, "Problem adding pool '%s'\n", dataPoolName);
       showUsage(argv[0]);
       return ret;
     }
 
-    i += 2;
+    if ((ret = radosFs.addMetadataPool(mtdPoolName, pathPrefix)) != 0)
+    {
+      fprintf(stdout, "Problem adding pool '%s'\n", mtdPoolName);
+      showUsage(argv[0]);
+      return ret;
+    }
+
+    i += 3;
   }
 
-  rados_t cluster;
+  RadosFsChecker checker(&radosFs);
 
-  rados_create(&cluster, 0);
-  rados_conf_read_file(cluster, confPath.c_str());
-  rados_connect(cluster);
+  checker.setVerbose(verbose);
+  checker.setDry(dry);
 
-  srand((unsigned int) clock());
-
-  const std::vector<std::string> &pools = radosFs.pools();
-  std::vector<std::string>::const_iterator it;
-  for (it = pools.begin(); it != pools.end(); it++)
+  if (fix)
+    checker.fix();
+  else
   {
-    fprintf(stdout, "Checking pool %s... ", (*it).c_str());
-    fsck(radosFs, cluster, *it, fix, dry, verbose);
+    checker.check();
+    checker.printIssues();
   }
-
-  rados_shutdown(cluster);
 
   return 0;
 }
