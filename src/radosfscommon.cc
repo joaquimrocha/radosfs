@@ -668,14 +668,26 @@ int getMapOfXAttrFromPath(rados_ioctx_t ioctx,
   const char *value = 0;
   size_t len;
   const size_t sysPrefixSize = strlen(XATTR_SYS_PREFIX);
+  const size_t usrPrefixSize = strlen(XATTR_USER_PREFIX);
 
   while ((ret = rados_getxattrs_next(iter, &attr, &value, &len)) == 0)
   {
     if (attr == 0)
       break;
 
-    if (uid != ROOT_UID && strncmp(attr, XATTR_SYS_PREFIX, sysPrefixSize) == 0)
+    bool hasSysPrefix = strncmp(attr, XATTR_SYS_PREFIX, sysPrefixSize) == 0;
+
+    // Only include xattrs that have a usr or sys prefixes (for the latter, only
+    // include them if user is root)
+    if (hasSysPrefix)
+    {
+      if (uid != ROOT_UID)
+        continue;
+    }
+    else if (strncmp(attr, XATTR_USER_PREFIX, usrPrefixSize) != 0)
+    {
       continue;
+    }
 
     if (value != 0)
       map[attr] = std::string(value, len);
