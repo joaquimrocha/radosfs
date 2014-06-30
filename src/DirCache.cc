@@ -55,9 +55,8 @@ DirCache::~DirCache()
 void
 DirCache::parseContents(char *buff, int length)
 {
-  int i = 0;
   std::istringstream iss(buff);
-  //  while ((i = contents.tokenize(line, i, '\n')) != -1)
+
   for (std::string line; getline(iss, line, '\n');)
   {
     int startPos = 0, lastPos = 0;
