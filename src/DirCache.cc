@@ -55,7 +55,7 @@ DirCache::~DirCache()
 void
 DirCache::parseContents(char *buff, int length)
 {
-  std::istringstream iss(buff);
+  std::istringstream iss(std::string(buff, length - 1));
 
   for (std::string line; getline(iss, line, '\n');)
   {
