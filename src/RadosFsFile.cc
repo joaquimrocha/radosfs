@@ -499,38 +499,45 @@ RadosFsFile::truncate(unsigned long long size)
 {
   int ret;
   struct stat statBuff;
+  uid_t uid;
+  gid_t gid;
   RadosFsStat *fsStat = mPriv->fsStat();
   rados_ioctx_t ioctx = mPriv->ioctx;
-  const bool lockFiles = filesystem()->fileLocking();
+  const bool fileIsLink = isLink();
+  const bool lockFiles = filesystem()->fileLocking() && !fileIsLink;
 
-  while (rados_lock_exclusive(ioctx,
-                              fsStat->translatedPath.c_str(),
-                              FILE_STRIPE_LOCKER,
-                              FILE_STRIPE_LOCKER_COOKIE_OTHER,
-                              "",
-                              0,
-                              0) != 0)
-  {}
+  if (lockFiles)
+  {
+    while (rados_lock_exclusive(ioctx,
+                                fsStat->translatedPath.c_str(),
+                                FILE_STRIPE_LOCKER,
+                                FILE_STRIPE_LOCKER_COOKIE_OTHER,
+                                "",
+                                0,
+                                0) != 0)
+    {}
+  }
 
   ret = stat(&statBuff);
 
   if (ret != 0)
-    return ret;
+  {
+    goto bailout;
+  }
 
   ret = mPriv->verifyExistanceAndType();
 
   if (ret != 0)
-    return ret;
-
-  uid_t uid;
-  gid_t gid;
+  {
+    goto bailout;
+  }
 
   filesystem()->getIds(&uid, &gid);
 
   if (statBuffHasPermission(mPriv->fsStat()->statBuff, uid, gid,
                             O_WRONLY | O_RDWR))
   {
-    if (isLink())
+    if (fileIsLink)
       return mPriv->target->truncate(size);
 
     const size_t stripeSize = mPriv->radosFsIO->stripeSize();
@@ -566,10 +573,14 @@ RadosFsFile::truncate(unsigned long long size)
   else
     ret = -EACCES;
 
-  rados_unlock(mPriv->ioctx,
-               fsStat->translatedPath.c_str(),
-               FILE_STRIPE_LOCKER,
-               FILE_STRIPE_LOCKER_COOKIE_OTHER);
+bailout:
+  if (lockFiles)
+  {
+    rados_unlock(mPriv->ioctx,
+                 fsStat->translatedPath.c_str(),
+                 FILE_STRIPE_LOCKER,
+                 FILE_STRIPE_LOCKER_COOKIE_OTHER);
+  }
 
   return ret;
 }
