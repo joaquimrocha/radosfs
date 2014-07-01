@@ -660,39 +660,39 @@ RadosFs::init(const std::string &userName, const std::string &configurationFile)
 }
 
 int
-RadosFs::addPool(const std::string &name,
-                 const std::string &prefix,
-                 size_t size)
+RadosFs::addDataPool(const std::string &name,
+                     const std::string &prefix,
+                     size_t size)
 {
   return mPriv->addPool(name, prefix, &mPriv->poolMap, &mPriv->poolMutex, size);
 }
 
 int
-RadosFs::removePool(const std::string &name)
+RadosFs::removeDataPool(const std::string &name)
 {
  return mPriv->removePool(name, &mPriv->poolMap, &mPriv->poolMutex);
 }
 
 std::vector<std::string>
-RadosFs::pools() const
+RadosFs::dataPools() const
 {
   return mPriv->pools(&mPriv->poolMap, &mPriv->poolMutex);
 }
 
 std::string
-RadosFs::poolPrefix(const std::string &pool) const
+RadosFs::dataPoolPrefix(const std::string &pool) const
 {
   return mPriv->poolPrefix(pool, &mPriv->poolMap, &mPriv->poolMutex);
 }
 
 std::string
-RadosFs::poolFromPrefix(const std::string &prefix) const
+RadosFs::dataPoolFromPrefix(const std::string &prefix) const
 {
   return mPriv->poolFromPrefix(prefix, &mPriv->poolMap, &mPriv->poolMutex);
 }
 
 int
-RadosFs::poolSize(const std::string &pool) const
+RadosFs::dataPoolSize(const std::string &pool) const
 {
   int size = 0;
 

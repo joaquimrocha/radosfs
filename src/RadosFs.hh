@@ -51,18 +51,18 @@ public:
   int init(const std::string &userName = "",
            const std::string &configurationFile = "");
 
-  int addPool(const std::string &name, const std::string &prefix,
-              size_t size = 0);
+  int addDataPool(const std::string &name, const std::string &prefix,
+                  size_t size = 0);
 
-  int removePool(const std::string &name);
+  int removeDataPool(const std::string &name);
 
-  std::vector<std::string> pools() const;
+  std::vector<std::string> dataPools() const;
 
-  std::string poolPrefix(const std::string &pool) const;
+  std::string dataPoolPrefix(const std::string &pool) const;
 
-  std::string poolFromPrefix(const std::string &prefix) const;
+  std::string dataPoolFromPrefix(const std::string &prefix) const;
 
-  int poolSize(const std::string &pool) const;
+  int dataPoolSize(const std::string &pool) const;
 
   int addMetadataPool(const std::string &name, const std::string &prefix);
 

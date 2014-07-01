@@ -67,33 +67,33 @@ TEST_F(RadosFsTest, Pools)
   std::string poolPrefix("/");
   const int poolSize(10);
 
-  EXPECT_EQ(0, radosFs.addPool(dataPoolName, poolPrefix, poolSize));
+  EXPECT_EQ(0, radosFs.addDataPool(dataPoolName, poolPrefix, poolSize));
 
   EXPECT_EQ(0, radosFs.addMetadataPool(mtdPoolName, poolPrefix));
 
-  EXPECT_EQ(-EEXIST, radosFs.addPool(dataPoolName, poolPrefix, 0));
+  EXPECT_EQ(-EEXIST, radosFs.addDataPool(dataPoolName, poolPrefix, 0));
 
   EXPECT_EQ(-EEXIST, radosFs.addMetadataPool(mtdPoolName, poolPrefix));
 
-  EXPECT_EQ(1, radosFs.pools().size());
+  EXPECT_EQ(1, radosFs.dataPools().size());
 
   EXPECT_EQ(1, radosFs.metadataPools().size());
 
   // Check the pools' names from prefix
 
-  EXPECT_EQ(dataPoolName, radosFs.poolFromPrefix(poolPrefix));
+  EXPECT_EQ(dataPoolName, radosFs.dataPoolFromPrefix(poolPrefix));
 
   EXPECT_EQ(mtdPoolName, radosFs.metadataPoolFromPrefix(poolPrefix));
 
   // Check the pools' prefix from name
 
-  EXPECT_EQ(poolPrefix, radosFs.poolPrefix(dataPoolName));
+  EXPECT_EQ(poolPrefix, radosFs.dataPoolPrefix(dataPoolName));
 
   EXPECT_EQ(poolPrefix, radosFs.metadataPoolPrefix(mtdPoolName));
 
   // Check pool's size (it's MB) from name
 
-  EXPECT_EQ(poolSize * 1024 * 1024, radosFs.poolSize(dataPoolName));
+  EXPECT_EQ(poolSize * 1024 * 1024, radosFs.dataPoolSize(dataPoolName));
 
   // Create a dir and check if it got into the data pool
 
@@ -124,20 +124,20 @@ TEST_F(RadosFsTest, Pools)
 
   // Remove the pools
 
-  EXPECT_EQ(0, radosFs.removePool(dataPoolName));
+  EXPECT_EQ(0, radosFs.removeDataPool(dataPoolName));
 
   EXPECT_EQ(0, radosFs.removeMetadataPool(mtdPoolName));
 
   // Verify there are no pools now
 
-  EXPECT_EQ(0, radosFs.pools().size());
+  EXPECT_EQ(0, radosFs.dataPools().size());
 
   EXPECT_EQ(0, radosFs.metadataPools().size());
 
   // Create a pool for a non root prefix
   poolPrefix = "/test";
 
-  EXPECT_EQ(0, radosFs.addPool(dataPoolName, poolPrefix, poolSize));
+  EXPECT_EQ(0, radosFs.addDataPool(dataPoolName, poolPrefix, poolSize));
 
   EXPECT_EQ(0, radosFs.addMetadataPool(mtdPoolName, poolPrefix));
 
@@ -897,13 +897,13 @@ runInThread(void *contents)
 
 TEST_F(RadosFsTest, FileOpsMultipleClients)
 {
-  radosFs.addPool(TEST_POOL, "/", 50 * 1024);
+  radosFs.addDataPool(TEST_POOL, "/", 50 * 1024);
   radosFs.addMetadataPool(TEST_POOL, "/");
 
   radosfs::RadosFs otherClient;
   otherClient.init("", conf());
 
-  otherClient.addPool(TEST_POOL, "/", 50 * 1024);
+  otherClient.addDataPool(TEST_POOL, "/", 50 * 1024);
   otherClient.addMetadataPool(TEST_POOL, "/");
 
   const size_t size = pow(1024, 3);

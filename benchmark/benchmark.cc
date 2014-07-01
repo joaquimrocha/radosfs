@@ -298,7 +298,7 @@ main(int argc, char **argv)
 
   BenchmarkMgr benchmark(confPath.c_str());
 
-  benchmark.radosFs.addPool(TEST_POOL_DATA, "/", 1000);
+  benchmark.radosFs.addDataPool(TEST_POOL_DATA, "/", 1000);
   benchmark.radosFs.addMetadataPool(TEST_POOL_MTD, "/");
   benchmark.setCreateInDir(createInDir);
 

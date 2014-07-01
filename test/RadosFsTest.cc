@@ -74,11 +74,11 @@ RadosFsTest::TearDown()
 void
 RadosFsTest::AddPool()
 {
-  int ret = radosFs.addPool(TEST_POOL, "/", 1000);
+  int ret = radosFs.addDataPool(TEST_POOL, "/", 1000);
 
   EXPECT_EQ(0, ret);
 
-  EXPECT_EQ(1, radosFs.pools().size());
+  EXPECT_EQ(1, radosFs.dataPools().size());
 
   ret = radosFs.addMetadataPool(TEST_POOL_MTD, "/");
 

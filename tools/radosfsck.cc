@@ -172,7 +172,7 @@ main(int argc, char **argv)
     dataPoolName = argv[i + 1];
     mtdPoolName = argv[i + 2];
 
-    if ((ret = radosFs.addPool(dataPoolName, pathPrefix)) != 0)
+    if ((ret = radosFs.addDataPool(dataPoolName, pathPrefix)) != 0)
     {
       fprintf(stdout, "Problem adding pool '%s'\n", dataPoolName);
       showUsage(argv[0]);
