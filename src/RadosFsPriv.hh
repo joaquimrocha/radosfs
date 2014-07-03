@@ -38,6 +38,8 @@ RADOS_FS_BEGIN_NAMESPACE
 
 class RadosFs;
 
+typedef std::map<std::string, std::tr1::shared_ptr<RadosFsPool> > RadosFsPoolMap;
+
 typedef struct _LinkedList LinkedList;
 
 struct _LinkedList
@@ -92,33 +94,34 @@ public:
 
   int addPool(const std::string &name,
               const std::string &prefix,
-              std::map<std::string, RadosFsPool> *map,
+              RadosFsPoolMap *map,
               pthread_mutex_t *mutex,
               size_t size = 0);
 
-  int createPrefixDir(const RadosFsPool &pool, const std::string &prefix);
+  int createPrefixDir(const RadosFsPool *pool, const std::string &prefix);
 
-  const RadosFsPool * getPool(const std::string &path,
-                              std::map<std::string, RadosFsPool> *map,
-                              pthread_mutex_t *mutex);
+  std::tr1::shared_ptr<RadosFsPool> getPool(const std::string &path,
+                                            RadosFsPoolMap *map,
+                                            pthread_mutex_t *mutex);
 
-  const RadosFsPool * getMetadataPoolFromPath(const std::string &path);
+  std::tr1::shared_ptr<RadosFsPool>
+           getMetadataPoolFromPath(const std::string &path);
 
-  const RadosFsPool * getDataPoolFromPath(const std::string &path);
+  std::tr1::shared_ptr<RadosFsPool> getDataPoolFromPath(const std::string &path);
 
   std::string poolPrefix(const std::string &pool,
-                         std::map<std::string, RadosFsPool> *map,
+                         RadosFsPoolMap *map,
                          pthread_mutex_t *mutex) const;
 
   int removePool(const std::string &name,
-                 std::map<std::string, RadosFsPool> *map,
+                 RadosFsPoolMap *map,
                  pthread_mutex_t *mutex);
 
   std::string poolFromPrefix(const std::string &prefix,
-                             std::map<std::string, RadosFsPool> *map,
+                             RadosFsPoolMap *map,
                              pthread_mutex_t *mutex) const;
 
-  std::vector<std::string> pools(std::map<std::string, RadosFsPool> *map,
+  std::vector<std::string> pools(RadosFsPoolMap *map,
                                  pthread_mutex_t *mutex) const;
 
   const std::string getParentDir(const std::string &obj, int *pos);
@@ -146,9 +149,9 @@ public:
   static __thread uid_t uid;
   static __thread gid_t gid;
   std::vector<rados_completion_t> completionList;
-  std::map<std::string, RadosFsPool> poolMap;
+  RadosFsPoolMap poolMap;
   pthread_mutex_t poolMutex;
-  std::map<std::string, RadosFsPool> mtdPoolMap;
+  RadosFsPoolMap mtdPoolMap;
   pthread_mutex_t mtdPoolMutex;
   PriorityCache dirCache;
   pthread_mutex_t dirCacheMutex;

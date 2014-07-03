@@ -87,7 +87,7 @@ RadosFsDirPriv::updateFsDirCache()
 int
 RadosFsDirPriv::updateIoctx()
 {
-  const RadosFsPool *pool =
+  const std::tr1::shared_ptr<RadosFsPool> pool =
       dir->filesystem()->mPriv->getMetadataPoolFromPath(dir->path());
 
   ioctx = 0;

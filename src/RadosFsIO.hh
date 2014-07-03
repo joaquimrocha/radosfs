@@ -24,6 +24,7 @@
 #include <rados/librados.h>
 #include <string>
 #include <vector>
+#include <tr1/memory>
 
 #include "RadosFs.hh"
 #include "radosfscommon.h"
@@ -39,7 +40,7 @@ class RadosFsIO
 {
 public:
   RadosFsIO(RadosFs *radosFs,
-            const RadosFsPool *pool,
+            const std::tr1::shared_ptr<RadosFsPool> pool,
             const std::string &iNode,
             size_t stripeSize);
   ~RadosFsIO();
@@ -63,7 +64,7 @@ public:
 
 private:
   RadosFs *mRadosFs;
-  const RadosFsPool *mPool;
+  const std::tr1::shared_ptr<RadosFsPool> mPool;
   const std::string mInode;
   size_t mStripeSize;
   bool mLazyRemoval;

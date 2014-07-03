@@ -29,7 +29,7 @@
 RADOS_FS_BEGIN_NAMESPACE
 
 RadosFsIO::RadosFsIO(RadosFs *radosFs,
-                     const RadosFsPool *pool,
+                     const std::tr1::shared_ptr<RadosFsPool> pool,
                      const std::string &iNode,
                      size_t stripeSize)
   : mRadosFs(radosFs),

@@ -98,7 +98,7 @@ TEST_F(RadosFsTest, Pools)
   // Create a dir and check if it got into the data pool
 
   RadosFsStat stat;
-  const RadosFsPool *dataPool, *mtdPool;
+  std::tr1::shared_ptr<RadosFsPool> dataPool, mtdPool;
 
   mtdPool = radosFsPriv()->getMetadataPoolFromPath(dir.path());
 

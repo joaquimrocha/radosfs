@@ -32,11 +32,18 @@
 #include "hash64.h"
 #include "radosfsdefines.h"
 
-typedef struct {
+struct RadosFsPool {
   std::string name;
   size_t size;
   rados_ioctx_t ioctx;
-} RadosFsPool;
+
+  RadosFsPool(const std::string &poolName, size_t poolSize, rados_ioctx_t ioctx)
+    : name(poolName),
+      size(poolSize),
+      ioctx(ioctx)
+  {}
+
+};
 
 typedef struct {
   std::string path;

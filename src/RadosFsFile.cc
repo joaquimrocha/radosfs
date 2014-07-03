@@ -36,9 +36,7 @@ RadosFsFilePriv::RadosFsFilePriv(RadosFsFile *fsFile,
   : fsFile(fsFile),
     permissions(RadosFsFile::MODE_NONE),
     mode(mode),
-    target(0),
-    ioctx(0),
-    mtdIoctx(0)
+    target(0)
 {
   updatePath();
 }
@@ -59,7 +57,6 @@ void
 RadosFsFilePriv::updatePath()
 {
   RadosFsStat *stat = fsStat();
-  const RadosFsPool *dataPool, *mtdPool;
 
   parentDir = getParentDir(fsFile->path(), 0);
 
@@ -68,11 +65,8 @@ RadosFsFilePriv::updatePath()
   dataPool = radosFs->mPriv->getDataPoolFromPath(fsFile->path());
   mtdPool = radosFs->mPriv->getMetadataPoolFromPath(fsFile->path());
 
-  if (!dataPool || !mtdPool)
+  if (!dataPool.get() || !mtdPool.get())
     return;
-
-  ioctx = dataPool->ioctx;
-  mtdIoctx = mtdPool->ioctx;
 
   updatePermissions();
 
@@ -106,8 +100,7 @@ RadosFsFilePriv::updatePath()
         const size_t length = 12;
         char buff[length + 1];
 
-
-        int ret = rados_getxattr(ioctx,
+        int ret = rados_getxattr(dataPool->ioctx,
                                  stat->translatedPath.c_str(),
                                  XATTR_FILE_STRIPE_SIZE,
                                  buff,
@@ -152,7 +145,7 @@ RadosFsFilePriv::updatePermissions()
   permissions = RadosFsFile::MODE_NONE;
   RadosFsStat stat, *fileStat;
 
-  if (!mtdIoctx)
+  if (!mtdPool.get())
     return;
 
   int ret = fsFile->filesystem()->mPriv->stat(parentDir, &stat);
@@ -346,7 +339,7 @@ RadosFsFile::create(int mode)
   RadosFsStat *stat = reinterpret_cast<RadosFsStat *>(fsStat());
   int ret;
 
-  if (mPriv->ioctx == 0)
+  if (mPriv->dataPool.get() == 0)
     return -ENODEV;
 
   // we don't allow object names that end in a path separator
@@ -395,10 +388,10 @@ RadosFsFile::create(int mode)
   stat->statBuff.st_mode = permOctal;
   stat->statBuff.st_uid = uid;
   stat->statBuff.st_gid = gid;
-  stat->ioctx = mPriv->mtdIoctx;
+  stat->ioctx = mPriv->mtdPool->ioctx;
 
-  ret = mPriv->createInode(mPriv->ioctx, inodeStr, filePath, permOctal, uid,
-                           gid);
+  ret = mPriv->createInode(mPriv->dataPool->ioctx, inodeStr, filePath,
+                           permOctal, uid, gid);
 
   if (ret != 0)
     return ret;
@@ -435,7 +428,7 @@ RadosFsFile::remove()
   {
     ret = mPriv->removeFile();
     RadosFsStat *stat = mPriv->fsStat();
-    stat->ioctx = mPriv->mtdIoctx;
+    stat->ioctx = mPriv->mtdPool->ioctx;
     indexObject(stat, '-');
   }
   else
@@ -502,7 +495,7 @@ RadosFsFile::truncate(unsigned long long size)
   uid_t uid;
   gid_t gid;
   RadosFsStat *fsStat = mPriv->fsStat();
-  rados_ioctx_t ioctx = mPriv->ioctx;
+  rados_ioctx_t ioctx = mPriv->dataPool->ioctx;
   const bool fileIsLink = isLink();
   const bool lockFiles = filesystem()->fileLocking() && !fileIsLink;
 
@@ -576,7 +569,7 @@ RadosFsFile::truncate(unsigned long long size)
 bailout:
   if (lockFiles)
   {
-    rados_unlock(mPriv->ioctx,
+    rados_unlock(mPriv->dataPool->ioctx,
                  fsStat->translatedPath.c_str(),
                  FILE_STRIPE_LOCKER,
                  FILE_STRIPE_LOCKER_COOKIE_OTHER);
@@ -633,7 +626,7 @@ RadosFsFile::stat(struct stat *buff)
   size_t numStripes = mPriv->radosFsIO->getLastStripeIndex();
   u_int64_t size;
 
-  ret = rados_stat(mPriv->ioctx,
+  ret = rados_stat(mPriv->dataPool->ioctx,
                    makeFileStripeName(stat->translatedPath, numStripes).c_str(),
                    &size,
                    0);

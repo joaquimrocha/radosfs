@@ -110,7 +110,8 @@ RadosFsInfoPriv::makeLink(std::string &linkPath)
   while ((ret = makeRealPath(linkPath)) == -EAGAIN)
   {}
 
-  const RadosFsPool *pool = radosFs->mPriv->getMetadataPoolFromPath(linkPath);
+  const std::tr1::shared_ptr<RadosFsPool> pool =
+      radosFs->mPriv->getMetadataPoolFromPath(linkPath);
 
   if (!pool)
     return -ENODEV;
