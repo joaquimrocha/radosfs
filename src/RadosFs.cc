@@ -50,6 +50,7 @@ RadosFsPriv::RadosFsPriv(RadosFs *radosFs)
 RadosFsPriv::~RadosFsPriv()
 {
   poolMap.clear();
+  mtdPoolMap.clear();
 
   if (radosCluster)
     rados_shutdown(radosCluster);
