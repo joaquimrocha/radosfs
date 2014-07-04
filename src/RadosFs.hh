@@ -56,11 +56,9 @@ public:
 
   int removeDataPool(const std::string &name);
 
-  std::vector<std::string> dataPools() const;
+  std::vector<std::string> dataPools(const std::string &prefix) const;
 
   std::string dataPoolPrefix(const std::string &pool) const;
-
-  std::string dataPoolFromPrefix(const std::string &prefix) const;
 
   int dataPoolSize(const std::string &pool) const;
 

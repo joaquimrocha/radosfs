@@ -38,7 +38,10 @@ RADOS_FS_BEGIN_NAMESPACE
 
 class RadosFs;
 
+typedef std::vector<std::tr1::shared_ptr<RadosFsPool> > RadosFsPoolList;
+
 typedef std::map<std::string, std::tr1::shared_ptr<RadosFsPool> > RadosFsPoolMap;
+typedef std::map<std::string, RadosFsPoolList>  RadosFsPoolListMap;
 
 typedef struct _LinkedList LinkedList;
 
@@ -149,7 +152,7 @@ public:
   static __thread uid_t uid;
   static __thread gid_t gid;
   std::vector<rados_completion_t> completionList;
-  RadosFsPoolMap poolMap;
+  RadosFsPoolListMap poolMap;
   pthread_mutex_t poolMutex;
   RadosFsPoolMap mtdPoolMap;
   pthread_mutex_t mtdPoolMutex;

@@ -17,6 +17,7 @@
  * for more details.
  */
 
+#include <algorithm>
 #include <gtest/gtest.h>
 #include <errno.h>
 #include <cmath>
@@ -75,13 +76,16 @@ TEST_F(RadosFsTest, Pools)
 
   EXPECT_EQ(-EEXIST, radosFs.addMetadataPool(mtdPoolName, poolPrefix));
 
-  EXPECT_EQ(1, radosFs.dataPools().size());
+  EXPECT_EQ(1, radosFs.dataPools(poolPrefix).size());
 
   EXPECT_EQ(1, radosFs.metadataPools().size());
 
   // Check the pools' names from prefix
 
-  EXPECT_EQ(dataPoolName, radosFs.dataPoolFromPrefix(poolPrefix));
+  std::vector<std::string> dataPools = radosFs.dataPools(poolPrefix);
+
+  EXPECT_NE(dataPools.end(),
+            find(dataPools.begin(), dataPools.end(), dataPoolName));
 
   EXPECT_EQ(mtdPoolName, radosFs.metadataPoolFromPrefix(poolPrefix));
 
@@ -130,7 +134,7 @@ TEST_F(RadosFsTest, Pools)
 
   // Verify there are no pools now
 
-  EXPECT_EQ(0, radosFs.dataPools().size());
+  EXPECT_EQ(0, radosFs.dataPools(poolPrefix).size());
 
   EXPECT_EQ(0, radosFs.metadataPools().size());
 

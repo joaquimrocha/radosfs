@@ -122,35 +122,44 @@ RadosFsChecker::checkDirRecursive(const std::string &path)
 int
 RadosFsChecker::check()
 {
-  radosfs::RadosFsPoolMap::const_iterator it;
+  radosfs::RadosFsPoolMap::const_iterator mtdMapIt;
+  radosfs::RadosFsPoolListMap::const_iterator dataMapIt;
   std::set<std::string> prefixes;
 
   fprintf(stdout, "Checking...\n");
 
-  for (it = mRadosFs->mPriv->mtdPoolMap.begin();
-       it != mRadosFs->mPriv->mtdPoolMap.end();
-       it++)
+  for (mtdMapIt = mRadosFs->mPriv->mtdPoolMap.begin();
+       mtdMapIt != mRadosFs->mPriv->mtdPoolMap.end();
+       mtdMapIt++)
   {
     int ret;
 
-    ret = getObjectsFromCluster((*it).second.get(), (*it).first, mDirs);
+    ret = getObjectsFromCluster((*mtdMapIt).second.get(), (*mtdMapIt).first,
+                                mDirs);
 
     if (ret != 0)
       return ret;
 
-    prefixes.insert((*it).first);
+    prefixes.insert((*mtdMapIt).first);
   }
 
-  for (it = mRadosFs->mPriv->poolMap.begin();
-       it != mRadosFs->mPriv->poolMap.end();
-       it++)
+  for (dataMapIt = mRadosFs->mPriv->poolMap.begin();
+       dataMapIt != mRadosFs->mPriv->poolMap.end();
+       dataMapIt++)
   {
     int ret;
 
-    ret = getObjectsFromCluster((*it).second.get(), (*it).first, mInodes);
+    const radosfs::RadosFsPoolList &pools = (*dataMapIt).second;
+    radosfs::RadosFsPoolList::const_iterator poolIt;
 
-    if (ret != 0)
-      return ret;
+    for (poolIt = pools.begin(); poolIt != pools.end(); poolIt++)
+    {
+      ret = getObjectsFromCluster((*poolIt).get(), (*dataMapIt).first,
+                                  mInodes);
+
+      if (ret != 0)
+        return ret;
+    }
   }
 
   std::set<std::string>::const_iterator setIt;
@@ -232,8 +241,8 @@ RadosFsChecker::fixInodes()
   std::map<std::string, std::string>::const_iterator it;
   for (it = mInodes.begin(); it != mInodes.end(); it++)
   {
-    radosfs::RadosFsPoolMap &poolMap = mRadosFs->mPriv->poolMap;
-    radosfs::RadosFsPoolMap::iterator poolIt;
+    radosfs::RadosFsPoolListMap &poolMap = mRadosFs->mPriv->poolMap;
+    radosfs::RadosFsPoolListMap::iterator poolIt;
     const std::string &inode = (*it).first;
     char hardLink[XATTR_LINK_LENGTH + 1];
     hardLink[0] = '\0';
@@ -241,14 +250,25 @@ RadosFsChecker::fixInodes()
     // retrieve the inode hard link from the correct pool
     for (poolIt = poolMap.begin(); poolIt != poolMap.end(); poolIt++)
     {
-      int length = rados_getxattr((*poolIt).second->ioctx, inode.c_str(),
-                                  XATTR_INODE_HARD_LINK, hardLink,
-                                  XATTR_FILE_LENGTH);
-      if (length >= 0)
+      const radosfs::RadosFsPoolList &poolList = (*poolIt).second;
+      radosfs::RadosFsPoolList::const_iterator poolListIt;
+
+      for (poolListIt = poolList.begin();
+           poolListIt != poolList.end();
+           poolListIt++)
       {
-        hardLink[length] = '\0';
-        break;
+        int length = rados_getxattr((*poolListIt)->ioctx, inode.c_str(),
+                                    XATTR_INODE_HARD_LINK, hardLink,
+                                    XATTR_FILE_LENGTH);
+        if (length >= 0)
+        {
+          hardLink[length] = '\0';
+          break;
+        }
       }
+
+      if (hardLink[0] != '\0')
+        break;
     }
 
     std::string action;

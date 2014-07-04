@@ -78,7 +78,7 @@ RadosFsTest::AddPool()
 
   EXPECT_EQ(0, ret);
 
-  EXPECT_EQ(1, radosFs.dataPools().size());
+  EXPECT_EQ(1, radosFs.dataPools("/").size());
 
   ret = radosFs.addMetadataPool(TEST_POOL_MTD, "/");
 

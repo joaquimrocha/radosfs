@@ -412,7 +412,31 @@ RadosFsPriv::addPool(const std::string &name,
 std::tr1::shared_ptr<RadosFsPool>
 RadosFsPriv::getDataPoolFromPath(const std::string &path)
 {
-  return getPool(path, &poolMap, &poolMutex);
+  std::tr1::shared_ptr<RadosFsPool> pool;
+  size_t maxLength = 0;
+
+  pthread_mutex_lock(&poolMutex);
+
+  RadosFsPoolListMap::const_iterator it;
+  for (it = poolMap.begin(); it != poolMap.end(); it++)
+  {
+    const std::string &prefix = (*it).first;
+    const size_t prefixLength = prefix.length();
+
+    if (prefixLength < maxLength)
+      continue;
+
+    if (path.compare(0, prefixLength, prefix) == 0)
+    {
+      const RadosFsPoolList &pools = (*it).second;
+      pool = pools.front();
+      maxLength = prefixLength;
+    }
+  }
+
+  pthread_mutex_unlock(&poolMutex);
+
+  return pool;
 }
 
 std::tr1::shared_ptr<RadosFsPool>
@@ -660,31 +684,167 @@ RadosFs::addDataPool(const std::string &name,
                      const std::string &prefix,
                      size_t size)
 {
-  return mPriv->addPool(name, prefix, &mPriv->poolMap, &mPriv->poolMutex, size);
+  RadosFsPool *pool;
+  RadosFsPoolList *pools = 0;
+  RadosFsPoolListMap *map;
+  rados_ioctx_t ioctx;
+  int ret = -EPERM;
+  const std::string &cleanPrefix = sanitizePath(prefix  + "/");
+
+  if (mPriv->radosCluster == 0)
+    return ret;
+
+  if (prefix == "")
+  {
+    radosfs_debug("The pool's prefix cannot be an empty string");
+    return -EINVAL;
+  }
+
+  pthread_mutex_lock(&mPriv->poolMutex);
+
+  map = &mPriv->poolMap;
+
+  if (map->count(cleanPrefix) > 0)
+  {
+    pools = &map->at(cleanPrefix);
+
+    RadosFsPoolList::const_iterator it;
+
+    for (it = pools->begin(); it != pools->end(); it++)
+    {
+      if ((*it)->name == name)
+      {
+        radosfs_debug("There is already a pool with the prefix %s. "
+                      "Not adding.", cleanPrefix.c_str());
+        ret = -EEXIST;
+        goto unlockAndExit;
+      }
+    }
+  }
+
+  ret = rados_ioctx_create(mPriv->radosCluster, name.c_str(), &ioctx);
+
+  if (ret != 0)
+    goto unlockAndExit;
+
+  pool = new RadosFsPool(name.c_str(), size * MEGABYTE_CONVERSION, ioctx);
+
+  if (size == 0)
+  {
+    ret = mPriv->createPrefixDir(pool, cleanPrefix);
+
+    if (ret < 0)
+      goto unlockAndExit;
+  }
+
+  if (pools == 0)
+  {
+    RadosFsPoolList poolList;
+    std::pair<std::string, RadosFsPoolList> entry(cleanPrefix, poolList);
+    map->insert(entry);
+    pools = &map->at(cleanPrefix);
+  }
+
+  pools->push_back(std::tr1::shared_ptr<RadosFsPool>(pool));
+
+unlockAndExit:
+  pthread_mutex_unlock(&mPriv->poolMutex);
+
+  return ret;
 }
 
 int
 RadosFs::removeDataPool(const std::string &name)
 {
- return mPriv->removePool(name, &mPriv->poolMap, &mPriv->poolMutex);
+  int ret = -ENOENT;
+  RadosFsPoolListMap *map = &mPriv->poolMap;
+
+  pthread_mutex_lock(&mPriv->poolMutex);
+
+  RadosFsPoolListMap::iterator it;
+
+  for (it = map->begin(); it != map->end(); it++)
+  {
+    RadosFsPoolList &pools = (*it).second;
+    RadosFsPoolList::iterator poolsIt;
+
+    for (poolsIt = pools.begin(); poolsIt != pools.end(); poolsIt++)
+    {
+      if ((*poolsIt)->name == name)
+      {
+        pools.erase(poolsIt);
+        ret = 0;
+
+        if (pools.empty())
+        {
+          map->erase((*it).first);
+        }
+
+        break;
+      }
+    }
+
+    if (ret == 0)
+      break;
+  }
+
+  pthread_mutex_unlock(&mPriv->poolMutex);
+
+  return ret;
 }
 
 std::vector<std::string>
-RadosFs::dataPools() const
+RadosFs::dataPools(const std::string &prefix) const
 {
-  return mPriv->pools(&mPriv->poolMap, &mPriv->poolMutex);
+  std::vector<std::string> pools;
+
+  pthread_mutex_lock(&mPriv->poolMutex);
+
+  if (mPriv->poolMap.count(prefix) > 0)
+  {
+    const RadosFsPoolList &poolList = mPriv->poolMap[prefix];
+    RadosFsPoolList::const_iterator it;
+
+    for (it = poolList.begin(); it != poolList.end(); it++)
+    {
+      pools.push_back((*it)->name);
+    }
+  }
+
+  pthread_mutex_unlock(&mPriv->poolMutex);
+
+  return pools;
 }
 
 std::string
 RadosFs::dataPoolPrefix(const std::string &pool) const
 {
-  return mPriv->poolPrefix(pool, &mPriv->poolMap, &mPriv->poolMutex);
-}
+  std::string prefix("");
 
-std::string
-RadosFs::dataPoolFromPrefix(const std::string &prefix) const
-{
-  return mPriv->poolFromPrefix(prefix, &mPriv->poolMap, &mPriv->poolMutex);
+  pthread_mutex_lock(&mPriv->poolMutex);
+
+  RadosFsPoolListMap::const_iterator it;
+  for (it = mPriv->poolMap.begin(); it != mPriv->poolMap.end(); it++)
+  {
+    const RadosFsPoolList &pools = (*it).second;
+    RadosFsPoolList::const_iterator poolIt;
+
+    for (poolIt = pools.begin(); poolIt != pools.end(); poolIt++)
+    {
+      if ((*poolIt)->name == pool)
+      {
+        prefix = (*it).first;
+        break;
+      }
+    }
+
+    if (prefix != "")
+      break;
+  }
+
+  pthread_mutex_unlock(&mPriv->poolMutex);
+
+  return prefix;
 }
 
 int
@@ -694,14 +854,23 @@ RadosFs::dataPoolSize(const std::string &pool) const
 
   pthread_mutex_lock(&mPriv->poolMutex);
 
-  RadosFsPoolMap::iterator it;
+  RadosFsPoolListMap::const_iterator it;
   for (it = mPriv->poolMap.begin(); it != mPriv->poolMap.end(); it++)
   {
-    if ((*it).second->name == pool)
+    const RadosFsPoolList &pools = (*it).second;
+    RadosFsPoolList::const_iterator poolIt;
+
+    for (poolIt = pools.begin(); poolIt != pools.end(); poolIt++)
     {
-      size = (*it).second->size;
-      break;
+      if ((*poolIt)->name == pool)
+      {
+        size = (*poolIt)->size;
+        break;
+      }
     }
+
+    if (size != 0)
+      break;
   }
 
   pthread_mutex_unlock(&mPriv->poolMutex);
