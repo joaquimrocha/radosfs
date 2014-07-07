@@ -862,12 +862,13 @@ std::vector<std::string>
 RadosFs::dataPools(const std::string &prefix) const
 {
   std::vector<std::string> pools;
+  const std::string &dirPrefix = getDirPath(prefix);
 
   pthread_mutex_lock(&mPriv->poolMutex);
 
-  if (mPriv->poolMap.count(prefix) > 0)
+  if (mPriv->poolMap.count(dirPrefix) > 0)
   {
-    const RadosFsPoolList &poolList = mPriv->poolMap[prefix];
+    const RadosFsPoolList &poolList = mPriv->poolMap[dirPrefix];
     RadosFsPoolList::const_iterator it;
 
     for (it = poolList.begin(); it != poolList.end(); it++)
