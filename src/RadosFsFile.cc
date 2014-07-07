@@ -62,7 +62,7 @@ RadosFsFilePriv::updatePath()
 
   RadosFs *radosFs = fsFile->filesystem();
 
-  dataPool = radosFs->mPriv->getDataPoolFromPath(fsFile->path());
+  dataPool = radosFs->mPriv->getDataPool(fsFile->path());
   mtdPool = radosFs->mPriv->getMetadataPoolFromPath(fsFile->path());
 
   if (!dataPool.get() || !mtdPool.get())

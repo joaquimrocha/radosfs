@@ -110,7 +110,10 @@ public:
   std::tr1::shared_ptr<RadosFsPool>
            getMetadataPoolFromPath(const std::string &path);
 
-  std::tr1::shared_ptr<RadosFsPool> getDataPoolFromPath(const std::string &path);
+  std::tr1::shared_ptr<RadosFsPool> getDataPool(const std::string &path,
+                                                const std::string &poolName = "");
+
+  RadosFsPoolList getDataPools(const std::string &path);
 
   std::string poolPrefix(const std::string &pool,
                          RadosFsPoolMap *map,

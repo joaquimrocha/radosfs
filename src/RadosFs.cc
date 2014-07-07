@@ -319,14 +319,24 @@ RadosFsPriv::stat(const std::string &path,
 
   if (ret != 0)
   {
-    dataPool = getDataPoolFromPath(stat->path);
-    stat->path = getFilePath(stat->path);
-    ret = statLink(dataPool->ioctx, mtdPool->ioctx, stat);
+    const RadosFsPoolList &pools = getDataPools(stat->path);
+    RadosFsPoolList::const_iterator it;
 
-    if (ret == -ENOENT)
+    for (it = pools.begin(); it != pools.end(); it++)
     {
-      stat->path = getDirPath(stat->path);
+      dataPool = *it;
+      stat->path = getFilePath(stat->path);
       ret = statLink(dataPool->ioctx, mtdPool->ioctx, stat);
+
+      if (ret == -ENOENT)
+      {
+        stat->path = getDirPath(stat->path);
+        ret = statLink(dataPool->ioctx, mtdPool->ioctx, stat);
+      }
+      else if (ret == 0)
+      {
+        break;
+      }
     }
   }
 
@@ -411,7 +421,7 @@ RadosFsPriv::addPool(const std::string &name,
 }
 
 std::tr1::shared_ptr<RadosFsPool>
-RadosFsPriv::getDataPoolFromPath(const std::string &path)
+RadosFsPriv::getDataPool(const std::string &path, const std::string &poolName)
 {
   std::tr1::shared_ptr<RadosFsPool> pool;
   size_t maxLength = 0;
@@ -430,9 +440,30 @@ RadosFsPriv::getDataPoolFromPath(const std::string &path)
     if (path.compare(0, prefixLength, prefix) == 0)
     {
       const RadosFsPoolList &pools = (*it).second;
-      pool = pools.front();
-      maxLength = prefixLength;
+
+      if (poolName != "")
+      {
+        RadosFsPoolList::const_iterator poolIt;
+        for (poolIt = pools.begin(); poolIt != pools.end(); poolIt++)
+        {
+          if ((*poolIt)->name == poolName)
+          {
+            pool = *poolIt;
+            maxLength = prefixLength;
+
+            break;
+          }
+        }
+      }
+      else
+      {
+        pool = pools.front();
+        maxLength = prefixLength;
+      }
     }
+
+    if (pool.get())
+      break;
   }
 
   pthread_mutex_unlock(&poolMutex);
@@ -554,6 +585,39 @@ RadosFsPriv::pools(RadosFsPoolMap *map,
   }
 
   pthread_mutex_unlock(mutex);
+
+  return pools;
+}
+
+RadosFsPoolList
+RadosFsPriv::getDataPools(const std::string &path)
+{
+  size_t maxLength = 0;
+  std::string prefixFound("");
+  RadosFsPoolList pools;
+
+  pthread_mutex_lock(&poolMutex);
+
+  RadosFsPoolListMap::const_iterator it;
+  for (it = poolMap.begin(); it != poolMap.end(); it++)
+  {
+    const std::string &prefix = (*it).first;
+    const size_t prefixLength = prefix.length();
+
+    if (prefixLength < maxLength)
+      continue;
+
+    if (path.compare(0, prefixLength, prefix) == 0)
+    {
+      prefixFound = prefix;
+      maxLength = prefixLength;
+    }
+  }
+
+  if (prefixFound != "")
+    pools = poolMap[prefixFound];
+
+  pthread_mutex_unlock(&poolMutex);
 
   return pools;
 }
@@ -1018,10 +1082,9 @@ RadosFs::setXAttr(const std::string &path,
 
   if (S_ISREG(stat.statBuff.st_mode))
   {
-    const std::tr1::shared_ptr<RadosFsPool> pool =
-        mPriv->getDataPoolFromPath(path);
+    const std::tr1::shared_ptr<RadosFsPool> pool = mPriv->getDataPool(path);
 
-    if (!pool.get())
+    if (!pool)
       return -ENODEV;
 
     return setXAttrFromPath(pool->ioctx, stat.statBuff, uid(), gid(),
@@ -1053,13 +1116,12 @@ RadosFs::getXAttr(const std::string &path,
 
   if (S_ISREG(stat.statBuff.st_mode))
   {
-    const std::tr1::shared_ptr<RadosFsPool> pool =
-        mPriv->getDataPoolFromPath(path);
+    const std::tr1::shared_ptr<RadosFsPool> pool = mPriv->getDataPool(path);
 
     if (!pool)
       return -ENODEV;
 
-    return getXAttrFromPath(stat.ioctx, stat.statBuff, uid(), gid(),
+    return getXAttrFromPath(pool->ioctx, stat.statBuff, uid(), gid(),
                             stat.translatedPath, attrName, value, length);
   }
 
@@ -1086,8 +1148,7 @@ RadosFs::removeXAttr(const std::string &path,
 
   if (S_ISREG(stat.statBuff.st_mode))
   {
-    const std::tr1::shared_ptr<RadosFsPool> pool =
-        mPriv->getDataPoolFromPath(path);
+    const std::tr1::shared_ptr<RadosFsPool> pool = mPriv->getDataPool(path);
 
     if (!pool)
       return -ENODEV;
@@ -1119,8 +1180,7 @@ RadosFs::getXAttrsMap(const std::string &path,
 
   if (S_ISREG(stat.statBuff.st_mode))
   {
-    const std::tr1::shared_ptr<RadosFsPool> pool =
-        mPriv->getDataPoolFromPath(path);
+    const std::tr1::shared_ptr<RadosFsPool> pool = mPriv->getDataPool(path);
 
     if (!pool)
       return -ENODEV;

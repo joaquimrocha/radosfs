@@ -114,7 +114,7 @@ TEST_F(RadosFsTest, Pools)
 
   file.setPath(dir.path() + "file");
 
-  dataPool = radosFsPriv()->getDataPoolFromPath(file.path());
+  dataPool = radosFsPriv()->getDataPool(file.path());
 
   EXPECT_EQ(0, file.create());
 
