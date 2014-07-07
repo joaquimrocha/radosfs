@@ -779,8 +779,8 @@ RadosFs::addDataPool(const std::string &name,
     {
       if ((*it)->name == name)
       {
-        radosfs_debug("There is already a pool with the prefix %s. "
-                      "Not adding.", cleanPrefix.c_str());
+        radosfs_debug("The pool %s is already associated with the prefix %s. "
+                      "Not adding.", name.c_str(), cleanPrefix.c_str());
         ret = -EEXIST;
         goto unlockAndExit;
       }
