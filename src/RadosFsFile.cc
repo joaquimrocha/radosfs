@@ -54,6 +54,12 @@ RadosFsFilePriv::~RadosFsFilePriv()
 }
 
 void
+RadosFsFilePriv::updateDataPool(const std::string &pool)
+{
+  dataPool = fsFile->filesystem()->mPriv->getDataPool(fsFile->path(), pool);
+}
+
+void
 RadosFsFilePriv::updatePath()
 {
   RadosFsStat *stat = fsStat();
@@ -62,10 +68,9 @@ RadosFsFilePriv::updatePath()
 
   RadosFs *radosFs = fsFile->filesystem();
 
-  dataPool = radosFs->mPriv->getDataPool(fsFile->path());
   mtdPool = radosFs->mPriv->getMetadataPoolFromPath(fsFile->path());
 
-  if (!dataPool.get() || !mtdPool.get())
+  if (!mtdPool)
     return;
 
   updatePermissions();
@@ -73,6 +78,26 @@ RadosFsFilePriv::updatePath()
   radosFsIO.reset();
 
   if (!fsFile->exists())
+  {
+    updateDataPool("");
+
+    return;
+  }
+
+  RadosFsPoolList list =
+      fsFile->filesystem()->mPriv->getDataPools(fsFile->path());
+  RadosFsPoolList::const_iterator it;
+
+  for (it = list.begin(); it != list.end(); it++)
+  {
+    if ((*it)->ioctx == stat->ioctx)
+    {
+      dataPool = *it;
+      break;
+    }
+  }
+
+  if (!dataPool)
     return;
 
   if (target)
@@ -334,10 +359,13 @@ RadosFsFile::writeSync(const char *buff, off_t offset, size_t blen)
 }
 
 int
-RadosFsFile::create(int mode)
+RadosFsFile::create(int mode, const std::string pool)
 {
   RadosFsStat *stat = reinterpret_cast<RadosFsStat *>(fsStat());
   int ret;
+
+  if (pool != "")
+    mPriv->updateDataPool(pool);
 
   if (mPriv->dataPool.get() == 0)
     return -ENODEV;
