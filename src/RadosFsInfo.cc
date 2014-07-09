@@ -63,7 +63,7 @@ RadosFsInfoPriv::makeRealPath(std::string &path, rados_ioctx_t *ioctxOut)
   if (parent == "")
     return -ENODEV;
 
-  rados_ioctx_t ioctx = stat.ioctx;
+  rados_ioctx_t ioctx = stat.pool->ioctx;
 
   if (ioctxOut != 0)
     *ioctxOut = ioctx;
@@ -93,7 +93,7 @@ RadosFsInfoPriv::setPath(const std::string &path)
   this->path = sanitizePath(path);
 
   stat.path = "";
-  stat.ioctx = 0;
+  stat.pool.reset();
 
   while ((ret = makeRealPath(this->path)) == -EAGAIN)
   {}
@@ -183,7 +183,7 @@ RadosFsInfoPriv::makeLink(std::string &linkPath)
 
   RadosFsStat linkStat = stat;
   linkStat.path = linkPath;
-  linkStat.ioctx = pool->ioctx;
+  linkStat.pool = pool;
   linkStat.translatedPath = this->path;
   linkStat.statBuff.st_uid = uid;
   linkStat.statBuff.st_gid = gid;
@@ -295,7 +295,9 @@ RadosFsInfo::setXAttr(const std::string &attrName,
 {
   // We don't call the similar methods from RadosFs for avoiding extra stat calls
 
-  if (mPriv->stat.ioctx == 0)
+  const RadosFsPool *pool = mPriv->stat.pool.get();
+
+  if (!pool)
     return -ENOENT;
 
   std::string &path = mPriv->stat.translatedPath;
@@ -303,7 +305,7 @@ RadosFsInfo::setXAttr(const std::string &attrName,
   if (path == "")
     path = mPriv->stat.path;
 
-  return setXAttrFromPath(mPriv->stat.ioctx, mPriv->stat.statBuff,
+  return setXAttrFromPath(pool->ioctx, mPriv->stat.statBuff,
                           mPriv->radosFs->uid(), mPriv->radosFs->gid(),
                           path, attrName, value);
 }
@@ -315,7 +317,9 @@ RadosFsInfo::getXAttr(const std::string &attrName,
 {
   // We don't call the similar methods from RadosFs for avoiding extra stat calls
 
-  if (mPriv->stat.ioctx == 0)
+  const RadosFsPool *pool = mPriv->stat.pool.get();
+
+  if (!pool)
     return -ENOENT;
 
   std::string &path = mPriv->stat.translatedPath;
@@ -323,7 +327,7 @@ RadosFsInfo::getXAttr(const std::string &attrName,
   if (path == "")
     path = mPriv->stat.path;
 
-  return getXAttrFromPath(mPriv->stat.ioctx, mPriv->stat.statBuff,
+  return getXAttrFromPath(pool->ioctx, mPriv->stat.statBuff,
                           mPriv->radosFs->uid(), mPriv->radosFs->gid(),
                           path, attrName, value, length);
 }
@@ -333,7 +337,9 @@ RadosFsInfo::removeXAttr(const std::string &attrName)
 {
   // We don't call the similar methods from RadosFs for avoiding extra stat calls
 
-  if (mPriv->stat.ioctx == 0)
+  const RadosFsPool *pool = mPriv->stat.pool.get();
+
+  if (!pool)
     return -ENOENT;
 
   std::string &path = mPriv->stat.translatedPath;
@@ -341,7 +347,7 @@ RadosFsInfo::removeXAttr(const std::string &attrName)
   if (path == "")
     path = mPriv->stat.path;
 
-  return removeXAttrFromPath(mPriv->stat.ioctx, mPriv->stat.statBuff,
+  return removeXAttrFromPath(pool->ioctx, mPriv->stat.statBuff,
                              mPriv->radosFs->uid(), mPriv->radosFs->gid(),
                              path, attrName);
 }
@@ -351,7 +357,9 @@ RadosFsInfo::getXAttrsMap(std::map<std::string, std::string> &map)
 {
   // We don't call the similar methods from RadosFs for avoiding extra stat calls
 
-  if (mPriv->stat.ioctx == 0)
+  const RadosFsPool *pool = mPriv->stat.pool.get();
+
+  if (!pool)
     return -ENOENT;
 
   std::string &path = mPriv->stat.translatedPath;
@@ -359,7 +367,7 @@ RadosFsInfo::getXAttrsMap(std::map<std::string, std::string> &map)
   if (path == "")
     path = mPriv->stat.path;
 
-  return getMapOfXAttrFromPath(mPriv->stat.ioctx, mPriv->stat.statBuff,
+  return getMapOfXAttrFromPath(pool->ioctx, mPriv->stat.statBuff,
                                mPriv->radosFs->uid(), mPriv->radosFs->gid(),
                                path, map);
 }

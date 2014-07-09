@@ -28,6 +28,7 @@
 #include <map>
 #include <string>
 #include <sstream>
+#include <tr1/memory>
 
 #include "hash64.h"
 #include "radosfsdefines.h"
@@ -49,7 +50,7 @@ typedef struct {
   std::string path;
   std::string translatedPath;
   struct stat statBuff;
-  rados_ioctx_t ioctx;
+  std::tr1::shared_ptr<RadosFsPool> pool;
 } RadosFsStat;
 
 static ino_t

@@ -120,11 +120,11 @@ TEST_F(RadosFsTest, Pools)
 
   EXPECT_EQ(0, radosFsPriv()->stat(file.path(), &stat));
 
-  EXPECT_EQ(dataPool->ioctx, stat.ioctx);
+  EXPECT_EQ(dataPool->name, stat.pool->name);
 
   EXPECT_EQ(0, rados_stat(dataPool->ioctx, stat.translatedPath.c_str(), 0, 0));
 
-  EXPECT_EQ(dataPool->ioctx, stat.ioctx);
+  EXPECT_EQ(dataPool->name, stat.pool->name);
 
   // Remove the pools
 

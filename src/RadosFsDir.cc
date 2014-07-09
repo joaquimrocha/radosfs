@@ -120,7 +120,7 @@ RadosFsDirPriv::makeDirsRecursively(rados_ioctx_t *ioctx,
   if (radosFsPriv->stat(dirPath.c_str(), stat) == 0)
   {
     buff = &stat->statBuff;
-    *ioctx = stat->ioctx;
+    *ioctx = stat->pool->ioctx;
 
     if (buff->st_mode & S_IFDIR)
       return 0;
@@ -362,7 +362,7 @@ RadosFsDir::create(int mode,
     if (ret != 0)
       return ret;
 
-    parentIoctx = stat.ioctx;
+    parentIoctx = stat.pool->ioctx;
   }
 
   if (!statBuffHasPermission(stat.statBuff, uid, gid, O_WRONLY | O_RDWR))
@@ -430,7 +430,7 @@ RadosFsDir::remove()
     if (info->getEntry(0) != "")
       return -ENOTEMPTY;
 
-    ret = rados_remove(statPtr->ioctx, dirPath.c_str());
+    ret = rados_remove(statPtr->pool->ioctx, dirPath.c_str());
   }
 
   if (ret == 0)

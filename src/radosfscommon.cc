@@ -435,7 +435,7 @@ indexObject(const RadosFsStat *stat, char op)
     }
   }
 
-  return writeContentsAtomically(stat->ioctx, dirName.c_str(), contents,
+  return writeContentsAtomically(stat->pool->ioctx, dirName.c_str(), contents,
                                  xAttrKey, xAttrValue.str());
 }
 

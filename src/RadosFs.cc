@@ -306,7 +306,7 @@ RadosFsPriv::stat(const std::string &path,
   stat->path = getDirPath(path);
   struct stat buff;
   stat->statBuff = buff;
-  stat->ioctx = 0;
+  stat->pool.reset();
   stat->translatedPath = "";
 
   mtdPool = getMetadataPoolFromPath(stat->path);
@@ -343,9 +343,9 @@ RadosFsPriv::stat(const std::string &path,
   if (ret == 0)
   {
     if (stat->path[stat->path.length() - 1] == PATH_SEP)
-      stat->ioctx = mtdPool->ioctx;
+      stat->pool = mtdPool;
     else
-      stat->ioctx = dataPool->ioctx;
+      stat->pool = dataPool;
   }
 
   return ret;
@@ -1078,7 +1078,7 @@ RadosFs::setXAttr(const std::string &path,
     return setXAttr(stat.translatedPath, attrName, value);
 
   if (S_ISDIR(stat.statBuff.st_mode))
-    return setXAttrFromPath(stat.ioctx, stat.statBuff, uid(), gid(),
+    return setXAttrFromPath(stat.pool->ioctx, stat.statBuff, uid(), gid(),
                             stat.path, attrName, value);
 
   if (S_ISREG(stat.statBuff.st_mode))
@@ -1112,7 +1112,7 @@ RadosFs::getXAttr(const std::string &path,
     return getXAttr(stat.translatedPath, attrName, value, length);
 
   if (S_ISDIR(stat.statBuff.st_mode))
-    return getXAttrFromPath(stat.ioctx, stat.statBuff, uid(), gid(),
+    return getXAttrFromPath(stat.pool->ioctx, stat.statBuff, uid(), gid(),
                             stat.path, attrName, value, length);
 
   if (S_ISREG(stat.statBuff.st_mode))
@@ -1144,8 +1144,8 @@ RadosFs::removeXAttr(const std::string &path,
     return removeXAttr(stat.translatedPath, attrName);
 
   if (S_ISDIR(stat.statBuff.st_mode))
-    return removeXAttrFromPath(stat.ioctx, stat.statBuff, uid(), gid(), path,
-                               attrName);
+    return removeXAttrFromPath(stat.pool->ioctx, stat.statBuff, uid(), gid(),
+                               path, attrName);
 
   if (S_ISREG(stat.statBuff.st_mode))
   {
@@ -1176,7 +1176,7 @@ RadosFs::getXAttrsMap(const std::string &path,
     return getXAttrsMap(stat.translatedPath, map);
 
   if (S_ISDIR(stat.statBuff.st_mode))
-    return getMapOfXAttrFromPath(stat.ioctx, stat.statBuff, uid(), gid(),
+    return getMapOfXAttrFromPath(stat.pool->ioctx, stat.statBuff, uid(), gid(),
                                  stat.path, map);
 
   if (S_ISREG(stat.statBuff.st_mode))

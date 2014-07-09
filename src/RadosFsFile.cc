@@ -84,18 +84,7 @@ RadosFsFilePriv::updatePath()
     return;
   }
 
-  RadosFsPoolList list =
-      fsFile->filesystem()->mPriv->getDataPools(fsFile->path());
-  RadosFsPoolList::const_iterator it;
-
-  for (it = list.begin(); it != list.end(); it++)
-  {
-    if ((*it)->ioctx == stat->ioctx)
-    {
-      dataPool = *it;
-      break;
-    }
-  }
+  dataPool = stat->pool;
 
   if (!dataPool)
     return;
@@ -416,7 +405,7 @@ RadosFsFile::create(int mode, const std::string pool)
   stat->statBuff.st_mode = permOctal;
   stat->statBuff.st_uid = uid;
   stat->statBuff.st_gid = gid;
-  stat->ioctx = mPriv->mtdPool->ioctx;
+  stat->pool = mPriv->mtdPool;
 
   ret = mPriv->createInode(mPriv->dataPool->ioctx, inodeStr, filePath,
                            permOctal, uid, gid);
@@ -456,7 +445,7 @@ RadosFsFile::remove()
   {
     ret = mPriv->removeFile();
     RadosFsStat *stat = mPriv->fsStat();
-    stat->ioctx = mPriv->mtdPool->ioctx;
+    stat->pool = mPriv->mtdPool;
     indexObject(stat, '-');
   }
   else

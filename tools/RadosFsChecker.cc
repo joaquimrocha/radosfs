@@ -296,7 +296,7 @@ RadosFsChecker::fixInodes()
         }
 
         stat.path = hardLink;
-        stat.ioctx = pool->ioctx;
+        stat.pool = pool;
         // We just need it to be a file. The permissions are already
         // set on the inode
         stat.statBuff.st_mode = S_IFREG;
