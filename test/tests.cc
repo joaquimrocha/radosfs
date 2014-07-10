@@ -163,6 +163,12 @@ TEST_F(RadosFsTest, Pools)
   dir.setPath(poolPrefix + "/dir");
 
   EXPECT_EQ(0, dir.create());
+
+  // Set more than one data pool to the same prefix
+
+  EXPECT_EQ(0, radosFs.addDataPool(mtdPoolName, poolPrefix, poolSize));
+
+  EXPECT_EQ(2, radosFs.dataPools(poolPrefix).size());
 }
 
 TEST_F(RadosFsTest, CharacterConsistency)
