@@ -46,12 +46,21 @@ struct RadosFsPool {
 
 };
 
-typedef struct {
+struct RadosFsStat {
   std::string path;
   std::string translatedPath;
   struct stat statBuff;
   std::tr1::shared_ptr<RadosFsPool> pool;
-} RadosFsStat;
+
+  void reset(void)
+  {
+    struct stat buff;
+    path = "";
+    translatedPath = "";
+    statBuff = buff;
+    pool.reset();
+  }
+};
 
 static ino_t
 hash(const char *path)
