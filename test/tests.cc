@@ -320,7 +320,9 @@ TEST_F(RadosFsTest, DirParent)
 
 TEST_F(RadosFsTest, CreateFile)
 {
-  AddPool();
+  // Create one extra pool apart from the ones created by default
+
+  AddPool(1);
 
   // Create regular file
 
@@ -373,6 +375,22 @@ TEST_F(RadosFsTest, CreateFile)
   file.setPath(otherFile.path());
 
   EXPECT_EQ(2, radosFsFilePriv(otherFile)->radosFsIO.use_count());
+
+  otherFile.setPath("/file-in-different-pool");
+
+  const std::string &poolName = TEST_POOL "1";
+
+  EXPECT_EQ(0, otherFile.create(-1, poolName));
+
+  RadosFsStat stat;
+
+  EXPECT_EQ(0, radosFsPriv()->stat(otherFile.path(), &stat));
+
+  EXPECT_EQ(poolName, stat.pool->name);
+
+  file.setPath(otherFile.path());
+
+  EXPECT_EQ(poolName, radosFsFilePriv(file)->dataPool->name);
 }
 
 TEST_F(RadosFsTest, RemoveFile)
