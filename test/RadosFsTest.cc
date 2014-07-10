@@ -43,6 +43,9 @@ RadosFsTest::RadosFsTest()
   rados_pool_create(mCluster, TEST_POOL);
   rados_pool_create(mCluster, TEST_POOL_MTD);
 
+  mPoolsCreated.insert(TEST_POOL);
+  mPoolsCreated.insert(TEST_POOL_MTD);
+
   rados_shutdown(mCluster);
 
   radosFs.init("", mConf);
@@ -55,8 +58,12 @@ RadosFsTest::~RadosFsTest()
   rados_conf_read_file(mCluster, mConf);
   rados_connect(mCluster);
 
-  rados_pool_delete(mCluster, TEST_POOL);
-  rados_pool_delete(mCluster, TEST_POOL_MTD);
+  std::set<std::string>::iterator it;
+
+  for (it = mPoolsCreated.begin(); it != mPoolsCreated.end(); it++)
+  {
+    rados_pool_delete(mCluster, (*it).c_str());
+  }
 
   rados_shutdown(mCluster);
 }
@@ -72,7 +79,7 @@ RadosFsTest::TearDown()
 }
 
 void
-RadosFsTest::AddPool()
+RadosFsTest::AddPool(int numExtraPools)
 {
   int ret = radosFs.addDataPool(TEST_POOL, "/", 1000);
 
@@ -83,6 +90,23 @@ RadosFsTest::AddPool()
   ret = radosFs.addMetadataPool(TEST_POOL_MTD, "/");
 
   EXPECT_EQ(0, ret);
+
+  for (int i = 0; i < numExtraPools; i++)
+  {
+    std::stringstream stream;
+
+    stream << TEST_POOL << (i + 1);
+
+    const std::string &poolName = stream.str();
+
+    rados_pool_create(radosFsPriv()->radosCluster, poolName.c_str());
+
+    ret = radosFs.addDataPool(poolName, "/", 1000);
+
+    EXPECT_EQ(0, ret);
+
+    mPoolsCreated.insert(poolName);
+  }
 }
 
 radosfs::RadosFsFilePriv *

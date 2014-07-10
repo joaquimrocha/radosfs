@@ -19,6 +19,8 @@
 
 #include <gtest/gtest.h>
 #include <rados/librados.h>
+#include <set>
+#include <string>
 #include "RadosFs.hh"
 #include "RadosFsPriv.hh"
 #include "RadosFsFile.hh"
@@ -46,7 +48,7 @@ protected:
   virtual void SetUp();
   virtual void TearDown();
 
-  void AddPool();
+  void AddPool(int numExtraPools = 0);
 
   void testXAttrInFsInfo(radosfs::RadosFsInfo &info);
 
@@ -69,6 +71,7 @@ protected:
 private:
   rados_t mCluster;
   const char *mConf;
+  std::set<std::string> mPoolsCreated;
 };
 
 #endif // RADOS_FS_TEST_HH
