@@ -78,6 +78,8 @@ public:
 
   int stat(struct stat *buff);
 
+  int chmod(long int permissions);
+
 private:
   std::auto_ptr<RadosFsFilePriv> mPriv;
 

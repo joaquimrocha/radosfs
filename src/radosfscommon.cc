@@ -407,8 +407,7 @@ indexObject(const RadosFsStat *stat, char op)
   int index;
   std::string contents;
   const std::string &dirName = getParentDir(stat->path, &index);
-  std::string xAttrKey("");
-  std::ostringstream xAttrValue("");
+  std::string xAttrKey(""), xAttrValue("");
 
   if (dirName == "")
     return 0;
@@ -422,21 +421,11 @@ indexObject(const RadosFsStat *stat, char op)
     xAttrKey = XATTR_FILE_PREFIX + baseName;
 
     if (op == '+')
-    {
-      xAttrValue << "link=\"" << stat->translatedPath << "\"";
-
-      if (stat->translatedPath[0] == PATH_SEP)
-      {
-        xAttrValue << " " << XATTR_UID << "\"" << stat->statBuff.st_uid << "\" ";
-        xAttrValue << XATTR_GID << "\"" << stat->statBuff.st_gid << "\" ";
-        xAttrValue << "time=" << "\""  << stat->statBuff.st_ctime << "\" " ;
-        xAttrValue << XATTR_MODE << "\"" << std::oct << stat->statBuff.st_mode << "\" ";
-      }
-    }
+      xAttrValue = getFileXAttrDirRecord(stat);
   }
 
   return writeContentsAtomically(stat->pool->ioctx, dirName.c_str(), contents,
-                                 xAttrKey, xAttrValue.str());
+                                 xAttrKey, xAttrValue);
 }
 
 std::string
@@ -449,6 +438,24 @@ getObjectIndexLine(const std::string &obj, char op)
   contents += "\n";
 
   return contents;
+}
+
+std::string
+getFileXAttrDirRecord(const RadosFsStat *stat)
+{
+  std::ostringstream stream;
+
+  stream << "link=\"" << stat->translatedPath << "\"";
+
+  if (stat->translatedPath[0] == PATH_SEP)
+  {
+    stream << " " << XATTR_UID << "\"" << stat->statBuff.st_uid << "\" ";
+    stream << XATTR_GID << "\"" << stat->statBuff.st_gid << "\" ";
+    stream << "time=" << "\""  << stat->statBuff.st_ctime << "\" " ;
+    stream << XATTR_MODE << "\"" << std::oct << stat->statBuff.st_mode << "\" ";
+  }
+
+  return stream.str();
 }
 
 int
