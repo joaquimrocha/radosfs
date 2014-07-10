@@ -584,8 +584,7 @@ TEST_F(RadosFsTest, FilePermissions)
 
   // Create file by owner and readable by others
 
-  file = radosfs::RadosFsFile(&radosFs, dir.path() + "userfile",
-                              radosfs::RadosFsFile::MODE_WRITE);
+  file = radosfs::RadosFsFile(&radosFs, dir.path() + "userfile");
   EXPECT_EQ(0, file.create());
 
   radosFs.setIds(TEST_UID + 1, TEST_GID + 1);
@@ -614,6 +613,44 @@ TEST_F(RadosFsTest, FilePermissions)
   otherFile.update();
 
   EXPECT_FALSE(otherFile.isReadable());
+
+  // Change permissions using chmod and check them
+
+  radosFs.setIds(TEST_UID, TEST_GID);
+
+  EXPECT_EQ(0, file.chmod(S_IRWXU | S_IROTH));
+
+  radosFs.setIds(TEST_UID + 1, TEST_GID + 1);
+
+  file.update();
+
+  EXPECT_TRUE(file.isReadable());
+
+  EXPECT_EQ(-EPERM, file.chmod(777));
+
+  radosFs.setIds(TEST_UID, TEST_GID);
+
+  file.update();
+
+  EXPECT_EQ(0, file.chmod(0));
+
+  file.update();
+
+  EXPECT_FALSE(file.isReadable());
+
+  radosFs.setIds(ROOT_UID, ROOT_UID);
+
+  file.update();
+
+  EXPECT_TRUE(file.isWritable());
+
+  EXPECT_EQ(0, file.chmod(S_IRWXU));
+
+  radosFs.setIds(TEST_UID, TEST_GID);
+
+  file.update();
+
+  EXPECT_TRUE(file.isReadable());
 }
 
 TEST_F(RadosFsTest, DirContents)
