@@ -303,11 +303,8 @@ RadosFsPriv::stat(const std::string &path,
 {
   std::tr1::shared_ptr<RadosFsPool> mtdPool, dataPool;
   int ret = -ENODEV;
+  stat->reset();
   stat->path = getDirPath(path);
-  struct stat buff;
-  stat->statBuff = buff;
-  stat->pool.reset();
-  stat->translatedPath = "";
 
   mtdPool = getMetadataPoolFromPath(stat->path);
 

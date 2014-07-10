@@ -92,8 +92,7 @@ RadosFsInfoPriv::setPath(const std::string &path)
   int ret;
   this->path = sanitizePath(path);
 
-  stat.path = "";
-  stat.pool.reset();
+  stat.reset();
 
   while ((ret = makeRealPath(this->path)) == -EAGAIN)
   {}
