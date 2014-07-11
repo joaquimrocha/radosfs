@@ -538,6 +538,48 @@ TEST_F(RadosFsTest, DirPermissions)
   // Remove dir by root
 
   EXPECT_EQ(0, subDir.remove());
+
+  // Change permissions using chmod and check them
+
+  radosFs.setIds(TEST_UID, TEST_GID);
+
+  subDir.update();
+
+  EXPECT_EQ(0, subDir.create(S_IRWXU));
+
+  EXPECT_EQ(0, subDir.chmod(S_IRWXU | S_IROTH));
+
+  radosFs.setIds(TEST_UID + 1, TEST_GID + 1);
+
+  subDir.update();
+
+  EXPECT_TRUE(subDir.isReadable());
+
+  EXPECT_EQ(-EPERM, subDir.chmod(777));
+
+  radosFs.setIds(TEST_UID, TEST_GID);
+
+  subDir.update();
+
+  EXPECT_EQ(0, subDir.chmod(0));
+
+  subDir.update();
+
+  EXPECT_FALSE(subDir.isReadable());
+
+  radosFs.setIds(ROOT_UID, ROOT_UID);
+
+  subDir.update();
+
+  EXPECT_TRUE(subDir.isWritable());
+
+  EXPECT_EQ(0, subDir.chmod(S_IREAD | S_IWRITE));
+
+  radosFs.setIds(TEST_UID, TEST_GID);
+
+  subDir.update();
+
+  EXPECT_TRUE(subDir.isReadable());
 }
 
 TEST_F(RadosFsTest, FilePermissions)
