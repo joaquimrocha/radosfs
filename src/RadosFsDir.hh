@@ -82,6 +82,8 @@ public:
 
   int find(std::set<std::string> &results, const std::string args);
 
+  int chmod(long int permissions);
+
 private:
   std::auto_ptr<RadosFsDirPriv> mPriv;
 };

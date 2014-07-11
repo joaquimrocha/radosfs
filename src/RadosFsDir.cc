@@ -698,4 +698,43 @@ RadosFsDir::find(std::set<std::string> &results, const std::string args)
   return ret;
 }
 
+int
+RadosFsDir::chmod(long int permissions)
+{
+  int ret = 0;
+  long int mode;
+
+  if (!exists())
+    return -ENOENT;
+
+  if (!isWritable())
+    return -EPERM;
+
+  mode = permissions | S_IFDIR;
+
+  RadosFsStat stat = *reinterpret_cast<RadosFsStat *>(fsStat());
+
+  if (isLink())
+  {
+    stat.statBuff.st_mode = mode;
+    const std::string &baseName = path().substr(mPriv->parentDir.length());
+    const std::string &linkXAttr = getFileXAttrDirRecord(&stat);
+
+    ret = rados_setxattr(stat.pool->ioctx, mPriv->parentDir.c_str(),
+                         (XATTR_FILE_PREFIX + baseName).c_str(),
+                         linkXAttr.c_str(), linkXAttr.length());
+  }
+  else
+  {
+    const std::string &permissionsXattr = makePermissionsXAttr(mode,
+                                                          stat.statBuff.st_uid,
+                                                          stat.statBuff.st_gid);
+
+    ret = rados_setxattr(stat.pool->ioctx, path().c_str(), XATTR_PERMISSIONS,
+                         permissionsXattr.c_str(), permissionsXattr.length());
+  }
+
+  return ret;
+}
+
 RADOS_FS_END_NAMESPACE
