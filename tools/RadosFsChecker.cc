@@ -63,7 +63,7 @@ RadosFsChecker::checkPath(const std::string &path)
 
   if (ret != 0)
   {
-    if (path[path.length() - 1] == PATH_SEP)
+    if (isDirPath(path))
       mBrokenDirs[stat.path] = "";
     else
       mBrokenFiles.insert(stat.path);

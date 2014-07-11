@@ -339,7 +339,7 @@ RadosFsPriv::stat(const std::string &path,
 
   if (ret == 0)
   {
-    if (stat->path[stat->path.length() - 1] == PATH_SEP)
+    if (isDirPath(stat->path))
       stat->pool = mtdPool;
     else
       stat->pool = dataPool;

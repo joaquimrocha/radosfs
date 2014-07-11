@@ -239,10 +239,10 @@ bool
 RadosFsInfo::isDir() const
 {
   if (!exists())
-    return mPriv->path[mPriv->path.length() - 1] == PATH_SEP;
+    return isDirPath(mPriv->path);
 
   if (isLink())
-    return mPriv->target[mPriv->target.length() - 1] == PATH_SEP;
+    return isDirPath(mPriv->target);
 
   return S_ISDIR(mPriv->stat.statBuff.st_mode);
 }

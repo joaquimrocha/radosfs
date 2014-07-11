@@ -22,6 +22,7 @@
 #include <sys/stat.h>
 #include <utility>
 
+#include "radosfscommon.h"
 #include "RadosFsFinder.hh"
 #include "RadosFsLogger.hh"
 
@@ -256,7 +257,7 @@ RadosFsFinder::realFind(FinderData *data)
 
     const std::string &entry = *it;
 
-    bool isDir = entry[entry.length() - 1] == PATH_SEP;
+    bool isDir = isDirPath(entry);
 
     if (isDir)
       data->dirEntries.insert(dir.path() + entry);

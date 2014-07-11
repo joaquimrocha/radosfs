@@ -180,4 +180,6 @@ bool nameIsStripe(const std::string &name);
 
 std::string getFileXAttrDirRecord(const RadosFsStat *stat);
 
+bool isDirPath(const std::string &path);
+
 #endif /* __RADOS_FS_COMMON_HH__ */

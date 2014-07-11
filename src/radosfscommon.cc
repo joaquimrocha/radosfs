@@ -141,7 +141,7 @@ genericStat(rados_ioctx_t &ioctx,
   std::string realPath(path);
 
   ret = rados_stat(ioctx, realPath.c_str(), &psize, &pmtime);
-  isDir = realPath[realPath.length() - 1] == PATH_SEP;
+  isDir = isDirPath(realPath);
 
   if (ret != 0)
   {
@@ -250,11 +250,11 @@ checkIfPathExists(rados_ioctx_t &ioctx,
   uint64_t size;
   std::string realPath(path);
   const int length = strlen(path);
-  bool isDirPath = path[length - 1] == PATH_SEP;
+  bool isDir = isDirPath(path);
 
   if (rados_stat(ioctx, realPath.c_str(), &size, 0) != 0)
   {
-    if (isDirPath)
+    if (isDir)
     {
       // delete the last separator
       realPath.erase(length - 1, 1);
@@ -264,7 +264,7 @@ checkIfPathExists(rados_ioctx_t &ioctx,
       realPath += PATH_SEP;
     }
 
-    isDirPath = !isDirPath;
+    isDir = !isDir;
 
     if (rados_stat(ioctx, realPath.c_str(), &size, 0) != 0)
     {
@@ -279,7 +279,7 @@ checkIfPathExists(rados_ioctx_t &ioctx,
     return true;
   }
 
-  if (isDirPath)
+  if (isDir)
     *filetype = S_IFDIR;
   else
     *filetype = S_IFREG;
@@ -563,7 +563,7 @@ getFilePath(const std::string &path)
 {
   std::string file(path);
 
-  if (file != "" && file[file.length() - 1] == PATH_SEP)
+  if (file != "" && isDirPath(file))
     file.erase(file.length() - 1, 1);
 
   return file;
@@ -850,4 +850,10 @@ nameIsStripe(const std::string &name)
 
   return name[nameLength - FILE_STRIPE_LENGTH - 1] == PATH_SEP &&
       name[nameLength - FILE_STRIPE_LENGTH - 2] == PATH_SEP;
+}
+
+bool
+isDirPath(const std::string &path)
+{
+  return path[path.length() - 1] == PATH_SEP;
 }

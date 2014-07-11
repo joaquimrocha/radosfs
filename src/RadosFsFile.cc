@@ -362,7 +362,7 @@ RadosFsFile::create(int mode, const std::string pool)
   // we don't allow object names that end in a path separator
   const std::string filePath = path();
   if ((exists() && !isFile()) ||
-      (filePath != "" && filePath[filePath.length() - 1] == PATH_SEP))
+      (filePath != "" && isDirPath(filePath)))
     return -EISDIR;
 
   // if the file exists and is not scheduled for deletion
