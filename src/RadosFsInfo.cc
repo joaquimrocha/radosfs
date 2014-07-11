@@ -31,16 +31,14 @@ RADOS_FS_BEGIN_NAMESPACE
 
 RadosFsInfoPriv::RadosFsInfoPriv(RadosFs *radosFs, const std::string &objPath)
   : radosFs(radosFs),
-    target(0),
+    target(""),
     exists(false)
 {
   setPath(objPath);
 }
 
 RadosFsInfoPriv::~RadosFsInfoPriv()
-{
-  delete target;
-}
+{}
 
 int
 RadosFsInfoPriv::makeRealPath(std::string &path, rados_ioctx_t *ioctxOut)
@@ -244,7 +242,7 @@ RadosFsInfo::isDir() const
     return mPriv->path[mPriv->path.length() - 1] == PATH_SEP;
 
   if (isLink())
-    return mPriv->target->isDir();
+    return mPriv->target[mPriv->target.length() - 1] == PATH_SEP;
 
   return S_ISDIR(mPriv->stat.statBuff.st_mode);
 }
@@ -266,10 +264,9 @@ RadosFsInfo::update()
 {
   mPriv->exists = false;
 
-  if (mPriv->target)
+  if (mPriv->target != "")
   {
-    delete mPriv->target;
-    mPriv->target = 0;
+    mPriv->target = "";
   }
 
   mPriv->exists = mPriv->radosFsPriv()->stat(mPriv->path, &mPriv->stat) == 0;
@@ -280,11 +277,7 @@ RadosFsInfo::update()
   if (isLink())
   {
     const std::string &linkTarget = mPriv->stat.translatedPath;
-    if (linkTarget[linkTarget.length() - 1] == PATH_SEP)
-      mPriv->target = new RadosFsDir(filesystem(), linkTarget);
-    else
-      mPriv->target = new RadosFsFile(filesystem(), linkTarget,
-                                      RadosFsFile::MODE_READ_WRITE);
+    mPriv->target = linkTarget;
   }
 }
 
@@ -413,10 +406,7 @@ RadosFsInfo::isLink() const
 std::string
 RadosFsInfo::targetPath() const
 {
-  if (!isLink() || mPriv->target == 0)
-    return "";
-
-  return mPriv->target->path();
+  return mPriv->target;
 }
 
 void *

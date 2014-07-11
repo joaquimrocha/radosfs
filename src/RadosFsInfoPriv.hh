@@ -48,7 +48,7 @@ public:
 
   std::string path;
   RadosFs *radosFs;
-  RadosFsInfo *target;
+  std::string target;
   RadosFsStat stat;
   bool exists;
 };
