@@ -2073,7 +2073,7 @@ TEST_F(RadosFsTest, Find)
 
   // Find contents whose size is 100 and the name contains an "f"
 
-  EXPECT_EQ(0, dir.find(results, "iname=\".*f.*\" size = 100"));
+  EXPECT_EQ(0, dir.find(results, "iname='.*f.*' size = \"100\""));
 
   EXPECT_EQ(2, results.size());
 
@@ -2083,7 +2083,7 @@ TEST_F(RadosFsTest, Find)
 
   dir.setPath("/d0/d0/");
 
-  EXPECT_EQ(0, dir.find(results, "name!=\"^.*f.*\" name=\"^.*0.*\""));
+  EXPECT_EQ(0, dir.find(results, "name!=\"^.*f.*\" name='^.*0.*'"));
 
   EXPECT_EQ(1, results.size());
 }
