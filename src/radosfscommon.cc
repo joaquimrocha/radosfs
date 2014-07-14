@@ -241,82 +241,6 @@ statFromXAttr(const std::string &path,
   return ret;
 }
 
-bool
-checkIfPathExists(rados_ioctx_t &ioctx,
-                  const char *path,
-                  mode_t *filetype,
-                  char **linkTarget)
-{
-  uint64_t size;
-  std::string realPath(path);
-  const int length = strlen(path);
-  bool isDir = isDirPath(path);
-
-  if (rados_stat(ioctx, realPath.c_str(), &size, 0) != 0)
-  {
-    if (isDir)
-    {
-      // delete the last separator
-      realPath.erase(length - 1, 1);
-    }
-    else
-    {
-      realPath += PATH_SEP;
-    }
-
-    isDir = !isDir;
-
-    if (rados_stat(ioctx, realPath.c_str(), &size, 0) != 0)
-    {
-      return false;
-    }
-  }
-
-  if (size == 0 && getLinkTarget(ioctx, realPath, linkTarget) > 0)
-  {
-    *filetype = S_IFLNK;
-
-    return true;
-  }
-
-  if (isDir)
-    *filetype = S_IFDIR;
-  else
-    *filetype = S_IFREG;
-
-  return true;
-}
-
-int
-getLinkTarget(rados_ioctx_t ioctx, const std::string &path, char **linkTarget)
-{
-  char *buff = new char[XATTR_LINK_LENGTH];
-  int ret = rados_getxattr(ioctx,
-                           path.c_str(),
-                           XATTR_LINK,
-                           buff,
-                           XATTR_LINK_LENGTH);
-
-  if (ret > 0)
-  {
-    if (ret < XATTR_LINK_LENGTH)
-      buff[ret] = '\0';
-    else
-      buff[XATTR_LINK_LENGTH - 1] = '\0';
-
-    if (linkTarget)
-      *linkTarget = buff;
-    else
-      delete[] buff;
-
-    return ret;
-  }
-
-  delete[] buff;
-
-  return ret;
-}
-
 std::string
 getParentDir(const std::string &path, int *pos)
 {
@@ -531,20 +455,6 @@ writeContentsAtomically(rados_ioctx_t ioctx,
   rados_release_write_op(writeOp);
 
   return ret;
-}
-
-bool
-verifyIsOctal(const char *mode)
-{
-  const char *ptr = mode;
-  while (*ptr != '\0')
-  {
-    if (*ptr < '0' || *ptr > '7')
-      return false;
-    ptr++;
-  }
-
-  return true;
 }
 
 std::string
