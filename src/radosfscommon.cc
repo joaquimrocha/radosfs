@@ -624,37 +624,38 @@ splitToken(const std::string &line,
 {
   std::string token("");
   bool gotKey(false);
-  bool quoteOpened(false);
+  char quoteFound('\0');
 
   size_t i = startPos;
 
   for (; i < line.length(); i++)
   {
-    if (line[i] == '"' && i > 1 && line[i - 1] != '\\')
+    if ((line[i] == '"' || line[i] == '\'') && i > 1 && line[i - 1] != '\\')
     {
-      if (quoteOpened)
+      if (quoteFound == '\0')
+      {
+        quoteFound = line[i];
+        continue;
+      }
+
+      if (quoteFound == line[i])
       {
         i++;
-        quoteOpened = false;
+        quoteFound = '\0';
 
         if (gotKey)
           break;
       }
-      else
-      {
-        quoteOpened = true;
-        continue;
-      }
     }
 
-    if (!quoteOpened)
+    if (quoteFound == '\0')
     {
       if (line[i] == '=')
       {
         key = token;
         token = "";
         gotKey = true;
-        quoteOpened = false;
+        quoteFound = '\0';
 
         if (op)
           *op = "=";
@@ -672,7 +673,7 @@ splitToken(const std::string &line,
           key = token;
           token = "";
           gotKey = true;
-          quoteOpened = false;
+          quoteFound = '\0';
           *op = line[i];
 
           if (i + 1 < line.length() && line[i + 1] == '=')
@@ -691,7 +692,7 @@ splitToken(const std::string &line,
             key = token;
             token = "";
             gotKey = true;
-            quoteOpened = false;
+            quoteFound = '\0';
             *op = "!=";
             i++;
 
