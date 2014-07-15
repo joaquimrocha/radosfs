@@ -31,10 +31,10 @@ getPermissionsXAttr(rados_ioctx_t &ioctx,
   int ret = rados_getxattr(ioctx, obj, XATTR_PERMISSIONS,
                            permXAttr, XATTR_PERMISSIONS_LENGTH);
 
-  permXAttr[XATTR_PERMISSIONS_LENGTH - 1] = '\0';
-
   if (ret < 0)
     return ret;
+
+  permXAttr[ret] = '\0';
 
   std::string permissions(permXAttr);
 
