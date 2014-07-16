@@ -466,12 +466,12 @@ createStripes(rados_ioctx_t ioctx,
 
   for (; from < to; from++)
   {
-    const char *stripe = makeFileStripeName(path, from).c_str();
-    ret = rados_write(ioctx, stripe, "", 0, 0);
+    const std::string &stripe = makeFileStripeName(path, from);
+    ret = rados_write(ioctx, stripe.c_str(), "", 0, 0);
 
     if (ret != 0)
     {
-      radosfs_debug("Cannot create stripe %s: %s", stripe, strerror(ret));
+      radosfs_debug("Cannot create stripe %s: %s", stripe.c_str(), strerror(ret));
       break;
     }
   }
@@ -566,18 +566,18 @@ RadosFsFile::truncate(unsigned long long size)
     else if (lastStripe < newLastStripe)
       createStripes(ioctx, fsStat->translatedPath, lastStripe + 1, newLastStripe);
 
-    const char *stripe = makeFileStripeName(fsStat->translatedPath,
-                                            newLastStripe).c_str();
+    const std::string &stripe = makeFileStripeName(fsStat->translatedPath,
+                                                   newLastStripe);
 
     // create new last stripe if it didn't exist before
     if (newLastStripe > lastStripe)
-      ret = rados_write(ioctx, stripe, "", 0, 0);
+      ret = rados_write(ioctx, stripe.c_str(), "", 0, 0);
 
     if (ret == 0)
     {
       size_t remainingSize = size - newLastStripe * stripeSize;
 
-      ret = rados_trunc(ioctx, stripe, remainingSize);
+      ret = rados_trunc(ioctx, stripe.c_str(), remainingSize);
     }
   }
   else
