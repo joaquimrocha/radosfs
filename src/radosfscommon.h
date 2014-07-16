@@ -44,6 +44,11 @@ struct RadosFsPool {
       ioctx(ioctx)
   {}
 
+  ~RadosFsPool(void)
+  {
+    rados_ioctx_destroy(ioctx);
+    ioctx = 0;
+  }
 };
 
 struct RadosFsStat {
