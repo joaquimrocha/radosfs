@@ -908,6 +908,7 @@ TEST_F(RadosFsTest, FileReadWrite)
   char *buff = new char[contents.length() + 1];
 
   EXPECT_EQ(contents.length(), file.read(buff, 0, contents.length()));
+  buff[contents.length()] = '\0';
 
   EXPECT_EQ(0, strcmp(buff, contents.c_str()));
 
@@ -1827,6 +1828,7 @@ TEST_F(RadosFsTest, LinkFile)
   // Read from file and check contents
 
   EXPECT_EQ(text.length(), file.read(contents, 0, text.length()));
+  contents[text.length()] = '\0';
 
   EXPECT_EQ(0, strcmp(contents, text.c_str()));
 
