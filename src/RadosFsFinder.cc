@@ -50,7 +50,7 @@ RadosFsFinder::~RadosFsFinder()
 void *
 findInThread(void *finder)
 {
-  RadosFsFinder *finderObj = (RadosFsFinder *) finder;
+  RadosFsFinder *finderObj = static_cast<RadosFsFinder *>(finder);
   FinderData *data;
 
   struct timespec lastFind, currentTime;
