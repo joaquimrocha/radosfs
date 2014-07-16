@@ -63,6 +63,9 @@ struct RadosFsStat {
     path = "";
     translatedPath = "";
     statBuff = buff;
+    statBuff.st_uid = NOBODY_UID;
+    statBuff.st_gid = NOBODY_UID;
+    statBuff.st_mode = 0;
     pool.reset();
   }
 };

@@ -24,6 +24,7 @@
 #define RADOS_FS_END_NAMESPACE }
 
 #define ROOT_UID 0
+#define NOBODY_UID 99
 #define PATH_SEP '/'
 #define XATTR_SYS_PREFIX "sys."
 #define XATTR_USER_PREFIX "usr."
