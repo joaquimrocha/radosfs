@@ -218,10 +218,15 @@ RadosFsFilePriv::sanitizePath(const std::string &path)
 int
 RadosFsFilePriv::removeFile()
 {
-  if (radosFsIO && radosFsIO.use_count() > 1)
-    radosFsIO->setLazyRemoval(true);
+  if (!radosFsIO)
+    return 0;
 
-  return radosFsIO->remove();
+  if (radosFsIO.use_count() > 1)
+    radosFsIO->setLazyRemoval(true);
+  else
+    return radosFsIO->remove();
+
+  return 0;
 }
 
 RadosFsStat *
