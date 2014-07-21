@@ -230,31 +230,6 @@ RadosFsFilePriv::fsStat(void)
   return reinterpret_cast<RadosFsStat *>(fsFile->fsStat());
 }
 
-int
-RadosFsFilePriv::createInode(rados_ioctx_t ioctx,
-                             const std::string &name,
-                             const std::string &hardLink,
-                             long int mode,
-                             uid_t uid,
-                             gid_t gid)
-{
-  rados_write_op_t writeOp = rados_create_write_op();
-
-  rados_write_op_setxattr(writeOp, XATTR_INODE_HARD_LINK, hardLink.c_str(),
-                          hardLink.length());
-
-  const std::string &permissions = makePermissionsXAttr(mode, uid, gid);
-
-  rados_write_op_setxattr(writeOp, XATTR_PERMISSIONS, permissions.c_str(),
-                          permissions.length() + 1);
-
-  int ret = rados_write_op_operate(writeOp, ioctx, name.c_str(), NULL, 0);
-
-  rados_release_write_op(writeOp);
-
-  return ret;
-}
-
 RadosFsFile::RadosFsFile(RadosFs *radosFs,
                          const std::string &path,
                          RadosFsFile::OpenMode mode)
@@ -300,15 +275,23 @@ RadosFsFile::read(char *buff, off_t offset, size_t blen)
   if ((ret = mPriv->verifyExistanceAndType()) != 0)
     return ret;
 
+  ret = -EACCES;
+
   if (mPriv->permissions & RadosFsFile::MODE_READ)
   {
     if (isLink())
       return mPriv->target->read(buff, offset, blen);
 
-    return mPriv->radosFsIO->read(buff, offset, blen);
+    ret = mPriv->radosFsIO->read(buff, offset, blen);
   }
 
-  return -EACCES;
+  // Since it only creates the inode object when a write (or setXAttr) operation
+  // is needed, if the file exists but reading it returns -ENOENT, it should
+  // rather return 0 (it should act as if the file was empty).
+  if (ret == -ENOENT && exists())
+    ret = 0;
+
+  return ret;
 }
 
 int
@@ -405,18 +388,9 @@ RadosFsFile::create(int mode, const std::string pool)
   stat->statBuff.st_mode = permOctal;
   stat->statBuff.st_uid = uid;
   stat->statBuff.st_gid = gid;
-  stat->pool = mPriv->mtdPool;
+  stat->pool = mPriv->dataPool;
 
-  ret = mPriv->createInode(mPriv->dataPool->ioctx, inodeStr, filePath,
-                           permOctal, uid, gid);
-
-  if (ret != 0)
-    return ret;
-
-  indexObject(stat, '+');
-
-  if (ret != 0)
-    return ret;
+  ret = indexObject(mPriv->mtdPool.get(), stat, '+');
 
   update();
 
@@ -445,8 +419,7 @@ RadosFsFile::remove()
   {
     ret = mPriv->removeFile();
     RadosFsStat *stat = mPriv->fsStat();
-    stat->pool = mPriv->mtdPool;
-    indexObject(stat, '-');
+    indexObject(mPriv->mtdPool.get(), stat, '-');
   }
   else
     return -EACCES;
@@ -649,7 +622,10 @@ RadosFsFile::stat(struct stat *buff)
                    0);
 
   if (ret != 0)
-    return ret;
+  {
+    buff->st_size = 0;
+    return 0;
+  }
 
   buff->st_size = numStripes * mPriv->radosFsIO->stripeSize() + size;
 
@@ -661,9 +637,6 @@ RadosFsFile::chmod(long int permissions)
 {
   int ret = 0;
   long int mode;
-  uid_t uid;
-  gid_t gid;
-
   if (!isWritable())
     return -EPERM;
 
@@ -673,27 +646,13 @@ RadosFsFile::chmod(long int permissions)
   mode = permissions | S_IFREG;
 
   RadosFsStat fsStat = *mPriv->fsStat();
-  uid = fsStat.statBuff.st_uid;
-  gid = fsStat.statBuff.st_gid;
+  fsStat.statBuff.st_mode = mode;
+  const std::string &baseName = path().substr(mPriv->parentDir.length());
+  const std::string &linkXAttr = getFileXAttrDirRecord(&fsStat);
 
-  if (isLink())
-  {
-    fsStat.statBuff.st_mode = mode;
-    const std::string &baseName = path().substr(mPriv->parentDir.length());
-    const std::string &linkXAttr = getFileXAttrDirRecord(&fsStat);
-
-    ret = rados_setxattr(mPriv->mtdPool->ioctx, mPriv->parentDir.c_str(),
-                         (XATTR_FILE_PREFIX + baseName).c_str(),
-                         linkXAttr.c_str(), linkXAttr.length());
-  }
-  else
-  {
-    const std::string &permissionsXattr = makePermissionsXAttr(mode, uid, gid);
-
-    ret = rados_setxattr(mPriv->dataPool->ioctx, mPriv->inode.c_str(),
-                         XATTR_PERMISSIONS, permissionsXattr.c_str(),
-                         permissionsXattr.length());
-  }
+  ret = rados_setxattr(mPriv->mtdPool->ioctx, mPriv->parentDir.c_str(),
+                       (XATTR_FILE_PREFIX + baseName).c_str(),
+                       linkXAttr.c_str(), linkXAttr.length());
 
   return ret;
 }

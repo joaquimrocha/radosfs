@@ -28,10 +28,12 @@
 #define PATH_SEP '/'
 #define XATTR_SYS_PREFIX "sys."
 #define XATTR_USER_PREFIX "usr."
+#define XATTR_PRIV_PREFIX "priv."
 #define XATTR_UID "uid="
 #define XATTR_GID "gid="
 #define XATTR_MODE "mode="
-#define XATTR_LINK XATTR_SYS_PREFIX "link"
+#define XATTR_POOL "pool"
+#define XATTR_LINK XATTR_PRIV_PREFIX "link"
 #define XATTR_PERMISSIONS_LENGTH 50
 #define XATTR_PERMISSIONS XATTR_SYS_PREFIX "permissions"
 #define XATTR_LINK_LENGTH 1024

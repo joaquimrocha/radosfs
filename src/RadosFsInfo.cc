@@ -256,7 +256,14 @@ RadosFsInfo::exists() const
 int
 RadosFsInfo::stat(struct stat *buff)
 {
-  return filesystem()->stat(path(), buff);
+  RadosFsInfo::update();
+
+  if (!isReadable())
+    return -EPERM;
+
+  *buff = mPriv->stat.statBuff;
+
+  return 0;
 }
 
 void

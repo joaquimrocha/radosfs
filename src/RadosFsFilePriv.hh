@@ -49,10 +49,6 @@ public:
 
   RadosFsStat *fsStat(void);
 
-  int createInode(rados_ioctx_t ioctx, const std::string &name,
-                  const std::string &hardLink, long int mode, uid_t uid,
-                  gid_t gid);
-
   void updateDataPool(const std::string &pool);
 
   RadosFsFile *fsFile;

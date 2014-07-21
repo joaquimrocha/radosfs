@@ -23,6 +23,7 @@
 #include <utility>
 
 #include "RadosFs.hh"
+#include "RadosFsFile.hh"
 #include "RadosFsPriv.hh"
 
 RADOS_FS_BEGIN_NAMESPACE
@@ -250,9 +251,9 @@ RadosFsPriv::createCluster(const std::string &userName,
 }
 
 int
-RadosFsPriv::statLink(rados_ioctx_t dataIoctx,
-                      rados_ioctx_t mtdIoctx,
-                      RadosFsStat *stat)
+RadosFsPriv::statLink(rados_ioctx_t mtdIoctx,
+                      RadosFsStat *stat,
+                      std::string &pool)
 {
   int ret;
   const std::string &parentDir = getParentDir(stat->path, 0);
@@ -263,7 +264,7 @@ RadosFsPriv::statLink(rados_ioctx_t dataIoctx,
 
   stat->statBuff.st_size = 0;
 
-  if (dataIoctx == 0)
+  if (mtdIoctx == 0)
     return -ENODEV;
 
   int length = rados_getxattr(mtdIoctx, parentDir.c_str(),
@@ -274,15 +275,11 @@ RadosFsPriv::statLink(rados_ioctx_t dataIoctx,
   {
     fileXAttr[length] = '\0';
     ret = statFromXAttr(stat->path, fileXAttr, &stat->statBuff,
-                        stat->translatedPath);
+                        stat->translatedPath, pool);
 
     if (stat->translatedPath == "")
     {
       ret = -ENOLINK;
-    }
-    else if (stat->translatedPath[0] != PATH_SEP)
-    {
-      ret = genericStat(dataIoctx, stat->translatedPath.c_str(), &stat->statBuff);
     }
   }
   else if (length == -ENODATA)
@@ -316,23 +313,36 @@ RadosFsPriv::stat(const std::string &path,
 
   if (ret != 0)
   {
-    const RadosFsPoolList &pools = getDataPools(stat->path);
-    RadosFsPoolList::const_iterator it;
+    std::string poolName("");
 
-    for (it = pools.begin(); it != pools.end(); it++)
+    stat->path = getFilePath(stat->path);
+    ret = statLink(mtdPool->ioctx, stat, poolName);
+
+    if (ret == -ENOENT)
     {
-      dataPool = *it;
-      stat->path = getFilePath(stat->path);
-      ret = statLink(dataPool->ioctx, mtdPool->ioctx, stat);
+      stat->path = getDirPath(stat->path);
+      ret = statLink(mtdPool->ioctx, stat, poolName);
+    }
+    else
+    {
+      const RadosFsPoolList &pools = getDataPools(stat->path);
+      if (poolName != "")
+      {
+        const RadosFsPoolList &pools = getDataPools(stat->path);
+        RadosFsPoolList::const_iterator it;
 
-      if (ret == -ENOENT)
-      {
-        stat->path = getDirPath(stat->path);
-        ret = statLink(dataPool->ioctx, mtdPool->ioctx, stat);
+        for (it = pools.begin(); it != pools.end(); it++)
+        {
+          if ((*it)->name == poolName)
+          {
+            dataPool = *it;
+            break;
+          }
+        }
       }
-      else if (ret == 0)
+      else
       {
-        break;
+        dataPool = pools.front();
       }
     }
   }
@@ -1003,10 +1013,23 @@ RadosFs::gid(void) const
 int
 RadosFs::stat(const std::string &path, struct stat *buff)
 {
-  RadosFsStat stat;
-  int ret = mPriv->stat(sanitizePath(path), &stat);
+  int ret = -ENOENT;
 
-  *buff = stat.statBuff;
+  const std::string &sanitizedPath = sanitizePath(path);
+
+  if (isDirPath(sanitizedPath))
+  {
+    RadosFsDir dir(this, sanitizedPath);
+
+    ret = dir.stat(buff);
+  }
+
+  if (ret != 0)
+  {
+    RadosFsFile file(this, sanitizedPath, RadosFsFile::MODE_READ);
+
+    ret = file.stat(buff);
+  }
 
   return ret;
 }

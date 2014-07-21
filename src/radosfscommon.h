@@ -110,6 +110,8 @@ std::string unescapeObjName(const std::string &obj);
 
 int indexObject(const RadosFsStat *stat, char op);
 
+int indexObject(const RadosFsPool *pool, const RadosFsStat *stat, char op);
+
 std::string getObjectIndexLine(const std::string &obj, char op);
 
 int indexObjectMetadata(rados_ioctx_t ioctx,
@@ -169,7 +171,8 @@ std::string sanitizePath(const std::string &path);
 int statFromXAttr(const std::string &path,
                   const std::string &xattrValue,
                   struct stat* buff,
-                  std::string &link);
+                  std::string &link,
+                  std::string &pool);
 
 std::string makeFileStripeName(const std::string &filePath, size_t stripeIndex);
 

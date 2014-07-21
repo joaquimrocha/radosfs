@@ -18,6 +18,7 @@
  */
 
 #include "radosfscommon.h"
+#include <sys/stat.h>
 
 int
 getPermissionsXAttr(rados_ioctx_t &ioctx,
@@ -185,7 +186,8 @@ int
 statFromXAttr(const std::string &path,
               const std::string &xattrValue,
               struct stat *buff,
-              std::string &link)
+              std::string &link,
+              std::string &pool)
 {
   int ret = 0;
   time_t pmtime;
@@ -218,6 +220,10 @@ statFromXAttr(const std::string &path,
     else if (key == "time")
     {
       pmtime = (time_t) strtoul(value.c_str(), 0, 10);
+    }
+    else if (key == XATTR_POOL)
+    {
+      pool = value;
     }
 
     startPos = lastPos;
@@ -325,8 +331,7 @@ unescapeObjName(const std::string &obj)
   return str;
 }
 
-int
-indexObject(const RadosFsStat *stat, char op)
+int indexObject(const RadosFsPool *pool, const RadosFsStat *stat, char op)
 {
   int index;
   std::string contents;
@@ -348,8 +353,14 @@ indexObject(const RadosFsStat *stat, char op)
       xAttrValue = getFileXAttrDirRecord(stat);
   }
 
-  return writeContentsAtomically(stat->pool->ioctx, dirName.c_str(), contents,
+  return writeContentsAtomically(pool->ioctx, dirName.c_str(), contents,
                                  xAttrKey, xAttrValue);
+}
+
+int
+indexObject(const RadosFsStat *stat, char op)
+{
+  return indexObject(stat->pool.get(), stat, op);
 }
 
 std::string
@@ -371,13 +382,15 @@ getFileXAttrDirRecord(const RadosFsStat *stat)
 
   stream << "link=\"" << stat->translatedPath << "\"";
 
-  if (stat->translatedPath[0] == PATH_SEP)
+  if (stat->translatedPath != "" && stat->translatedPath[0] != PATH_SEP)
   {
-    stream << " " << XATTR_UID << "\"" << stat->statBuff.st_uid << "\" ";
-    stream << XATTR_GID << "\"" << stat->statBuff.st_gid << "\" ";
-    stream << "time=" << "\""  << stat->statBuff.st_ctime << "\" " ;
-    stream << XATTR_MODE << "\"" << std::oct << stat->statBuff.st_mode << "\" ";
+    stream << XATTR_POOL << "='" << stat->pool->name << "' ";
   }
+
+  stream << " " << XATTR_UID << "\"" << stat->statBuff.st_uid << "\" ";
+  stream << XATTR_GID << "\"" << stat->statBuff.st_gid << "\" ";
+  stream << "time=" << "\""  << stat->statBuff.st_ctime << "\" " ;
+  stream << XATTR_MODE << "\"" << std::oct << stat->statBuff.st_mode << "\" ";
 
   return stream.str();
 }

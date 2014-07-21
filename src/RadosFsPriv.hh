@@ -147,9 +147,9 @@ public:
   int stat(const std::string &path,
            RadosFsStat *stat);
 
-  int statLink(rados_ioctx_t dataIoctx,
-               rados_ioctx_t mtdIoctx,
-               RadosFsStat *stat);
+  int statLink(rados_ioctx_t mtdIoctx,
+               RadosFsStat *stat,
+               std::string &pool);
 
   rados_t radosCluster;
   static __thread uid_t uid;
