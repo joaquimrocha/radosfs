@@ -54,8 +54,6 @@ RadosFsIO::read(char *buff, off_t offset, size_t blen)
 {
   sync();
 
-  int ret = 0;
-
   if (blen == 0)
   {
     radosfs_debug("Invalid length for reading. Cannot read 0 bytes.");
@@ -64,24 +62,27 @@ RadosFsIO::read(char *buff, off_t offset, size_t blen)
 
   off_t currentOffset =  offset % mStripeSize;
   size_t bytesToRead = blen;
+  size_t bytesRead = 0;
 
   while (bytesToRead  > 0)
   {
     const std::string &fileStripe = getStripePath(blen - bytesToRead  + offset);
     const size_t length = std::min(mStripeSize - currentOffset, bytesToRead );
 
-    ret += rados_read(mPool->ioctx,
-                      fileStripe.c_str(),
-                      buff,
-                      length,
-                      currentOffset);
+    int ret = rados_read(mPool->ioctx,
+                         fileStripe.c_str(),
+                         buff,
+                         length,
+                         currentOffset);
 
     currentOffset = 0;
 
     if (ret < 0)
       return ret;
 
-    if (bytesToRead  < mStripeSize)
+    bytesRead += ret;
+
+    if (bytesToRead < mStripeSize)
       break;
     else
       bytesToRead  -= length;
@@ -89,7 +90,7 @@ RadosFsIO::read(char *buff, off_t offset, size_t blen)
     buff += length;
   }
 
-  return ret;
+  return bytesRead;
 }
 
 int
