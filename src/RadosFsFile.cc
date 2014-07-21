@@ -417,9 +417,11 @@ RadosFsFile::remove()
   uid_t uid;
   gid_t gid;
 
+  RadosFsStat *stat = mPriv->fsStat();
+
   filesystem()->getIds(&uid, &gid);
 
-  if (statBuffHasPermission(mPriv->fsStat()->statBuff, uid, gid,
+  if (statBuffHasPermission(stat->statBuff, uid, gid,
                             O_WRONLY | O_RDWR))
   {
     ret = mPriv->removeFile();
