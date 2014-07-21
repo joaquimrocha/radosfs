@@ -901,11 +901,19 @@ TEST_F(RadosFsTest, FileReadWrite)
 
   EXPECT_EQ(0, file.create());
 
+  // Read from an empty file
+
+  char *buff = new char[contents.length() + 1];
+
+  EXPECT_EQ(0, file.read(buff, 0, contents.length()));
+
+  delete[] buff;
+
   EXPECT_EQ(0, file.writeSync(contents.c_str(), 0, contents.length()));
 
   // Read and verify the contents
 
-  char *buff = new char[contents.length() + 1];
+  buff = new char[contents.length() + 1];
 
   EXPECT_EQ(contents.length(), file.read(buff, 0, contents.length()));
   buff[contents.length()] = '\0';
