@@ -807,6 +807,33 @@ TEST_F(RadosFsTest, DirContents)
   EXPECT_EQ(*it, otherFileName);
 }
 
+TEST_F(RadosFsTest, FileInode)
+{
+  AddPool();
+
+  RadosFsStat stat;
+  const std::string fileName("/test");
+
+  radosfs::RadosFsFile file(&radosFs, fileName);
+
+  EXPECT_EQ(0, file.create());
+
+  EXPECT_EQ(0, radosFsPriv()->stat(file.path(), &stat));
+
+  EXPECT_EQ(-ENOENT, rados_stat(stat.pool->ioctx, stat.translatedPath.c_str(),
+                                0, 0));
+
+  EXPECT_EQ(0, file.truncate(1));
+
+  EXPECT_EQ(0, rados_stat(stat.pool->ioctx, stat.translatedPath.c_str(), 0, 0));
+
+  EXPECT_EQ(0, rados_remove(stat.pool->ioctx, stat.translatedPath.c_str()));
+
+  EXPECT_EQ(0, file.write("X", 0, 1));
+
+  EXPECT_EQ(0, rados_stat(stat.pool->ioctx, stat.translatedPath.c_str(), 0, 0));
+}
+
 TEST_F(RadosFsTest, FileTruncate)
 {
   AddPool();
