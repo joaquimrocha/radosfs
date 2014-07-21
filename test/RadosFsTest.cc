@@ -195,8 +195,8 @@ RadosFsTest::testXAttrInFsInfo(radosfs::RadosFsInfo &info)
   radosFs.setIds(TEST_UID, TEST_GID);
 
   std::string xAttrValue;
-  EXPECT_EQ(-EACCES, info.getXAttr(XATTR_PERMISSIONS, xAttrValue,
-                                  XATTR_PERMISSIONS_LENGTH));
+  EXPECT_EQ(-EINVAL, info.getXAttr(XATTR_PERMISSIONS, xAttrValue,
+                                   XATTR_PERMISSIONS_LENGTH));
 
   // Get an invalid xattr
 
@@ -268,13 +268,10 @@ RadosFsTest::testXAttrInFsInfo(radosfs::RadosFsInfo &info)
 
   // Check the xattrs map's size
 
-  EXPECT_EQ(3, map.size());
+  EXPECT_EQ(2, map.size());
 
   // Check the xattrs map's value
 
   EXPECT_EQ(map[attr], value);
 
-  // Check that a sys xattr is present
-
-  EXPECT_EQ(1, map.count(XATTR_PERMISSIONS));
 }

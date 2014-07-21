@@ -1178,13 +1178,9 @@ TEST_F(RadosFsTest, XAttrs)
 
   EXPECT_EQ(0, file.create((S_IRWXU | S_IRGRP | S_IROTH)));
 
-  // Get the permissions xattr by a unauthorized user
+  // Get an invalid xattr
 
   std::string xAttrValue;
-  EXPECT_EQ(-EACCES, radosFs.getXAttr(fileName, XATTR_PERMISSIONS,
-                                      xAttrValue, XATTR_PERMISSIONS_LENGTH));
-
-  // Get an invalid xattr
 
   EXPECT_EQ(-EINVAL, radosFs.getXAttr(fileName, "invalid",
                                       xAttrValue, XATTR_PERMISSIONS_LENGTH));
@@ -1256,15 +1252,11 @@ TEST_F(RadosFsTest, XAttrs)
 
   // Check the xattrs map's size
 
-  EXPECT_EQ(3, map.size());
+  EXPECT_EQ(2, map.size());
 
   // Check the xattrs map's value
 
   EXPECT_EQ(map[attr], value);
-
-  // Check that a sys xattr is present
-
-  EXPECT_EQ(1, map.count(XATTR_PERMISSIONS));
 }
 
 TEST_F(RadosFsTest, XAttrsInInfo)
