@@ -859,6 +859,12 @@ TEST_F(RadosFsTest, FileTruncate)
 
   EXPECT_EQ(0, file.truncate(size));
 
+  // Setting a fake path to file so its cache is dumped and we have a "fresh"
+  // new instance below with sameFile which is necessary to check if the
+  // file stripe size persistency is working
+
+  file.setPath("/fake");
+
   // Create a new instance of the same file and check the size
 
   radosfs::RadosFsFile sameFile(&radosFs, fileName,
@@ -866,9 +872,18 @@ TEST_F(RadosFsTest, FileTruncate)
 
   struct stat buff;
 
+  // Setting a different stripe size before checking sameFile's size because
+  // it should have been set in the file when it was written
+
+  radosFs.setFileStripeSize(stripeSize + 1);
+
   EXPECT_EQ(0, sameFile.stat(&buff));
 
   EXPECT_EQ(size, buff.st_size);
+
+  // Get the right file instance back again
+
+  file = sameFile;
 
   // Truncate the file to 0 and verify
 
