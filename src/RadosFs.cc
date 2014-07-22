@@ -275,7 +275,7 @@ RadosFsPriv::statLink(rados_ioctx_t mtdIoctx,
   {
     fileXAttr[length] = '\0';
     ret = statFromXAttr(stat->path, fileXAttr, &stat->statBuff,
-                        stat->translatedPath, pool);
+                        stat->translatedPath, pool, stat->extraData);
 
     if (stat->translatedPath == "")
     {

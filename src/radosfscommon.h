@@ -56,6 +56,7 @@ struct RadosFsStat {
   std::string translatedPath;
   struct stat statBuff;
   std::tr1::shared_ptr<RadosFsPool> pool;
+  std::map<std::string, std::string> extraData;
 
   void reset(void)
   {
@@ -67,6 +68,7 @@ struct RadosFsStat {
     statBuff.st_gid = NOBODY_UID;
     statBuff.st_mode = 0;
     pool.reset();
+    extraData.clear();
   }
 };
 
@@ -172,7 +174,8 @@ int statFromXAttr(const std::string &path,
                   const std::string &xattrValue,
                   struct stat* buff,
                   std::string &link,
-                  std::string &pool);
+                  std::string &pool,
+                  std::map<std::string, std::string> &extraData);
 
 std::string makeFileStripeName(const std::string &filePath, size_t stripeIndex);
 

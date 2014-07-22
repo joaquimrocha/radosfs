@@ -187,7 +187,8 @@ statFromXAttr(const std::string &path,
               const std::string &xattrValue,
               struct stat *buff,
               std::string &link,
-              std::string &pool)
+              std::string &pool,
+              std::map<std::string, std::string> &extraData)
 {
   int ret = 0;
   time_t pmtime;
@@ -224,6 +225,10 @@ statFromXAttr(const std::string &path,
     else if (key == XATTR_POOL)
     {
       pool = value;
+    }
+    else if (key != "")
+    {
+      extraData[key] = value;
     }
 
     startPos = lastPos;
@@ -391,6 +396,12 @@ getFileXAttrDirRecord(const RadosFsStat *stat)
   stream << XATTR_GID << "\"" << stat->statBuff.st_gid << "\" ";
   stream << "time=" << "\""  << stat->statBuff.st_ctime << "\" " ;
   stream << XATTR_MODE << "\"" << std::oct << stat->statBuff.st_mode << "\" ";
+
+  std::map<std::string, std::string>::const_iterator it;
+  for (it = stat->extraData.begin(); it != stat->extraData.end(); it++)
+  {
+    stream << (*it).first << "='" << (*it).second << "' ";
+  }
 
   return stream.str();
 }
