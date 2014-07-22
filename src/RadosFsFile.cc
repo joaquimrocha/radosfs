@@ -109,21 +109,9 @@ RadosFsFilePriv::updatePath()
     {
       int stripeSize = 0;
 
-      if (fsFile->exists())
+      if (fsFile->exists() && stat->extraData.count(XATTR_FILE_STRIPE_SIZE))
       {
-        const size_t length = 12;
-        char buff[length + 1];
-
-        int ret = rados_getxattr(dataPool->ioctx,
-                                 stat->translatedPath.c_str(),
-                                 XATTR_FILE_STRIPE_SIZE,
-                                 buff,
-                                 length);
-
-        if (ret >= 0)
-        {
-          stripeSize = atoi(buff);
-        }
+        stripeSize = atol(stat->extraData[XATTR_FILE_STRIPE_SIZE].c_str());
       }
 
       if (stripeSize == 0)
@@ -394,6 +382,11 @@ RadosFsFile::create(int mode, const std::string pool)
   stat->statBuff.st_uid = uid;
   stat->statBuff.st_gid = gid;
   stat->pool = mPriv->dataPool;
+
+  std::stringstream stream;
+  stream << filesystem()->fileStripeSize();
+
+  stat->extraData[XATTR_FILE_STRIPE_SIZE] = stream.str();
 
   ret = indexObject(mPriv->mtdPool.get(), stat, '+');
 
