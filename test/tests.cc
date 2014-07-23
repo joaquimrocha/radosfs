@@ -24,6 +24,7 @@
 #include <sstream>
 #include <stdexcept>
 
+#include "RadosFsIO.hh"
 #include "RadosFsTest.hh"
 #include "radosfscommon.h"
 
@@ -2126,6 +2127,94 @@ TEST_F(RadosFsTest, Find)
   EXPECT_EQ(0, dir.find(results, "name!=\"^.*f.*\" name='^.*0.*'"));
 
   EXPECT_EQ(1, results.size());
+}
+
+TEST_F(RadosFsTest, PoolAlignment)
+{
+  AddPool();
+
+  const size_t alignment(3);
+  const size_t stripeSize(128);
+  const size_t alignedStripeSize = (stripeSize % alignment == 0) ?
+                                     stripeSize :
+                                     (stripeSize / alignment) * alignment;
+
+  radosFs.setFileStripeSize(stripeSize);
+
+  radosfs::RadosFsFile file(&radosFs, "/file");
+
+  // Pretend the file is in an aligned pool
+
+  radosFsFilePriv(file)->alignment = alignment;
+
+  file.update();
+
+  // Create contents which should go into stripes with a size that is a multiple
+  // of the alignment and less than the stripe size originally set
+
+  EXPECT_EQ(0, file.create());
+
+  const size_t contentsSize(stripeSize * 3);
+  char contents[contentsSize];
+  memset(contents, 'x', contentsSize);
+
+  EXPECT_EQ(0, file.writeSync(contents, 0, contentsSize));
+
+  RadosFsStat stat;
+  struct stat statBuff;
+
+  EXPECT_EQ(0, radosFsPriv()->stat(file.path(), &stat));
+
+  radosfs::RadosFsIO *radosFsIO = radosFsFilePriv(file)->radosFsIO.get();
+  size_t lastStripe = radosFsIO->getLastStripeIndex();
+
+  u_int64_t size;
+
+  // Get the size of the last stripe
+
+  EXPECT_EQ(0, rados_stat(stat.pool->ioctx,
+                    makeFileStripeName(stat.translatedPath, lastStripe).c_str(),
+                    &size,
+                    0));
+
+  // Check the real stored size of the stripes
+
+  EXPECT_EQ(alignedStripeSize, size);
+
+  size_t totalStoredSize = (lastStripe + 1) * alignedStripeSize;
+
+  EXPECT_EQ(totalStoredSize, lastStripe * radosFsIO->stripeSize() + size);
+
+  // Check that the file size still reports the same as the contents' originally
+  // set
+
+  EXPECT_EQ(0, file.stat(&statBuff));
+
+  EXPECT_EQ(contentsSize, statBuff.st_size);
+
+  // Check that truncate (down and up) still make the stripes with the aligned
+  // size and that the file still reports the expected truncated size
+
+  EXPECT_EQ(0, file.truncate(contentsSize / 2));
+
+  lastStripe = radosFsIO->getLastStripeIndex();
+
+  EXPECT_EQ(0, rados_stat(stat.pool->ioctx,
+                    makeFileStripeName(stat.translatedPath, lastStripe).c_str(),
+                    &size,
+                    0));
+
+  EXPECT_EQ(alignedStripeSize, size);
+
+  EXPECT_EQ(0, file.stat(&statBuff));
+
+  EXPECT_EQ(contentsSize / 2, statBuff.st_size);
+
+  EXPECT_EQ(0, file.truncate(contentsSize * 2));
+
+  EXPECT_EQ(0, file.stat(&statBuff));
+
+  EXPECT_EQ(contentsSize * 2, statBuff.st_size);
 }
 
 GTEST_API_ int
