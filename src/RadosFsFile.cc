@@ -122,7 +122,7 @@ RadosFsFilePriv::updatePath()
     {
       int stripeSize = 0;
 
-      if (fsFile->exists() && stat->extraData.count(XATTR_FILE_STRIPE_SIZE))
+      if (stat->extraData.count(XATTR_FILE_STRIPE_SIZE))
       {
         stripeSize = atol(stat->extraData[XATTR_FILE_STRIPE_SIZE].c_str());
       }
