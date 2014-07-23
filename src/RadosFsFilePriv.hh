@@ -51,6 +51,10 @@ public:
 
   void updateDataPool(const std::string &pool);
 
+  size_t alignStripeSize(size_t stripeSize) const;
+
+  bool hasAlignment(void) const { return alignment != 0; }
+
   RadosFsFile *fsFile;
   RadosFsFile *target;
   std::tr1::shared_ptr<RadosFsPool> dataPool;
@@ -60,6 +64,7 @@ public:
   RadosFsFile::OpenMode permissions;
   RadosFsFile::OpenMode mode;
   std::tr1::shared_ptr<RadosFsIO> radosFsIO;
+  size_t alignment;
 };
 
 RADOS_FS_END_NAMESPACE

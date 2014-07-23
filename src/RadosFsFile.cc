@@ -36,7 +36,8 @@ RadosFsFilePriv::RadosFsFilePriv(RadosFsFile *fsFile,
   : fsFile(fsFile),
     permissions(RadosFsFile::MODE_NONE),
     mode(mode),
-    target(0)
+    target(0),
+    alignment(0)
 {
   updatePath();
 }
@@ -84,7 +85,19 @@ RadosFsFilePriv::updatePath()
     return;
   }
 
-  dataPool = stat->pool;
+  // Only set the pool if they differ. Besides saving it from wasting time in
+  // getting the same assignments, getting the alignment when the data pool
+  // differs allows us to use it directly in the unit tests to fake an arbitrary
+  // alignment.
+  if (stat->pool.get() != dataPool.get())
+  {
+    alignment = 0;
+
+    dataPool = stat->pool;
+
+    if (dataPool)
+      alignment = rados_ioctx_pool_required_alignment(dataPool->ioctx);
+  }
 
   if (!dataPool)
     return;
@@ -115,15 +128,25 @@ RadosFsFilePriv::updatePath()
       }
 
       if (stripeSize == 0)
-        stripeSize = radosFs->fileStripeSize();
+        stripeSize = alignStripeSize(radosFs->fileStripeSize());
 
       RadosFsIO *fsIO = new RadosFsIO(fsFile->filesystem(), dataPool,
-                                      stat->translatedPath, stripeSize);
+                                      stat->translatedPath, stripeSize,
+                                      hasAlignment());
 
       radosFsIO = std::tr1::shared_ptr<RadosFsIO>(fsIO);
       radosFs->mPriv->setRadosFsIO(radosFsIO);
     }
   }
+}
+
+size_t
+RadosFsFilePriv::alignStripeSize(size_t stripeSize) const
+{
+  if (alignment == 0 || stripeSize % alignment == 0)
+    return stripeSize;
+
+  return alignment * (stripeSize / alignment);
 }
 
 int
@@ -384,7 +407,7 @@ RadosFsFile::create(int mode, const std::string pool)
   stat->pool = mPriv->dataPool;
 
   std::stringstream stream;
-  stream << filesystem()->fileStripeSize();
+  stream << mPriv->alignStripeSize(filesystem()->fileStripeSize());
 
   stat->extraData[XATTR_FILE_STRIPE_SIZE] = stream.str();
 
@@ -433,14 +456,15 @@ int
 createStripes(rados_ioctx_t ioctx,
               const std::string &path,
               size_t from,
-              size_t to)
+              size_t to,
+              size_t stripeSize)
 {
   int ret;
 
   for (; from < to; from++)
   {
     const std::string &stripe = makeFileStripeName(path, from);
-    ret = rados_write(ioctx, stripe.c_str(), "", 0, 0);
+    ret = rados_write(ioctx, stripe.c_str(), "", stripeSize, 0);
 
     if (ret != 0)
     {
@@ -534,23 +558,43 @@ RadosFsFile::truncate(unsigned long long size)
     if (size > 0)
       newLastStripe = (size - 1) / stripeSize;
 
+    const size_t emptyStripeSize = mPriv->hasAlignment() ? stripeSize : 0;
+
     if (lastStripe > newLastStripe)
       removeStripes(ioctx, fsStat->translatedPath, lastStripe, newLastStripe);
     else if (lastStripe < newLastStripe)
-      createStripes(ioctx, fsStat->translatedPath, lastStripe + 1, newLastStripe);
+      createStripes(ioctx, fsStat->translatedPath, lastStripe + 1, newLastStripe,
+                    emptyStripeSize);
 
     const std::string &stripe = makeFileStripeName(fsStat->translatedPath,
                                                    newLastStripe);
 
     // create new last stripe if it didn't exist before
     if (newLastStripe > lastStripe)
-      ret = rados_write(ioctx, stripe.c_str(), "", 0, 0);
+      ret = rados_write(ioctx, stripe.c_str(), "", emptyStripeSize, 0);
 
     if (ret == 0)
     {
       size_t remainingSize = size - newLastStripe * stripeSize;
 
-      ret = rados_trunc(ioctx, stripe.c_str(), remainingSize);
+      if (emptyStripeSize == 0)
+      {
+        ret = rados_trunc(ioctx, stripe.c_str(), remainingSize);
+      }
+      else
+      {
+        std::stringstream stream;
+        stream << remainingSize;
+        const std::string &sizeStr = stream.str();
+
+        ret = rados_setxattr(ioctx, stripe.c_str(), XATTR_LAST_STRIPE_SIZE,
+                             sizeStr.c_str(), sizeStr.length());
+        if (ret != 0)
+        {
+          radosfs_debug("Problem setting stripe size XAttr (%s=%s) in %s",
+                        XATTR_LAST_STRIPE_SIZE, sizeStr.c_str(), stripe.c_str());
+        }
+      }
     }
   }
   else
@@ -613,13 +657,31 @@ RadosFsFile::stat(struct stat *buff)
   if (isLink())
     return 0;
 
+  u_int64_t size = 0;
   size_t numStripes = mPriv->radosFsIO->getLastStripeIndex();
-  u_int64_t size;
+  const std::string &lastStripeName = makeFileStripeName(stat->translatedPath,
+                                                         numStripes);
 
-  ret = rados_stat(mPriv->dataPool->ioctx,
-                   makeFileStripeName(stat->translatedPath, numStripes).c_str(),
-                   &size,
-                   0);
+  if (mPriv->hasAlignment())
+  {
+    // Since the alignment is set, the last stripe will be the same size as the
+    // other ones so we retrieve the real data size which was set as an XAttr
+    char xattr[XATTR_LINK_LENGTH];
+    ret = rados_getxattr(mPriv->dataPool->ioctx, lastStripeName.c_str(),
+                         XATTR_LAST_STRIPE_SIZE, xattr, XATTR_LINK_LENGTH);
+
+    if (ret != 0)
+    {
+      xattr[ret] = '\0';
+      size = atol(xattr);
+      ret = 0;
+    }
+  }
+
+  if (size == 0)
+  {
+    ret = rados_stat(mPriv->dataPool->ioctx, lastStripeName.c_str(), &size, 0);
+  }
 
   if (ret != 0)
   {

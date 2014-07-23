@@ -28,15 +28,24 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
+typedef struct {
+  char *contents;
+  size_t lastStripeContentsSize;
+  std::string path;
+  std::tr1::shared_ptr<RadosFsPool> pool;
+} WriteCompletionData;
+
 RadosFsIO::RadosFsIO(RadosFs *radosFs,
                      const std::tr1::shared_ptr<RadosFsPool> pool,
                      const std::string &iNode,
-                     size_t stripeSize)
+                     size_t stripeSize,
+                     bool hasAlignment)
   : mRadosFs(radosFs),
     mPool(pool),
     mInode(iNode),
     mLazyRemoval(false),
-    mStripeSize(stripeSize)
+    mStripeSize(stripeSize),
+    mHasAlignment(hasAlignment)
 {
   assert(mStripeSize != 0);
 }
@@ -105,6 +114,29 @@ RadosFsIO::writeSync(const char *buff, off_t offset, size_t blen)
   return ret;
 }
 
+void writeCommitCallback(rados_completion_t comp, void *arg)
+{
+  WriteCompletionData *data = reinterpret_cast<WriteCompletionData *>(arg);
+
+  delete[] data->contents;
+
+  std::stringstream stream;
+  stream << data->lastStripeContentsSize;
+
+  const std::string &sizeStr = stream.str();
+
+  int ret = rados_setxattr(data->pool->ioctx, data->path.c_str(),
+                           XATTR_LAST_STRIPE_SIZE, sizeStr.c_str(),
+                           sizeStr.length());
+
+  if (ret != 0)
+    radosfs_debug("Problem setting the stripe-size XAttr (%s=%s) in %s",
+                  XATTR_FILE_STRIPE_SIZE, sizeStr.c_str(),
+                  data->path.c_str());
+
+  delete data;
+}
+
 int
 RadosFsIO::write(const char *buff, off_t offset, size_t blen)
 {
@@ -145,12 +177,37 @@ RadosFsIO::write(const char *buff, off_t offset, size_t blen)
 
     size_t compIndex = mCompletionList.size() - 1;
     const std::string &fileStripe = getStripePath(blen - bytesToWrite + offset);
-    const size_t length = std::min(mStripeSize - currentOffset, bytesToWrite);
+    size_t length = std::min(mStripeSize - currentOffset, bytesToWrite);
 
-    rados_aio_create_completion(0, 0, 0, &mCompletionList[compIndex]);
+    char *contents;
+
+    if (length < mStripeSize && mHasAlignment)
+    {
+      contents = new char[mStripeSize];
+
+      WriteCompletionData *data = new WriteCompletionData;
+      data->contents = contents;
+      data->lastStripeContentsSize = length;
+      data->path = fileStripe;
+      data->pool = mPool;
+
+      memcpy(contents, buff + currentOffset, length);
+      memset(contents + length, '\0', mStripeSize - length);
+      length = mStripeSize;
+      currentOffset = 0;
+
+      rados_aio_create_completion(data, 0, writeCommitCallback,
+                                  &mCompletionList[compIndex]);
+    }
+    else
+    {
+      contents = const_cast<char *>(buff);
+      rados_aio_create_completion(0, 0, 0, &mCompletionList[compIndex]);
+    }
+
     ret = rados_aio_write(mPool->ioctx, fileStripe.c_str(),
                           mCompletionList[compIndex],
-                          (const char *) buff,
+                          contents,
                           length,
                           currentOffset);
 

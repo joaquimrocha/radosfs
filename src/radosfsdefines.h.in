@@ -33,6 +33,8 @@
 #define XATTR_GID "gid="
 #define XATTR_MODE "mode="
 #define XATTR_POOL "pool"
+#define XATTR_LAST_STRIPE_SIZE "stripe-size"
+#define XATTR_SIZE_LENGTH 24
 #define XATTR_LINK XATTR_PRIV_PREFIX "link"
 #define XATTR_PERMISSIONS_LENGTH 50
 #define XATTR_PERMISSIONS XATTR_PRIV_PREFIX "permissions"
