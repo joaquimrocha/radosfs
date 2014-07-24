@@ -1009,6 +1009,92 @@ TEST_F(RadosFsTest, FileReadWrite)
   delete[] buff;
 }
 
+TEST_F(RadosFsTest, MoveFile)
+{
+  AddPool();
+
+  std::string originalPath("/my-file");
+  std::string path("/moved-file");
+
+  radosfs::RadosFsFile file(&radosFs, originalPath);
+
+  // Move file that doesn't exist
+
+  EXPECT_EQ(-ENOENT, file.move(path));
+
+  EXPECT_EQ(0, file.create());
+
+  // Move file into a directory that doesn't exist
+
+  EXPECT_EQ(-ENOENT, file.move("/phony/" + path));
+
+  // Move file in the same directory
+
+  EXPECT_EQ(0, file.move(path));
+
+  EXPECT_EQ(path, file.path());
+
+  EXPECT_TRUE(file.exists());
+
+  file.setPath(originalPath);
+
+  EXPECT_FALSE(file.exists());
+
+  // Create a user directory
+
+  radosfs::RadosFsDir userDir(&radosFs, "/user-dir");
+
+  EXPECT_EQ(0, userDir.create(-1, false, TEST_UID, TEST_GID));
+
+  radosFs.setIds(TEST_UID, TEST_GID);
+
+  file.setPath(path);
+
+  // Move file without the required permissions
+
+  EXPECT_EQ(-EACCES, file.move(originalPath));
+
+  // Create a file as user
+
+  originalPath = userDir.path() + "user-file";
+  path = "user-file-moved";
+
+  file.setPath(originalPath);
+
+  EXPECT_EQ(0, file.create());
+
+  // Move the file inside the same directory
+
+  EXPECT_EQ(0, file.move(path));
+
+  radosfs::RadosFsFile sameFile(&radosFs, userDir.path() + path);
+
+  EXPECT_TRUE(sameFile.exists());
+
+  // Move the file (owned by the user) as root
+
+  radosFs.setIds(ROOT_UID, ROOT_UID);
+
+  EXPECT_EQ(0, sameFile.move("/"));
+
+  file.setPath(path);
+
+  EXPECT_TRUE(file.exists());
+
+  // Move the file to the user's dir giving the dir path only and without a
+  // preceding /
+
+  EXPECT_EQ(0, file.move("user-dir/"));
+
+  sameFile.setPath(userDir.path() + path);
+
+  EXPECT_TRUE(sameFile.exists());
+
+  // Move the file to an empty path argument
+
+  EXPECT_EQ(-EINVAL, file.move(""));
+}
+
 typedef struct
 {
   radosfs::RadosFs *fs;
