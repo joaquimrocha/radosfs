@@ -80,6 +80,8 @@ public:
 
   int chmod(long int permissions);
 
+  int move(const std::string &destination);
+
 private:
   std::auto_ptr<RadosFsFilePriv> mPriv;
 

@@ -18,6 +18,7 @@
  */
 
 #include <stdexcept>
+#include <sys/stat.h>
 #include <uuid/uuid.h>
 
 #include "radosfsdefines.h"
@@ -244,6 +245,84 @@ RadosFsStat *
 RadosFsFilePriv::fsStat(void)
 {
   return reinterpret_cast<RadosFsStat *>(fsFile->fsStat());
+}
+
+int
+RadosFsFilePriv::move(const std::string &destination)
+{
+  int index;
+  int ret;
+  RadosFsStat stat;
+  std::string destParent = getParentDir(destination, &index);
+  std::string baseName;
+
+  if (destParent != "")
+  {
+    baseName = destination.substr(index);
+  }
+  else
+  {
+    baseName = destination;
+    destParent = parentDir;
+  }
+
+  ret = fsFile->filesystem()->mPriv->stat(destination, &stat);
+
+  if (ret == 0)
+  {
+    if (S_ISDIR(stat.statBuff.st_mode))
+    {
+      destParent = stat.path;
+      baseName = fsFile->path().substr(parentDir.length());
+    }
+  }
+
+  RadosFsPool *destMtdPool = mtdPool.get();
+
+  if (destParent != parentDir)
+  {
+    uid_t uid;
+    gid_t gid;
+
+    ret = fsFile->filesystem()->mPriv->stat(destParent, &stat);
+
+    if (ret != 0)
+    {
+      radosfs_debug("Problem statting destination's parent dir in moving %s: %s",
+                    destination.c_str(), strerror(-ret));
+      return ret;
+    }
+
+    fsFile->filesystem()->getIds(&uid, &gid);
+
+    if (!statBuffHasPermission(stat.statBuff, uid, gid, O_WRONLY))
+    {
+      radosfs_debug("No permissions to write in parent dir when moving %s",
+                    destination.c_str());
+      return -EACCES;
+    }
+
+    destMtdPool = stat.pool.get();
+  }
+
+  const std::string &newPath = destParent + baseName;
+  stat = *fsStat();
+  stat.path = newPath;
+
+  ret = indexObject(destMtdPool, &stat, '+');
+
+  if (ret != 0)
+    return ret;
+
+  stat.path = fsFile->path();
+  ret = indexObject(mtdPool.get(), &stat, '-');
+
+  if (ret != 0)
+    return ret;
+
+  fsFile->setPath(newPath);
+
+  return ret;
 }
 
 RadosFsFile::RadosFsFile(RadosFs *radosFs,
@@ -717,6 +796,34 @@ RadosFsFile::chmod(long int permissions)
                        linkXAttr.c_str(), linkXAttr.length());
 
   return ret;
+}
+
+int
+RadosFsFile::move(const std::string &destination)
+{
+  int ret;
+
+  ret = mPriv->verifyExistanceAndType();
+
+  if (ret != 0)
+    return ret;
+
+  if (destination == "")
+    return -EINVAL;
+
+  if (!isWritable())
+    return -EACCES;
+
+  std::string sanitizedDest;
+
+  if (destination.find(PATH_SEP) != std::string::npos)
+  {
+    sanitizedDest = getFilePath(sanitizePath(destination));
+
+    return mPriv->move(sanitizedDest);
+  }
+
+  return mPriv->move(destination);
 }
 
 RADOS_FS_END_NAMESPACE
