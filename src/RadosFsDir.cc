@@ -391,7 +391,6 @@ RadosFsDir::remove()
 {
   int ret;
   const std::string &dirPath = path();
-  rados_ioctx_t ioctx = mPriv->ioctx;
   RadosFs *radosFs = filesystem();
   RadosFsStat stat, *statPtr;
 
