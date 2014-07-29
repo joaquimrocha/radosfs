@@ -80,7 +80,7 @@ hash(const char *path)
   return hash64((ub1 *) path, strlen(path), 0);
 }
 
-int genericStat(rados_ioctx_t &ioctx,
+int genericStat(rados_ioctx_t ioctx,
                 const char* path,
                 struct stat* buff);
 

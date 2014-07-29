@@ -128,7 +128,7 @@ statBuffHasPermission(const struct stat &buff,
 }
 
 int
-genericStat(rados_ioctx_t &ioctx,
+genericStat(rados_ioctx_t ioctx,
             const char* path,
             struct stat* buff)
 {
