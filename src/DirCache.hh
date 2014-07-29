@@ -41,12 +41,12 @@ class DirCache
 {
 public:
   DirCache(void);
-  DirCache(const std::string &dirpath, rados_ioctx_t ioctx);
+  DirCache(const std::string &dirpath, RadosFsPoolSP pool);
   virtual ~DirCache(void);
 
   int update(void);
   const std::string getEntry(int index);
-  rados_ioctx_t ioctx(void) const { return mIoctx; }
+  rados_ioctx_t ioctx(void) const { return mPool->ioctx; }
   std::set<std::string> contents(void) const { return mEntryNames; }
   std::string path(void) const { return mPath; }
   void compactDirOpLog(void);
@@ -62,7 +62,7 @@ private:
   void parseContents(char *buff, int length);
 
   std::string mPath;
-  rados_ioctx_t mIoctx;
+  RadosFsPoolSP mPool;
   std::map<std::string, DirEntry> mContents;
   std::set<std::string> mEntryNames;
   uint64_t mLastCachedSize;

@@ -28,21 +28,20 @@ RADOS_FS_BEGIN_NAMESPACE
 
 #define COMPACT_LOCK_NAME "compact-dir"
 
-DirCache::DirCache(const std::string &dirpath, rados_ioctx_t ioctx)
+DirCache::DirCache(const std::string &dirpath, RadosFsPoolSP pool)
   : mPath(dirpath),
-    mIoctx(ioctx),
+    mPool(pool),
     mLastCachedSize(0),
     mLastReadByte(0),
     mLogNrLines(0)
 {
   pthread_mutex_init(&mContentsMutex, 0);
 
-  genericStat(mIoctx, mPath.c_str(), &statBuff);
+  genericStat(ioctx(), mPath.c_str(), &statBuff);
 }
 
 DirCache::DirCache()
   : mPath(""),
-    mIoctx(0),
     mLastCachedSize(0),
     mLastReadByte(0)
 {}
@@ -146,7 +145,7 @@ DirCache::parseContents(char *buff, int length)
 int
 DirCache::update()
 {
-  int ret =  genericStat(mIoctx, mPath.c_str(), &statBuff);
+  int ret =  genericStat(ioctx(), mPath.c_str(), &statBuff);
 
   if (ret != 0)
     return ret;
@@ -157,7 +156,7 @@ DirCache::update()
   uint64_t buffLength = statBuff.st_size - mLastCachedSize;
   char buff[buffLength];
 
-  ret = rados_read(mIoctx, mPath.c_str(), buff, buffLength, mLastReadByte);
+  ret = rados_read(ioctx(), mPath.c_str(), buff, buffLength, mLastReadByte);
 
   if (ret > 0)
   {
@@ -202,7 +201,7 @@ DirCache::compactDirOpLog(void)
 {
   update();
 
-  genericStat(mIoctx, mPath.c_str(), &statBuff);
+  genericStat(ioctx(), mPath.c_str(), &statBuff);
 
   const char *keys[] = { DIR_LOG_UPDATED };
   const char *values[] = { DIR_LOG_UPDATED_FALSE };
@@ -212,7 +211,7 @@ DirCache::compactDirOpLog(void)
 
   rados_write_op_omap_set(writeOp, keys, values, lengths, 1);
 
-  rados_write_op_operate(writeOp, mIoctx, mPath.c_str(), NULL, 0);
+  rados_write_op_operate(writeOp, ioctx(), mPath.c_str(), NULL, 0);
 
   rados_release_write_op(writeOp);
 
@@ -251,9 +250,9 @@ DirCache::compactDirOpLog(void)
                           strlen(DIR_LOG_UPDATED_FALSE),
                           &cmpRet);
 
-  rados_write_op_operate(writeOp, mIoctx, mPath.c_str(), NULL, 0);
+  rados_write_op_operate(writeOp, ioctx(), mPath.c_str(), NULL, 0);
 
-  genericStat(mIoctx, mPath.c_str(), &statBuff);
+  genericStat(ioctx(), mPath.c_str(), &statBuff);
 
   mLastCachedSize = mLastReadByte = statBuff.st_size;
 

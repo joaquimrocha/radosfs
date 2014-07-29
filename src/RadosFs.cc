@@ -683,7 +683,7 @@ RadosFsPriv::getDirInfo(const char *path, bool addToCache)
       return cache;
     }
 
-    DirCache *dirInfo = new DirCache(path, pool->ioctx);
+    DirCache *dirInfo = new DirCache(path, pool);
     cache = std::tr1::shared_ptr<DirCache>(dirInfo);
 
     if (addToCache)
