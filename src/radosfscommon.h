@@ -51,11 +51,13 @@ struct RadosFsPool {
   }
 };
 
+typedef std::tr1::shared_ptr<RadosFsPool> RadosFsPoolSP;
+
 struct RadosFsStat {
   std::string path;
   std::string translatedPath;
   struct stat statBuff;
-  std::tr1::shared_ptr<RadosFsPool> pool;
+  RadosFsPoolSP pool;
   std::map<std::string, std::string> extraData;
 
   void reset(void)

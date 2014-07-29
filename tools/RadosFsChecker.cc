@@ -282,7 +282,7 @@ RadosFsChecker::fixInodes()
       {
         action = "Created";
 
-        std::tr1::shared_ptr<RadosFsPool> pool;
+        RadosFsPoolSP pool;
         RadosFsStat stat;
 
         pool = mRadosFs->mPriv->getMetadataPoolFromPath(hardLink);

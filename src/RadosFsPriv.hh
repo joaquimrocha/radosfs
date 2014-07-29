@@ -38,9 +38,9 @@ RADOS_FS_BEGIN_NAMESPACE
 
 class RadosFs;
 
-typedef std::vector<std::tr1::shared_ptr<RadosFsPool> > RadosFsPoolList;
+typedef std::vector<RadosFsPoolSP> RadosFsPoolList;
 
-typedef std::map<std::string, std::tr1::shared_ptr<RadosFsPool> > RadosFsPoolMap;
+typedef std::map<std::string, RadosFsPoolSP> RadosFsPoolMap;
 typedef std::map<std::string, RadosFsPoolList>  RadosFsPoolListMap;
 
 typedef struct _LinkedList LinkedList;
@@ -103,15 +103,13 @@ public:
 
   int createPrefixDir(const RadosFsPool *pool, const std::string &prefix);
 
-  std::tr1::shared_ptr<RadosFsPool> getPool(const std::string &path,
-                                            RadosFsPoolMap *map,
-                                            pthread_mutex_t *mutex);
+  RadosFsPoolSP getPool(const std::string &path, RadosFsPoolMap *map,
+                        pthread_mutex_t *mutex);
 
-  std::tr1::shared_ptr<RadosFsPool>
-           getMetadataPoolFromPath(const std::string &path);
+  RadosFsPoolSP getMetadataPoolFromPath(const std::string &path);
 
-  std::tr1::shared_ptr<RadosFsPool> getDataPool(const std::string &path,
-                                                const std::string &poolName = "");
+  RadosFsPoolSP getDataPool(const std::string &path,
+                            const std::string &poolName = "");
 
   RadosFsPoolList getDataPools(const std::string &path);
 

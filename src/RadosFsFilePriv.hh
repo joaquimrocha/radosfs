@@ -59,8 +59,8 @@ public:
 
   RadosFsFile *fsFile;
   RadosFsFile *target;
-  std::tr1::shared_ptr<RadosFsPool> dataPool;
-  std::tr1::shared_ptr<RadosFsPool> mtdPool;
+  RadosFsPoolSP dataPool;
+  RadosFsPoolSP mtdPool;
   std::string inode;
   std::string parentDir;
   RadosFsFile::OpenMode permissions;

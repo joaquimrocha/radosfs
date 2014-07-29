@@ -32,11 +32,11 @@ typedef struct {
   char *contents;
   size_t lastStripeContentsSize;
   std::string path;
-  std::tr1::shared_ptr<RadosFsPool> pool;
+  RadosFsPoolSP pool;
 } WriteCompletionData;
 
 RadosFsIO::RadosFsIO(RadosFs *radosFs,
-                     const std::tr1::shared_ptr<RadosFsPool> pool,
+                     const RadosFsPoolSP pool,
                      const std::string &iNode,
                      size_t stripeSize,
                      bool hasAlignment)

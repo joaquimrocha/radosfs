@@ -298,7 +298,7 @@ int
 RadosFsPriv::stat(const std::string &path,
                   RadosFsStat *stat)
 {
-  std::tr1::shared_ptr<RadosFsPool> mtdPool, dataPool;
+  RadosFsPoolSP mtdPool, dataPool;
   int ret = -ENODEV;
   stat->reset();
   stat->path = getDirPath(path);
@@ -418,8 +418,8 @@ RadosFsPriv::addPool(const std::string &name,
 
   pthread_mutex_lock(mutex);
 
-  std::pair<std::string, std::tr1::shared_ptr<RadosFsPool> >
-      entry(cleanPrefix, std::tr1::shared_ptr<RadosFsPool>(pool));
+  std::pair<std::string, RadosFsPoolSP >
+      entry(cleanPrefix, RadosFsPoolSP(pool));
   map->insert(entry);
 
   pthread_mutex_unlock(mutex);
@@ -427,10 +427,10 @@ RadosFsPriv::addPool(const std::string &name,
   return ret;
 }
 
-std::tr1::shared_ptr<RadosFsPool>
+RadosFsPoolSP
 RadosFsPriv::getDataPool(const std::string &path, const std::string &poolName)
 {
-  std::tr1::shared_ptr<RadosFsPool> pool;
+  RadosFsPoolSP pool;
   size_t maxLength = 0;
 
   pthread_mutex_lock(&poolMutex);
@@ -478,18 +478,18 @@ RadosFsPriv::getDataPool(const std::string &path, const std::string &poolName)
   return pool;
 }
 
-std::tr1::shared_ptr<RadosFsPool>
+RadosFsPoolSP
 RadosFsPriv::getMetadataPoolFromPath(const std::string &path)
 {
   return getPool(path, &mtdPoolMap, &mtdPoolMutex);
 }
 
-std::tr1::shared_ptr<RadosFsPool>
+RadosFsPoolSP
 RadosFsPriv::getPool(const std::string &path,
                      RadosFsPoolMap *map,
                      pthread_mutex_t *mutex)
 {
-  std::tr1::shared_ptr<RadosFsPool> pool;
+  RadosFsPoolSP pool;
   size_t maxLength = 0;
 
   pthread_mutex_lock(mutex);
@@ -675,7 +675,7 @@ RadosFsPriv::getDirInfo(const char *path, bool addToCache)
 
   if (dirCache.cacheMap.count(path) == 0)
   {
-    const std::tr1::shared_ptr<RadosFsPool> pool = getMetadataPoolFromPath(path);
+    const RadosFsPoolSP pool = getMetadataPoolFromPath(path);
 
     if (!pool)
     {
@@ -817,7 +817,7 @@ RadosFs::addDataPool(const std::string &name,
     pools = &map->at(cleanPrefix);
   }
 
-  pools->push_back(std::tr1::shared_ptr<RadosFsPool>(pool));
+  pools->push_back(RadosFsPoolSP(pool));
 
 unlockAndExit:
   pthread_mutex_unlock(&mPriv->poolMutex);

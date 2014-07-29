@@ -40,7 +40,7 @@ class RadosFsIO
 {
 public:
   RadosFsIO(RadosFs *radosFs,
-            const std::tr1::shared_ptr<RadosFsPool> pool,
+            const RadosFsPoolSP pool,
             const std::string &iNode,
             size_t stripeSize,
             bool hasAligment);
@@ -65,7 +65,7 @@ public:
 
 private:
   RadosFs *mRadosFs;
-  const std::tr1::shared_ptr<RadosFsPool> mPool;
+  const RadosFsPoolSP mPool;
   const std::string mInode;
   size_t mStripeSize;
   bool mLazyRemoval;
