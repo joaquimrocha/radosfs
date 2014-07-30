@@ -88,8 +88,7 @@ RadosFsDirPriv::getPool()
 }
 
 int
-RadosFsDirPriv::makeDirsRecursively(rados_ioctx_t *ioctx,
-                                    RadosFsStat *stat,
+RadosFsDirPriv::makeDirsRecursively(RadosFsStat *stat,
                                     const char *path,
                                     uid_t uid,
                                     gid_t gid)
@@ -107,7 +106,6 @@ RadosFsDirPriv::makeDirsRecursively(rados_ioctx_t *ioctx,
   if (radosFsPriv->stat(dirPath.c_str(), stat) == 0)
   {
     buff = &stat->statBuff;
-    *ioctx = stat->pool->ioctx;
 
     if (buff->st_mode & S_IFDIR)
       return 0;
@@ -116,7 +114,7 @@ RadosFsDirPriv::makeDirsRecursively(rados_ioctx_t *ioctx,
       return -ENOTDIR;
   }
 
-  ret = makeDirsRecursively(ioctx, stat, parentDir.c_str(), uid, gid);
+  ret = makeDirsRecursively(stat, parentDir.c_str(), uid, gid);
 
   if (ret == 0)
   {
@@ -134,12 +132,13 @@ RadosFsDirPriv::makeDirsRecursively(rados_ioctx_t *ioctx,
       return -EACCES;
 
     std::string dir = getDirPath(path);
-    ret = rados_write(*ioctx, dir.c_str(), 0, 0, 0);
+    ret = rados_write(stat->pool->ioctx, dir.c_str(), 0, 0, 0);
 
     if (ret != 0)
       return ret;
 
-    ret = setPermissionsXAttr(*ioctx, dir.c_str(), buff->st_mode, uid, gid);
+    ret = setPermissionsXAttr(stat->pool->ioctx, dir.c_str(), buff->st_mode,
+                              uid, gid);
 
     indexObject(stat, '+');
   }
@@ -292,7 +291,6 @@ RadosFsDir::create(int mode,
 {
   int ret;
   const std::string &dir = path();
-  rados_ioctx_t parentIoctx;
   RadosFs *radosFs = filesystem();
 
   if (exists())
@@ -329,8 +327,7 @@ RadosFsDir::create(int mode,
 
   if (mkpath)
   {
-    ret = mPriv->makeDirsRecursively(&parentIoctx, &stat,
-                                     mPriv->parentDir.c_str(), uid, gid);
+    ret = mPriv->makeDirsRecursively(&stat, mPriv->parentDir.c_str(), uid, gid);
 
     if (ret != 0)
       return ret;
@@ -343,8 +340,6 @@ RadosFsDir::create(int mode,
 
     if (ret != 0)
       return ret;
-
-    parentIoctx = stat.pool->ioctx;
   }
 
   if (!statBuffHasPermission(stat.statBuff, uid, gid, O_WRONLY | O_RDWR))
