@@ -49,7 +49,7 @@ public:
 
   bool updateDirInfoPtr(void);
 
-  int updateIoctx(void);
+  const RadosFsPoolSP getPool(void);
 
   void updateFsDirCache();
 
@@ -62,7 +62,6 @@ public:
   RadosFsDir *dir;
   std::string parentDir;
   std::tr1::shared_ptr<DirCache> dirInfo;
-  rados_ioctx_t ioctx;
   bool cacheable;
 };
 

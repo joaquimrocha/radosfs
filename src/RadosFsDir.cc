@@ -27,7 +27,6 @@ RADOS_FS_BEGIN_NAMESPACE
 
 RadosFsDirPriv::RadosFsDirPriv(RadosFsDir *dirObj)
   : dir(dirObj),
-    ioctx(0),
     cacheable(true)
 {
   updatePath();
@@ -35,7 +34,6 @@ RadosFsDirPriv::RadosFsDirPriv(RadosFsDir *dirObj)
 
 RadosFsDirPriv::RadosFsDirPriv(RadosFsDir *dirObj, bool useCache)
   : dir(dirObj),
-    ioctx(0),
     cacheable(useCache)
 {
   updatePath();
@@ -65,7 +63,6 @@ RadosFsDirPriv::updateDirInfoPtr()
       path = dir->targetPath().c_str();
 
     dirInfo = dir->filesystem()->mPriv->getDirInfo(path, cacheable);
-    ioctx = dirInfo->ioctx();
 
     return true;
   }
@@ -84,20 +81,10 @@ RadosFsDirPriv::updateFsDirCache()
     dir->filesystem()->mPriv->removeDirCache(dirInfo);
 }
 
-int
-RadosFsDirPriv::updateIoctx()
+const RadosFsPoolSP
+RadosFsDirPriv::getPool()
 {
-  const RadosFsPoolSP pool =
-      dir->filesystem()->mPriv->getMetadataPoolFromPath(dir->path());
-
-  ioctx = 0;
-
-  if (!pool)
-    return -ENODEV;
-
-  ioctx = pool->ioctx;
-
-  return 0;
+  return dir->filesystem()->mPriv->getMetadataPoolFromPath(dir->path());
 }
 
 int
@@ -305,18 +292,8 @@ RadosFsDir::create(int mode,
 {
   int ret;
   const std::string &dir = path();
-  rados_ioctx_t ioctx, parentIoctx;
+  rados_ioctx_t parentIoctx;
   RadosFs *radosFs = filesystem();
-
-  if (!mPriv->ioctx)
-  {
-    int ret = mPriv->updateIoctx();
-
-    if (ret != 0)
-      return ret;
-  }
-
-  ioctx = mPriv->ioctx;
 
   if (exists())
   {
@@ -328,6 +305,11 @@ RadosFsDir::create(int mode,
 
     return -EEXIST;
   }
+
+  const RadosFsPoolSP pool = mPriv->getPool();
+
+  if (!pool)
+    return -ENODEV;
 
   uid_t uid = radosFs->uid();
   gid_t gid = radosFs->gid();
@@ -368,14 +350,14 @@ RadosFsDir::create(int mode,
   if (!statBuffHasPermission(stat.statBuff, uid, gid, O_WRONLY | O_RDWR))
     return -EACCES;
 
-  ret = rados_write(ioctx, dir.c_str(), 0, 0, 0);
+  ret = rados_write(pool->ioctx, dir.c_str(), 0, 0, 0);
 
   if (ret != 0)
     return ret;
 
   stat.path = dir;
 
-  ret = setPermissionsXAttr(ioctx, dir.c_str(), permOctal, owner, group);
+  ret = setPermissionsXAttr(pool->ioctx, dir.c_str(), permOctal, owner, group);
 
 
   indexObject(&stat, '+');
