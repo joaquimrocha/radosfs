@@ -40,12 +40,6 @@ DirCache::DirCache(const std::string &dirpath, RadosFsPoolSP pool)
   genericStat(ioctx(), mPath.c_str(), &statBuff);
 }
 
-DirCache::DirCache()
-  : mPath(""),
-    mLastCachedSize(0),
-    mLastReadByte(0)
-{}
-
 DirCache::~DirCache()
 {
   pthread_mutex_destroy(&mContentsMutex);

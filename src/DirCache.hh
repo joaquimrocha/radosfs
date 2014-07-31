@@ -40,7 +40,6 @@ typedef struct
 class DirCache
 {
 public:
-  DirCache(void);
   DirCache(const std::string &dirpath, RadosFsPoolSP pool);
   virtual ~DirCache(void);
 
