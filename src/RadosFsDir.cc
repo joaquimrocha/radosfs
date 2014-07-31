@@ -216,6 +216,12 @@ RadosFsDirPriv::find(std::set<std::string> &entries,
   return ret;
 }
 
+RadosFsStat *
+RadosFsDirPriv::fsStat(void)
+{
+  return reinterpret_cast<RadosFsStat *>(dir->fsStat());
+}
+
 RadosFsPriv *
 RadosFsDirPriv::radosFsPriv(void)
 {
@@ -267,14 +273,10 @@ RadosFsDir::getParent(const std::string &path, int *pos)
 int
 RadosFsDir::entryList(std::set<std::string> &entries)
 {
-  RadosFs *radosFs = filesystem();
-  uid_t uid = radosFs->uid();
-  gid_t gid = radosFs->gid();
-
   if (!mPriv->dirInfo && !mPriv->updateDirInfoPtr())
     return -ENOENT;
 
-  if (!statBuffHasPermission(mPriv->dirInfo->statBuff, uid, gid, O_RDONLY))
+  if (!isReadable())
     return -EACCES;
 
   const std::set<std::string> &contents = mPriv->dirInfo->contents();
@@ -441,14 +443,10 @@ RadosFsDir::update()
 int
 RadosFsDir::entry(int entryIndex, std::string &entry)
 {
-  RadosFs *radosFs = filesystem();
-  uid_t uid = radosFs->uid();
-  gid_t gid = radosFs->gid();
-
   if (!mPriv->dirInfo && !mPriv->updateDirInfoPtr())
     return -ENOENT;
 
-  if (!statBuffHasPermission(mPriv->dirInfo->statBuff, uid, gid, O_RDONLY))
+  if (!isReadable())
     return -EACCES;
 
   entry = mPriv->dirInfo->getEntry(entryIndex);
@@ -481,7 +479,7 @@ RadosFsDir::isWritable()
   if (!mPriv->dirInfo)
     return false;
 
-  return statBuffHasPermission(mPriv->dirInfo->statBuff, uid, gid, O_WRONLY);
+  return statBuffHasPermission(mPriv->fsStat()->statBuff, uid, gid, O_WRONLY);
 }
 
 bool
@@ -494,15 +492,12 @@ RadosFsDir::isReadable()
   if (!mPriv->dirInfo)
     return false;
 
-  return statBuffHasPermission(mPriv->dirInfo->statBuff, uid, gid, O_RDONLY);
+  return statBuffHasPermission(mPriv->fsStat()->statBuff, uid, gid, O_RDONLY);
 }
 
 int
 RadosFsDir::stat(struct stat *buff)
 {
-  if (mPriv->dirInfo)
-    *buff = mPriv->dirInfo->statBuff;
-
   return RadosFsInfo::stat(buff);
 }
 

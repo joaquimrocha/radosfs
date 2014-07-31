@@ -50,6 +50,8 @@ public:
 
   const RadosFsPoolSP getPool(void);
 
+  RadosFsStat *fsStat(void);
+
   void updateFsDirCache();
 
   int find(std::set<std::string> &entries,

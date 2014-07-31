@@ -86,6 +86,8 @@ public:
 
 private:
   std::auto_ptr<RadosFsDirPriv> mPriv;
+
+friend class RadosFsDirPriv;
 };
 
 RADOS_FS_END_NAMESPACE
