@@ -36,13 +36,17 @@ DirCache::DirCache(const std::string &dirpath, RadosFsPoolSP pool)
     mLogNrLines(0)
 {
   pthread_mutex_init(&mContentsMutex, 0);
-
-  genericStat(ioctx(), mPath.c_str(), &statBuff);
 }
 
 DirCache::~DirCache()
 {
   pthread_mutex_destroy(&mContentsMutex);
+}
+
+int
+DirCache::getContentsSize(uint64_t *size) const
+{
+  return rados_stat(ioctx(), mPath.c_str(), size, 0);
 }
 
 void
@@ -139,15 +143,17 @@ DirCache::parseContents(char *buff, int length)
 int
 DirCache::update()
 {
-  int ret =  genericStat(ioctx(), mPath.c_str(), &statBuff);
+  uint64_t size;
+
+  int ret = getContentsSize(&size);
 
   if (ret != 0)
     return ret;
 
-  if (statBuff.st_size == mLastCachedSize)
+  if (size == mLastCachedSize)
     return 0;
 
-  uint64_t buffLength = statBuff.st_size - mLastCachedSize;
+  uint64_t buffLength = size - mLastCachedSize;
   char buff[buffLength];
 
   ret = rados_read(ioctx(), mPath.c_str(), buff, buffLength, mLastReadByte);
@@ -163,7 +169,7 @@ DirCache::update()
     return ret;
   }
 
-  mLastCachedSize = mLastReadByte = statBuff.st_size;
+  mLastCachedSize = mLastReadByte = size;
 
   return 0;
 }
@@ -194,8 +200,6 @@ void
 DirCache::compactDirOpLog(void)
 {
   update();
-
-  genericStat(ioctx(), mPath.c_str(), &statBuff);
 
   const char *keys[] = { DIR_LOG_UPDATED };
   const char *values[] = { DIR_LOG_UPDATED_FALSE };
@@ -246,9 +250,11 @@ DirCache::compactDirOpLog(void)
 
   rados_write_op_operate(writeOp, ioctx(), mPath.c_str(), NULL, 0);
 
-  genericStat(ioctx(), mPath.c_str(), &statBuff);
+  uint64_t size;
 
-  mLastCachedSize = mLastReadByte = statBuff.st_size;
+  getContentsSize(&size);
+
+  mLastCachedSize = mLastReadByte = size;
 
   mLogNrLines = mContents.size();
 

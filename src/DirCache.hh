@@ -54,8 +54,7 @@ public:
   int getMetadata(const std::string &entry,
                   const std::string &key,
                   std::string &value);
-
-  struct stat statBuff;
+  int getContentsSize(uint64_t *size) const;
 
 private:
   void parseContents(char *buff, int length);
