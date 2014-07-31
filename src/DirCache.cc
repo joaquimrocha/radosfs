@@ -26,8 +26,6 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
-#define COMPACT_LOCK_NAME "compact-dir"
-
 DirCache::DirCache(const std::string &dirpath, RadosFsPoolSP pool)
   : mPath(dirpath),
     mPool(pool),
