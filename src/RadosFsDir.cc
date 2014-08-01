@@ -72,12 +72,9 @@ RadosFsDirPriv::updatePath()
 bool
 RadosFsDirPriv::updateDirInfoPtr()
 {
-  if (dir->exists())
+  if (dir->exists() && !dir->isLink())
   {
     const char *path = dir->path().c_str();
-
-    if (dir->isLink())
-      path = dir->targetPath().c_str();
 
     dirInfo = dir->filesystem()->mPriv->getDirInfo(path, cacheable);
 
