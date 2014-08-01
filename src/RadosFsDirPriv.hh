@@ -61,6 +61,7 @@ public:
   RadosFsPriv *radosFsPriv(void);
 
   RadosFsDir *dir;
+  RadosFsDir *target;
   std::string parentDir;
   std::tr1::shared_ptr<DirCache> dirInfo;
   bool cacheable;

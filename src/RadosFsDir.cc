@@ -27,6 +27,7 @@ RADOS_FS_BEGIN_NAMESPACE
 
 RadosFsDirPriv::RadosFsDirPriv(RadosFsDir *dirObj)
   : dir(dirObj),
+    target(0),
     cacheable(true)
 {
   updatePath();
@@ -34,13 +35,16 @@ RadosFsDirPriv::RadosFsDirPriv(RadosFsDir *dirObj)
 
 RadosFsDirPriv::RadosFsDirPriv(RadosFsDir *dirObj, bool useCache)
   : dir(dirObj),
+    target(0),
     cacheable(useCache)
 {
   updatePath();
 }
 
 RadosFsDirPriv::~RadosFsDirPriv()
-{}
+{
+  delete target;
+}
 
 void
 RadosFsDirPriv::updatePath()
@@ -49,7 +53,20 @@ RadosFsDirPriv::updatePath()
 
   parentDir = getParentDir(dirPath, 0);
 
-  updateDirInfoPtr();
+  if (target)
+  {
+    delete target;
+    target = 0;
+  }
+
+  if (dir->isLink())
+  {
+    target = new RadosFsDir(dir->filesystem(), dir->targetPath());
+  }
+  else
+  {
+    updateDirInfoPtr();
+  }
 }
 
 bool
@@ -273,6 +290,15 @@ RadosFsDir::getParent(const std::string &path, int *pos)
 int
 RadosFsDir::entryList(std::set<std::string> &entries)
 {
+  if (isLink())
+  {
+    if (mPriv->target)
+      return mPriv->target->entryList(entries);
+
+    radosfs_debug("No target for link %s", path().c_str());
+    return -ENOLINK;
+  }
+
   if (!mPriv->dirInfo && !mPriv->updateDirInfoPtr())
     return -ENOENT;
 
@@ -380,16 +406,11 @@ RadosFsDir::remove()
   if (ret != 0)
     return ret;
 
-  if (!mPriv->dirInfo && !mPriv->updateDirInfoPtr())
-    return -ENOENT;
-
   if (!statBuffHasPermission(stat.statBuff,
                              radosFs->uid(),
                              radosFs->gid(),
                              O_WRONLY | O_RDWR))
     return -EACCES;
-
-  RadosFsInfo::update();
 
   if (!exists())
     return -ENOENT;
@@ -399,9 +420,11 @@ RadosFsDir::remove()
 
   statPtr = reinterpret_cast<RadosFsStat *>(fsStat());
 
+  DirCache *info = 0;
+
   if (!isLink())
   {
-    DirCache *info = mPriv->dirInfo.get();
+    info = mPriv->dirInfo.get();
 
     info->update();
 
@@ -415,7 +438,9 @@ RadosFsDir::remove()
     indexObject(statPtr, '-');
 
   RadosFsInfo::update();
-  mPriv->updateFsDirCache();
+
+  if (info)
+    mPriv->updateFsDirCache();
 
   mPriv->updateDirInfoPtr();
 
@@ -426,6 +451,15 @@ void
 RadosFsDir::update()
 {
   RadosFsInfo::update();
+
+  if (isLink())
+  {
+    if (mPriv->target)
+      return mPriv->target->update();
+
+    radosfs_debug("No target for link %s", path().c_str());
+    return;
+  }
 
   if (mPriv->dirInfo || mPriv->updateDirInfoPtr())
   {
@@ -443,6 +477,15 @@ RadosFsDir::update()
 int
 RadosFsDir::entry(int entryIndex, std::string &entry)
 {
+  if (isLink())
+  {
+    if (mPriv->target)
+      return mPriv->target->entry(entryIndex, entry);
+
+    radosfs_debug("No target for link %s", path().c_str());
+    return -ENOLINK;
+  }
+
   if (!mPriv->dirInfo && !mPriv->updateDirInfoPtr())
     return -ENOENT;
 
@@ -472,6 +515,15 @@ RadosFsDir::setPath(const std::string &path)
 bool
 RadosFsDir::isWritable()
 {
+  if (isLink())
+  {
+    if (mPriv->target)
+      return mPriv->target->isWritable();
+
+    radosfs_debug("No target for link %s", path().c_str());
+    return -ENOLINK;
+  }
+
   RadosFs *radosFs = filesystem();
   uid_t uid = radosFs->uid();
   gid_t gid = radosFs->gid();
@@ -485,6 +537,15 @@ RadosFsDir::isWritable()
 bool
 RadosFsDir::isReadable()
 {
+  if (isLink())
+  {
+    if (mPriv->target)
+      return mPriv->target->isReadable();
+
+    radosfs_debug("No target for link %s", path().c_str());
+    return -ENOLINK;
+  }
+
   RadosFs *radosFs = filesystem();
   uid_t uid = radosFs->uid();
   gid_t gid = radosFs->gid();
@@ -504,6 +565,15 @@ RadosFsDir::stat(struct stat *buff)
 int
 RadosFsDir::compact()
 {
+  if (isLink())
+  {
+    if (mPriv->target)
+      return mPriv->target->compact();
+
+    radosfs_debug("No target for link %s", path().c_str());
+    return -ENOLINK;
+  }
+
   if (mPriv->dirInfo)
   {
     mPriv->dirInfo->compactDirOpLog();
@@ -518,6 +588,15 @@ RadosFsDir::setMetadata(const std::string &entry,
                         const std::string &key,
                         const std::string &value)
 {
+  if (isLink())
+  {
+    if (mPriv->target)
+      return mPriv->target->setMetadata(entry, key, value);
+
+    radosfs_debug("No target for link %s", path().c_str());
+    return -ENOLINK;
+  }
+
   if (key == "")
     return -EINVAL;
 
@@ -550,6 +629,15 @@ RadosFsDir::getMetadata(const std::string &entry,
                         const std::string &key,
                         std::string &value)
 {
+  if (isLink())
+  {
+    if (mPriv->target)
+      return mPriv->target->getMetadata(entry, key, value);
+
+    radosfs_debug("No target for link %s", path().c_str());
+    return -ENOLINK;
+  }
+
   if (key == "")
     return -EINVAL;
 
@@ -569,6 +657,15 @@ RadosFsDir::getMetadata(const std::string &entry,
 int
 RadosFsDir::removeMetadata(const std::string &entry, const std::string &key)
 {
+  if (isLink())
+  {
+    if (mPriv->target)
+      return mPriv->target->removeMetadata(entry, key);
+
+    radosfs_debug("No target for link %s", path().c_str());
+    return -ENOLINK;
+  }
+
   if (key == "")
     return -EINVAL;
 
@@ -602,6 +699,15 @@ RadosFsDir::removeMetadata(const std::string &entry, const std::string &key)
 int
 RadosFsDir::find(std::set<std::string> &results, const std::string args)
 {
+  if (isLink())
+  {
+    if (mPriv->target)
+      return mPriv->target->find(results, args);
+
+    radosfs_debug("No target for link %s", path().c_str());
+    return -ENOLINK;
+  }
+
   int ret = 0;
   std::set<std::string> dirs, files, entries;
   std::map<RadosFsFinder::FindOptions, FinderArg> finderArgs;
@@ -672,6 +778,15 @@ RadosFsDir::find(std::set<std::string> &results, const std::string args)
 int
 RadosFsDir::chmod(long int permissions)
 {
+  if (isLink())
+  {
+    if (mPriv->target)
+      return mPriv->target->chmod(permissions);
+
+    radosfs_debug("No target for link %s", path().c_str());
+    return -ENOLINK;
+  }
+
   int ret = 0;
   long int mode;
 
