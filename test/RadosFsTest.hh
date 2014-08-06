@@ -25,6 +25,7 @@
 #include "RadosFsPriv.hh"
 #include "RadosFsFile.hh"
 #include "RadosFsFilePriv.hh"
+#include "RadosFsDirPriv.hh"
 #include "RadosFsDir.hh"
 
 #ifndef RADOS_FS_TEST_HH
@@ -65,6 +66,7 @@ protected:
 
   radosfs::RadosFsPriv *radosFsPriv(void) const { return radosFs.mPriv; }
   radosfs::RadosFsFilePriv *radosFsFilePriv(radosfs::RadosFsFile &file);
+  radosfs::RadosFsDirPriv *radosFsDirPriv(radosfs::RadosFsDir &dir);
 
   const char * conf(void) const { return mConf; }
 

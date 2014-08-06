@@ -40,14 +40,14 @@ typedef struct
 class DirCache
 {
 public:
-  DirCache(const std::string &dirpath, RadosFsPoolSP pool);
+  DirCache(const std::string &inode, RadosFsPoolSP pool);
   virtual ~DirCache(void);
 
   int update(void);
   const std::string getEntry(int index);
   rados_ioctx_t ioctx(void) const { return mPool->ioctx; }
   std::set<std::string> contents(void) const { return mEntryNames; }
-  std::string path(void) const { return mPath; }
+  std::string inode(void) const { return mInode; }
   void compactDirOpLog(void);
   float logRatio(void) const;
   bool hasEntry(const std::string &entry);
@@ -59,7 +59,7 @@ public:
 private:
   void parseContents(char *buff, int length);
 
-  std::string mPath;
+  std::string mInode;
   RadosFsPoolSP mPool;
   std::map<std::string, DirEntry> mContents;
   std::set<std::string> mEntryNames;

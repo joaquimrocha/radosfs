@@ -74,14 +74,18 @@ struct RadosFsStat {
   }
 };
 
+typedef struct {
+  std::string inode;
+  RadosFsPoolSP pool;
+} RadosFsInode;
+
 static ino_t
 hash(const char *path)
 {
   return hash64((ub1 *) path, strlen(path), 0);
 }
 
-int genericStat(rados_ioctx_t ioctx,
-                const char* path,
+int genericStat(rados_ioctx_t ioctx, const std::string &object,
                 struct stat* buff);
 
 bool
@@ -112,14 +116,13 @@ std::string escapeObjName(const std::string &obj);
 
 std::string unescapeObjName(const std::string &obj);
 
-int indexObject(const RadosFsStat *stat, char op);
-
-int indexObject(const RadosFsPool *pool, const RadosFsStat *stat, char op);
+int indexObject(const RadosFsStat *parentStat, const RadosFsStat *stat, char op);
 
 std::string getObjectIndexLine(const std::string &obj, char op);
 
 int indexObjectMetadata(rados_ioctx_t ioctx,
-                        const std::string &obj,
+                        const std::string &dirName,
+                        const std::string &baseName,
                         std::map<std::string, std::string> &metadata,
                         char op);
 
@@ -186,5 +189,14 @@ bool nameIsStripe(const std::string &name);
 std::string getFileXAttrDirRecord(const RadosFsStat *stat);
 
 bool isDirPath(const std::string &path);
+
+std::string generateInode(void);
+
+int createDirAndInode(const RadosFsStat *stat);
+
+int getInodeAndPool(rados_ioctx_t ioctx, const std::string &path,
+                    std::string &inode, std::string &pool);
+
+std::map<std::string, std::string> stringAttrsToMap(const std::string &attrs);
 
 #endif /* __RADOS_FS_COMMON_HH__ */

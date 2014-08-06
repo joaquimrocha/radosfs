@@ -74,9 +74,9 @@ RadosFsDirPriv::updateDirInfoPtr()
 {
   if (dir->exists() && !dir->isLink())
   {
-    const char *path = dir->path().c_str();
-
-    dirInfo = dir->filesystem()->mPriv->getDirInfo(path, cacheable);
+    dirInfo = dir->filesystem()->mPriv->getDirInfo(fsStat()->translatedPath,
+                                                   fsStat()->pool,
+                                                   cacheable);
 
     return true;
   }
@@ -132,7 +132,8 @@ RadosFsDirPriv::makeDirsRecursively(RadosFsStat *stat,
 
   if (ret == 0)
   {
-    radosFsPriv->stat(parentDir.c_str(), stat);
+    RadosFsStat parentStat;
+    radosFsPriv->stat(parentDir.c_str(), &parentStat);
 
     buff = &stat->statBuff;
 
@@ -146,15 +147,17 @@ RadosFsDirPriv::makeDirsRecursively(RadosFsStat *stat,
       return -EACCES;
 
     std::string dir = getDirPath(path);
-    ret = rados_write(stat->pool->ioctx, dir.c_str(), 0, 0, 0);
+
+    *stat = parentStat;
+    stat->path = dir;
+    stat->translatedPath = generateInode();
+
+    ret = createDirAndInode(stat);
 
     if (ret != 0)
       return ret;
 
-    ret = setPermissionsXAttr(stat->pool->ioctx, dir.c_str(), buff->st_mode,
-                              uid, gid);
-
-    indexObject(stat, '+');
+    indexObject(&parentStat, stat, '+');
   }
 
   return ret;
@@ -348,39 +351,46 @@ RadosFsDir::create(int mode,
   if (mode >= 0)
     permOctal = mode | S_IFDIR;
 
-  RadosFsStat stat;
+  RadosFsStat stat, parentStat;
 
   if (mkpath)
   {
-    ret = mPriv->makeDirsRecursively(&stat, mPriv->parentDir.c_str(), uid, gid);
+    ret = mPriv->makeDirsRecursively(&parentStat, mPriv->parentDir.c_str(), uid,
+                                     gid);
 
     if (ret != 0)
       return ret;
-
-    stat.path = dir;
   }
   else
   {
-    ret = mPriv->radosFsPriv()->stat(mPriv->parentDir, &stat);
+    ret = mPriv->radosFsPriv()->stat(mPriv->parentDir, &parentStat);
 
     if (ret != 0)
       return ret;
   }
 
-  if (!statBuffHasPermission(stat.statBuff, uid, gid, O_WRONLY | O_RDWR))
+  if (!statBuffHasPermission(parentStat.statBuff, uid, gid, O_WRONLY | O_RDWR))
     return -EACCES;
 
-  ret = rados_write(pool->ioctx, dir.c_str(), 0, 0, 0);
-
-  if (ret != 0)
-    return ret;
+  stat = parentStat;
 
   stat.path = dir;
+  stat.translatedPath = generateInode();
+  stat.statBuff.st_mode = permOctal;
+  stat.statBuff.st_uid = owner;
+  stat.statBuff.st_gid = group;
+  stat.pool = pool;
 
-  ret = setPermissionsXAttr(pool->ioctx, dir.c_str(), permOctal, owner, group);
+  ret = createDirAndInode(&stat);
 
+  if (ret != 0)
+  {
+    radosfs_debug("Problem setting inode in dir %s: %s", stat.path.c_str(),
+                  strerror(abs(ret)));
+    return ret;
+  }
 
-  indexObject(&stat, '+');
+  indexObject(&parentStat, &stat, '+');
 
   RadosFsInfo::update();
   mPriv->updateDirInfoPtr();
@@ -429,10 +439,13 @@ RadosFsDir::remove()
       return -ENOTEMPTY;
 
     ret = rados_remove(statPtr->pool->ioctx, dirPath.c_str());
+
+    if (ret == 0)
+      ret = rados_remove(info->ioctx(), statPtr->translatedPath.c_str());
   }
 
   if (ret == 0)
-    indexObject(statPtr, '-');
+    indexObject(&stat, statPtr, '-');
 
   RadosFsInfo::update();
 
@@ -610,9 +623,7 @@ RadosFsDir::setMetadata(const std::string &entry,
       metadata[key] = value;
 
       return indexObjectMetadata(mPriv->dirInfo->ioctx(),
-                                 mPriv->dirInfo->path() + entry,
-                                 metadata,
-                                 '+');
+                                 mPriv->dirInfo->inode(), entry, metadata, '+');
     }
 
     return -ENOENT;
@@ -682,9 +693,7 @@ RadosFsDir::removeMetadata(const std::string &entry, const std::string &key)
       metadata[key] = "";
 
       return indexObjectMetadata(mPriv->dirInfo->ioctx(),
-                                 mPriv->dirInfo->path() + entry,
-                                 metadata,
-                                 '-');
+                                 mPriv->dirInfo->inode(), entry, metadata, '-');
     }
 
     return -ENOENT;
@@ -796,6 +805,7 @@ RadosFsDir::chmod(long int permissions)
   mode = permissions | S_IFDIR;
 
   RadosFsStat stat = *reinterpret_cast<RadosFsStat *>(fsStat());
+  RadosFsStat *parentStat = reinterpret_cast<RadosFsStat *>(parentFsStat());
 
   if (isLink())
   {
@@ -803,7 +813,7 @@ RadosFsDir::chmod(long int permissions)
     const std::string &baseName = path().substr(mPriv->parentDir.length());
     const std::string &linkXAttr = getFileXAttrDirRecord(&stat);
 
-    ret = rados_setxattr(stat.pool->ioctx, mPriv->parentDir.c_str(),
+    ret = rados_setxattr(stat.pool->ioctx, parentStat->translatedPath.c_str(),
                          (XATTR_FILE_PREFIX + baseName).c_str(),
                          linkXAttr.c_str(), linkXAttr.length());
   }
@@ -813,8 +823,9 @@ RadosFsDir::chmod(long int permissions)
                                                           stat.statBuff.st_uid,
                                                           stat.statBuff.st_gid);
 
-    ret = rados_setxattr(stat.pool->ioctx, path().c_str(), XATTR_PERMISSIONS,
-                         permissionsXattr.c_str(), permissionsXattr.length());
+    ret = rados_setxattr(stat.pool->ioctx, stat.translatedPath.c_str(),
+                         XATTR_PERMISSIONS, permissionsXattr.c_str(),
+                         permissionsXattr.length());
   }
 
   return ret;

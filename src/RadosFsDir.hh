@@ -87,6 +87,7 @@ public:
 private:
   std::auto_ptr<RadosFsDirPriv> mPriv;
 
+friend class ::RadosFsTest;
 friend class RadosFsDirPriv;
 };
 

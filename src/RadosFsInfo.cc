@@ -46,6 +46,8 @@ RadosFsInfoPriv::makeRealPath(std::string &path, rados_ioctx_t *ioctxOut)
   std::string parent = getParentDir(path, 0);
   RadosFsStat stat;
 
+  parentDirStat.reset();
+
   while (parent != "")
   {
     int ret = radosFs->mPriv->stat(parent, &stat);
@@ -80,6 +82,8 @@ RadosFsInfoPriv::makeRealPath(std::string &path, rados_ioctx_t *ioctxOut)
                   parent.c_str());
     return -ENOTDIR;
   }
+
+  parentDirStat = stat;
 
   return 0;
 }
@@ -186,7 +190,7 @@ RadosFsInfoPriv::makeLink(std::string &linkPath)
   linkStat.statBuff.st_gid = gid;
   linkStat.statBuff.st_mode = DEFAULT_MODE_LINK;
 
-  return indexObject(&linkStat, '+');
+  return indexObject(&parentDirStat, &linkStat, '+');
 }
 
 RadosFsInfo::RadosFsInfo(RadosFs *radosFs, const std::string &path)
@@ -426,6 +430,12 @@ void
 RadosFsInfo::setFsStat(void *stat)
 {
   mPriv->stat = *reinterpret_cast<RadosFsStat *>(stat);
+}
+
+void *
+RadosFsInfo::parentFsStat()
+{
+  return &mPriv->parentDirStat;
 }
 
 RADOS_FS_END_NAMESPACE

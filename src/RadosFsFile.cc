@@ -252,7 +252,7 @@ RadosFsFilePriv::move(const std::string &destination)
 {
   int index;
   int ret;
-  RadosFsStat stat;
+  RadosFsStat stat, parentStat;
   std::string destParent = getParentDir(destination, &index);
   std::string baseName;
 
@@ -277,14 +277,16 @@ RadosFsFilePriv::move(const std::string &destination)
     }
   }
 
-  RadosFsPool *destMtdPool = mtdPool.get();
-
-  if (destParent != parentDir)
+  if (destParent == parentDir)
+  {
+    parentStat = *reinterpret_cast<RadosFsStat *>(fsFile->parentFsStat());
+  }
+  else
   {
     uid_t uid;
     gid_t gid;
 
-    ret = fsFile->filesystem()->mPriv->stat(destParent, &stat);
+    ret = fsFile->filesystem()->mPriv->stat(destParent, &parentStat);
 
     if (ret != 0)
     {
@@ -295,27 +297,25 @@ RadosFsFilePriv::move(const std::string &destination)
 
     fsFile->filesystem()->getIds(&uid, &gid);
 
-    if (!statBuffHasPermission(stat.statBuff, uid, gid, O_WRONLY))
+    if (!statBuffHasPermission(parentStat.statBuff, uid, gid, O_WRONLY))
     {
       radosfs_debug("No permissions to write in parent dir when moving %s",
                     destination.c_str());
       return -EACCES;
     }
-
-    destMtdPool = stat.pool.get();
   }
 
   const std::string &newPath = destParent + baseName;
   stat = *fsStat();
   stat.path = newPath;
 
-  ret = indexObject(destMtdPool, &stat, '+');
+  ret = indexObject(&parentStat, &stat, '+');
 
   if (ret != 0)
     return ret;
 
   stat.path = fsFile->path();
-  ret = indexObject(mtdPool.get(), &stat, '-');
+  ret = indexObject(&parentStat, &stat, '-');
 
   if (ret != 0)
     return ret;
@@ -429,6 +429,7 @@ int
 RadosFsFile::create(int mode, const std::string pool)
 {
   RadosFsStat *stat = reinterpret_cast<RadosFsStat *>(fsStat());
+  RadosFsStat *parentStat = reinterpret_cast<RadosFsStat *>(parentFsStat());
   int ret;
 
   if (pool != "")
@@ -490,7 +491,7 @@ RadosFsFile::create(int mode, const std::string pool)
 
   stat->extraData[XATTR_FILE_STRIPE_SIZE] = stream.str();
 
-  ret = indexObject(mPriv->mtdPool.get(), stat, '+');
+  ret = indexObject(parentStat, stat, '+');
 
   update();
 
@@ -520,8 +521,8 @@ RadosFsFile::remove()
                             O_WRONLY | O_RDWR))
   {
     ret = mPriv->removeFile();
-    RadosFsStat *stat = mPriv->fsStat();
-    indexObject(mPriv->mtdPool.get(), stat, '-');
+    RadosFsStat *parentStat = reinterpret_cast<RadosFsStat *>(parentFsStat());
+    indexObject(parentStat, stat, '-');
   }
   else
     return -EACCES;
@@ -787,11 +788,13 @@ RadosFsFile::chmod(long int permissions)
   mode = permissions | S_IFREG;
 
   RadosFsStat fsStat = *mPriv->fsStat();
+  RadosFsStat *parentStat = reinterpret_cast<RadosFsStat *>(parentFsStat());
+
   fsStat.statBuff.st_mode = mode;
   const std::string &baseName = path().substr(mPriv->parentDir.length());
   const std::string &linkXAttr = getFileXAttrDirRecord(&fsStat);
 
-  ret = rados_setxattr(mPriv->mtdPool->ioctx, mPriv->parentDir.c_str(),
+  ret = rados_setxattr(mPriv->mtdPool->ioctx, parentStat->translatedPath.c_str(),
                        (XATTR_FILE_PREFIX + baseName).c_str(),
                        linkXAttr.c_str(), linkXAttr.length());
 

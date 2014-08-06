@@ -27,7 +27,7 @@
 RADOS_FS_BEGIN_NAMESPACE
 
 DirCache::DirCache(const std::string &dirpath, RadosFsPoolSP pool)
-  : mPath(dirpath),
+  : mInode(dirpath),
     mPool(pool),
     mLastCachedSize(0),
     mLastReadByte(0),
@@ -44,7 +44,7 @@ DirCache::~DirCache()
 int
 DirCache::getContentsSize(uint64_t *size) const
 {
-  return rados_stat(ioctx(), mPath.c_str(), size, 0);
+  return rados_stat(ioctx(), mInode.c_str(), size, 0);
 }
 
 void
@@ -154,7 +154,7 @@ DirCache::update()
   uint64_t buffLength = size - mLastCachedSize;
   char buff[buffLength];
 
-  ret = rados_read(ioctx(), mPath.c_str(), buff, buffLength, mLastReadByte);
+  ret = rados_read(ioctx(), mInode.c_str(), buff, buffLength, mLastReadByte);
 
   if (ret > 0)
   {
@@ -207,7 +207,7 @@ DirCache::compactDirOpLog(void)
 
   rados_write_op_omap_set(writeOp, keys, values, lengths, 1);
 
-  rados_write_op_operate(writeOp, ioctx(), mPath.c_str(), NULL, 0);
+  rados_write_op_operate(writeOp, ioctx(), mInode.c_str(), NULL, 0);
 
   rados_release_write_op(writeOp);
 
@@ -246,7 +246,7 @@ DirCache::compactDirOpLog(void)
                           strlen(DIR_LOG_UPDATED_FALSE),
                           &cmpRet);
 
-  rados_write_op_operate(writeOp, ioctx(), mPath.c_str(), NULL, 0);
+  rados_write_op_operate(writeOp, ioctx(), mInode.c_str(), NULL, 0);
 
   uint64_t size;
 

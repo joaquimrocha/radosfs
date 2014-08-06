@@ -19,6 +19,7 @@
 
 #include "radosfscommon.h"
 #include <sys/stat.h>
+#include <uuid/uuid.h>
 
 int
 getPermissionsXAttr(rados_ioctx_t &ioctx,
@@ -129,7 +130,7 @@ statBuffHasPermission(const struct stat &buff,
 
 int
 genericStat(rados_ioctx_t ioctx,
-            const char* path,
+            const std::string &object,
             struct stat* buff)
 {
   uint64_t psize;
@@ -137,36 +138,20 @@ genericStat(rados_ioctx_t ioctx,
   int ret;
   uid_t uid = 0;
   gid_t gid = 0;
-  mode_t permissions = DEFAULT_MODE_FILE;
-  bool isDir = false;
-  std::string realPath(path);
+  mode_t permissions = 0;
 
-  ret = rados_stat(ioctx, realPath.c_str(), &psize, &pmtime);
-  isDir = isDirPath(realPath);
+  ret = rados_stat(ioctx, object.c_str(), &psize, &pmtime);
 
   if (ret != 0)
-  {
-    if (isDir)
-      return ret;
+    return ret;
 
-    realPath += PATH_SEP;
-
-    isDir = rados_stat(ioctx, realPath.c_str(), &psize, &pmtime) == 0;
-
-    if (!isDir)
-      return -ENOENT;
-  }
-
-  if (isDir)
-    permissions = DEFAULT_MODE_DIR;
-
-  ret = getPermissionsXAttr(ioctx, realPath.c_str(), &permissions, &uid, &gid);
+  ret = getPermissionsXAttr(ioctx, object.c_str(), &permissions, &uid, &gid);
 
   if (ret != 0)
     ret = 0;
 
   buff->st_dev = 0;
-  buff->st_ino = hash(realPath.c_str());
+  buff->st_ino = hash(object.c_str());
   buff->st_mode = permissions;
   buff->st_nlink = 1;
   buff->st_uid = uid;
@@ -178,6 +163,44 @@ genericStat(rados_ioctx_t ioctx,
   buff->st_atime = pmtime;
   buff->st_mtime = pmtime;
   buff->st_ctime = pmtime;
+
+  return ret;
+}
+
+int
+getInodeAndPool(rados_ioctx_t ioctx,
+                const std::string &path,
+                std::string &inode,
+                std::string &pool)
+{
+  char inodeXAttr[XATTR_FILE_LENGTH + 1];
+
+  int ret = rados_getxattr(ioctx, path.c_str(), XATTR_INODE, inodeXAttr,
+                           XATTR_FILE_LENGTH);
+
+  if (ret < 0)
+  {
+    return ret;
+  }
+
+  inodeXAttr[ret] = '\0';
+
+  ret = 0;
+
+  std::map<std::string, std::string> attrs = stringAttrsToMap(inodeXAttr);
+
+  if (attrs.count(XATTR_POOL) == 0)
+  {
+    return -ENODATA;
+  }
+
+  if (attrs.count(XATTR_LINK) == 0)
+  {
+    return -ENODATA;
+  }
+
+  pool = attrs[XATTR_POOL];
+  inode = attrs[XATTR_LINK];
 
   return ret;
 }
@@ -250,6 +273,25 @@ statFromXAttr(const std::string &path,
   buff->st_ctime = pmtime;
 
   return ret;
+}
+
+std::map<std::string, std::string>
+stringAttrsToMap(const std::string &attrs)
+{
+  std::map<std::string, std::string> attrsMap;
+  int startPos = 0, lastPos = 0;
+  std::string key, value;
+
+  while ((lastPos = splitToken(attrs, startPos, key, value)) != startPos)
+  {
+    if (key != "")
+      attrsMap[key] = value;
+
+    startPos = lastPos;
+    key = value = "";
+  }
+
+  return attrsMap;
 }
 
 std::string
@@ -336,17 +378,18 @@ unescapeObjName(const std::string &obj)
   return str;
 }
 
-int indexObject(const RadosFsPool *pool, const RadosFsStat *stat, char op)
+int indexObject(const RadosFsStat *parentStat,
+                const RadosFsStat *stat,
+                char op)
 {
-  int index;
   std::string contents;
-  const std::string &dirName = getParentDir(stat->path, &index);
   std::string xAttrKey(""), xAttrValue("");
 
-  if (dirName == "")
+  if (parentStat->translatedPath == "")
     return 0;
 
-  const std::string &baseName = stat->path.substr(index, std::string::npos);
+  const std::string &baseName = stat->path.substr(parentStat->path.length(),
+                                                  std::string::npos);
 
   contents = getObjectIndexLine(baseName, op);
 
@@ -358,14 +401,9 @@ int indexObject(const RadosFsPool *pool, const RadosFsStat *stat, char op)
       xAttrValue = getFileXAttrDirRecord(stat);
   }
 
-  return writeContentsAtomically(pool->ioctx, dirName.c_str(), contents,
+  return writeContentsAtomically(parentStat->pool->ioctx,
+                                 parentStat->translatedPath, contents,
                                  xAttrKey, xAttrValue);
-}
-
-int
-indexObject(const RadosFsStat *stat, char op)
-{
-  return indexObject(stat->pool.get(), stat, op);
 }
 
 std::string
@@ -408,18 +446,15 @@ getFileXAttrDirRecord(const RadosFsStat *stat)
 
 int
 indexObjectMetadata(rados_ioctx_t ioctx,
-                    const std::string &obj,
+                    const std::string &dirName,
+                    const std::string &baseName,
                     std::map<std::string, std::string> &metadata,
                     char op)
 {
-  int index;
   std::string contents;
-  const std::string &dirName = getParentDir(obj, &index);
 
   if (dirName == "")
     return 0;
-
-  const std::string &baseName = obj.substr(index, std::string::npos);
 
   contents = "+";
   contents += INDEX_NAME_KEY "=\"" + escapeObjName(baseName) + "\" ";
@@ -791,4 +826,60 @@ bool
 isDirPath(const std::string &path)
 {
   return path[path.length() - 1] == PATH_SEP;
+}
+
+std::string
+generateInode()
+{
+  uuid_t inode;
+  char inodeStr[UUID_STRING_SIZE + 1];
+
+  uuid_generate(inode);
+  uuid_unparse(inode, inodeStr);
+
+  return inodeStr;
+}
+
+int
+createDirAndInode(const RadosFsStat *stat)
+{
+  std::stringstream stream;
+  rados_write_op_t writeOp = rados_create_write_op();
+
+  stream << XATTR_LINK << "='" << stat->translatedPath << "' ";
+  stream << XATTR_POOL << "='" << stat->pool->name << "'";
+
+  const std::string &inodeXAttr = stream.str();
+
+  rados_write_op_setxattr(writeOp, XATTR_INODE, inodeXAttr.c_str(),
+                          inodeXAttr.length());
+
+  int ret = rados_write_op_operate(writeOp, stat->pool->ioctx,
+                                   stat->path.c_str(), NULL, 0);
+
+  rados_release_write_op(writeOp);
+
+  if (ret != 0)
+  {
+    return ret;
+  }
+
+  writeOp = rados_create_write_op();
+
+  rados_write_op_setxattr(writeOp, XATTR_INODE_HARD_LINK, stat->path.c_str(),
+                          stat->path.length());
+
+  const std::string &permissions = makePermissionsXAttr(stat->statBuff.st_mode,
+                                                        stat->statBuff.st_uid,
+                                                        stat->statBuff.st_gid);
+
+  rados_write_op_setxattr(writeOp, XATTR_PERMISSIONS, permissions.c_str(),
+                          permissions.length());
+
+  ret = rados_write_op_operate(writeOp, stat->pool->ioctx,
+                               stat->translatedPath.c_str(), NULL, 0);
+
+  rados_release_write_op(writeOp);
+
+  return ret;
 }

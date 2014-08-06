@@ -127,7 +127,7 @@ PriorityCache::removeCache(LinkedList *link, bool freeMemory)
   if (freeMemory)
   {
     cacheSize -= link->lastNumEntries;
-    cacheMap.erase(link->cachePtr->path());
+    cacheMap.erase(link->cachePtr->inode());
     delete link;
   }
 }
@@ -175,7 +175,7 @@ PriorityCache::update(std::tr1::shared_ptr<DirCache> cache)
   if (dirNumEntries + 1 > maxCacheSize)
     return;
 
-  if (cacheMap.count(cache->path()) == 0)
+  if (cacheMap.count(cache->inode()) == 0)
   {
     list = new LinkedList;
     list->cachePtr = cache;
@@ -183,11 +183,11 @@ PriorityCache::update(std::tr1::shared_ptr<DirCache> cache)
     list->previous = 0;
     list->lastNumEntries = 0;
 
-    cacheMap[cache->path()] = list;
+    cacheMap[cache->inode()] = list;
   }
   else
   {
-    list = cacheMap[cache->path()];
+    list = cacheMap[cache->inode()];
   }
 
   if (dirNumEntries != list->lastNumEntries)
@@ -256,6 +256,7 @@ RadosFsPriv::statLink(rados_ioctx_t mtdIoctx,
                       std::string &pool)
 {
   int ret;
+  RadosFsStat parentStat;
   const std::string &parentDir = getParentDir(stat->path, 0);
   char fileXAttr[XATTR_FILE_LENGTH + 1];
 
@@ -267,7 +268,13 @@ RadosFsPriv::statLink(rados_ioctx_t mtdIoctx,
   if (mtdIoctx == 0)
     return -ENODEV;
 
-  int length = rados_getxattr(mtdIoctx, parentDir.c_str(),
+  ret = this->stat(parentDir, &parentStat);
+
+  if (ret != 0)
+    return ret;
+
+  int length = rados_getxattr(parentStat.pool->ioctx,
+                              parentStat.translatedPath.c_str(),
                               pathXAttr.c_str(), fileXAttr,
                               XATTR_FILE_LENGTH);
 
@@ -302,19 +309,31 @@ RadosFsPriv::stat(const std::string &path,
   int ret = -ENODEV;
   stat->reset();
   stat->path = getDirPath(path);
+  std::string poolName(""), inodeName("");
 
   mtdPool = getMetadataPoolFromPath(stat->path);
 
   if (!mtdPool.get())
     return -ENODEV;
 
-  rados_ioctx_t ioctx = mtdPool->ioctx;
-  ret = genericStat(ioctx, path.c_str(), &stat->statBuff);
+  ret = getInodeAndPool(mtdPool->ioctx, stat->path, inodeName, poolName);
 
-  if (ret != 0)
+  if (ret == 0)
   {
-    std::string poolName("");
+    RadosFsPoolSP pool = getMtdPoolFromName(poolName);
 
+    if (!pool)
+      return -ENODEV;
+
+    stat->pool = pool;
+    stat->translatedPath = inodeName;
+    ret = genericStat(pool->ioctx, stat->translatedPath, &stat->statBuff);
+
+    return ret;
+  }
+  else
+  {
+    poolName = "";
     stat->path = getFilePath(stat->path);
     ret = statLink(mtdPool->ioctx, stat, poolName);
 
@@ -322,6 +341,9 @@ RadosFsPriv::stat(const std::string &path,
     {
       stat->path = getDirPath(stat->path);
       ret = statLink(mtdPool->ioctx, stat, poolName);
+
+      if (ret == 0)
+        stat->pool = getMtdPoolFromName(poolName);
     }
     else
     {
@@ -344,30 +366,30 @@ RadosFsPriv::stat(const std::string &path,
       {
         dataPool = pools.front();
       }
-    }
-  }
 
-  if (ret == 0)
-  {
-    if (isDirPath(stat->path))
-      stat->pool = mtdPool;
-    else
       stat->pool = dataPool;
+    }
   }
 
   return ret;
 }
 
 int
-RadosFsPriv::createPrefixDir(const RadosFsPool *pool, const std::string &prefix)
+RadosFsPriv::createPrefixDir(RadosFsPoolSP pool, const std::string &prefix)
 {
   int ret = 0;
 
   if (rados_stat(pool->ioctx, prefix.c_str(), 0, 0) != 0)
   {
-    int nBytes = rados_write(pool->ioctx, prefix.c_str(), 0, 0, 0);
-    if (nBytes < 0)
-      ret = nBytes;
+    RadosFsStat stat;
+    stat.path = prefix;
+    stat.translatedPath = generateInode();
+    stat.pool = pool;
+    stat.statBuff.st_uid = ROOT_UID;
+    stat.statBuff.st_gid = ROOT_UID;
+    stat.statBuff.st_mode = DEFAULT_MODE_DIR;
+
+    ret = createDirAndInode(&stat);
   }
 
   return ret;
@@ -407,10 +429,11 @@ RadosFsPriv::addPool(const std::string &name,
     return ret;
 
   RadosFsPool *pool = new RadosFsPool(name.c_str(), size * MEGABYTE_CONVERSION, ioctx);
+  RadosFsPoolSP poolSP(pool);
 
   if (size == 0)
   {
-    ret = createPrefixDir(pool, cleanPrefix);
+    ret = createPrefixDir(poolSP, cleanPrefix);
 
     if (ret < 0)
       return ret;
@@ -418,8 +441,7 @@ RadosFsPriv::addPool(const std::string &name,
 
   pthread_mutex_lock(mutex);
 
-  std::pair<std::string, RadosFsPoolSP >
-      entry(cleanPrefix, RadosFsPoolSP(pool));
+  std::pair<std::string, RadosFsPoolSP > entry(cleanPrefix, poolSP);
   map->insert(entry);
 
   pthread_mutex_unlock(mutex);
@@ -474,6 +496,27 @@ RadosFsPriv::getDataPool(const std::string &path, const std::string &poolName)
   }
 
   pthread_mutex_unlock(&poolMutex);
+
+  return pool;
+}
+
+RadosFsPoolSP
+RadosFsPriv::getMtdPoolFromName(const std::string &name)
+{
+  RadosFsPoolSP pool;
+
+  pthread_mutex_lock(&mtdPoolMutex);
+
+  RadosFsPoolMap::const_iterator it;
+  for (it = mtdPoolMap.begin(); it != mtdPoolMap.end(); it++)
+  {
+    pool = (*it).second;
+
+    if (pool->name == name)
+      break;
+  }
+
+  pthread_mutex_unlock(&mtdPoolMutex);
 
   return pool;
 }
@@ -661,36 +704,34 @@ RadosFsPriv::removeDirCache(std::tr1::shared_ptr<DirCache> &cache)
 {
   pthread_mutex_lock(&dirCacheMutex);
 
-  dirCache.removeCache(cache->path());
+  dirCache.removeCache(cache->inode());
 
   pthread_mutex_unlock(&dirCacheMutex);
 }
 
 std::tr1::shared_ptr<DirCache>
-RadosFsPriv::getDirInfo(const char *path, bool addToCache)
+RadosFsPriv::getDirInfo(const std::string &inode, RadosFsPoolSP pool,
+                        bool addToCache)
 {
   std::tr1::shared_ptr<DirCache> cache;
 
   pthread_mutex_lock(&dirCacheMutex);
 
-  if (dirCache.cacheMap.count(path) == 0)
+  if (dirCache.cacheMap.count(inode) == 0)
   {
-    const RadosFsPoolSP pool = getMetadataPoolFromPath(path);
-
     if (!pool)
     {
-      radosfs_debug("Could not get metadata pool for %s", path);
       return cache;
     }
 
-    DirCache *dirInfo = new DirCache(path, pool);
+    DirCache *dirInfo = new DirCache(inode, pool);
     cache = std::tr1::shared_ptr<DirCache>(dirInfo);
 
     if (addToCache)
       dirCache.update(cache);
   }
   else
-    cache = dirCache.cacheMap[path]->cachePtr;
+    cache = dirCache.cacheMap[inode]->cachePtr;
 
   pthread_mutex_unlock(&dirCacheMutex);
 
@@ -800,14 +841,6 @@ RadosFs::addDataPool(const std::string &name,
     goto unlockAndExit;
 
   pool = new RadosFsPool(name.c_str(), size * MEGABYTE_CONVERSION, ioctx);
-
-  if (size == 0)
-  {
-    ret = mPriv->createPrefixDir(pool, cleanPrefix);
-
-    if (ret < 0)
-      goto unlockAndExit;
-  }
 
   if (pools == 0)
   {

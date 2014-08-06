@@ -101,12 +101,14 @@ public:
               pthread_mutex_t *mutex,
               size_t size = 0);
 
-  int createPrefixDir(const RadosFsPool *pool, const std::string &prefix);
+  int createPrefixDir(RadosFsPoolSP pool, const std::string &prefix);
 
   RadosFsPoolSP getPool(const std::string &path, RadosFsPoolMap *map,
                         pthread_mutex_t *mutex);
 
   RadosFsPoolSP getMetadataPoolFromPath(const std::string &path);
+
+  RadosFsPoolSP getMtdPoolFromName(const std::string &name);
 
   RadosFsPoolSP getDataPool(const std::string &path,
                             const std::string &poolName = "");
@@ -130,7 +132,8 @@ public:
 
   const std::string getParentDir(const std::string &obj, int *pos);
 
-  std::tr1::shared_ptr<DirCache> getDirInfo(const char *path,
+  std::tr1::shared_ptr<DirCache> getDirInfo(const std::string &inode,
+                                            RadosFsPoolSP pool,
                                             bool addToCache = true);
 
   std::tr1::shared_ptr<RadosFsIO> getRadosFsIO(const std::string &path);

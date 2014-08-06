@@ -1441,11 +1441,11 @@ TEST_F(RadosFsTest, DirCache)
 
   EXPECT_EQ(1, radosFsPriv()->dirCache.size());
 
-  // Check that the most recent cached dir has the same path
+  // Check that the most recent cached dir has the same inode
   // as the one we created
 
-  EXPECT_EQ(dir.path(),
-            radosFsPriv()->dirCache.head->cachePtr->path());
+  EXPECT_EQ(radosFsDirPriv(dir)->fsStat()->translatedPath,
+            radosFsPriv()->dirCache.head->cachePtr->inode());
 
   // Instantiate another dir from the one before and verify the cache
   // stays the same
@@ -1461,11 +1461,11 @@ TEST_F(RadosFsTest, DirCache)
 
   EXPECT_EQ(2, radosFsPriv()->dirCache.size());
 
-  // Check that the most recent cached dir has the same path
+  // Check that the most recent cached dir has the same inode
   // as the one we created
 
-  EXPECT_EQ(otherDir.path(),
-            radosFsPriv()->dirCache.head->cachePtr->path());
+  EXPECT_EQ(radosFsDirPriv(otherDir)->fsStat()->translatedPath,
+            radosFsPriv()->dirCache.head->cachePtr->inode());
 
   // Create a sub directory and verify that the cache size increments
 
@@ -1474,11 +1474,11 @@ TEST_F(RadosFsTest, DirCache)
 
   EXPECT_EQ(3, radosFsPriv()->dirCache.size());
 
-  // Check that the most recent cached dir has the same path
+  // Check that the most recent cached dir has the same inode
   // as the one we created
 
-  EXPECT_EQ(subdir.path(),
-            radosFsPriv()->dirCache.head->cachePtr->path());
+  EXPECT_EQ(radosFsDirPriv(subdir)->fsStat()->translatedPath,
+            radosFsPriv()->dirCache.head->cachePtr->inode());
 
   // Update the parent dir of the one we created and verify
   // that the cache size increments (because now it has an entry)
@@ -1487,11 +1487,11 @@ TEST_F(RadosFsTest, DirCache)
 
   EXPECT_EQ(4, radosFsPriv()->dirCache.size());
 
-  // Check that the most recent cached dir has the same path
+  // Check that the most recent cached dir has the same inode
   // as the one we updated
 
-  EXPECT_EQ(dir.path(),
-            radosFsPriv()->dirCache.head->cachePtr->path());
+  EXPECT_EQ(radosFsDirPriv(dir)->fsStat()->translatedPath,
+            radosFsPriv()->dirCache.head->cachePtr->inode());
 
   // Change the cache's max size so it allows to hold only one dir
   // with no entries

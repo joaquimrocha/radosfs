@@ -214,12 +214,15 @@ RadosFsChecker::fixDirs()
     }
     else
     {
-      RadosFsStat stat;
+      RadosFsStat stat, parentStat;
 
       mRadosFs->mPriv->stat(path, &stat);
 
+      std::string parentDir = getParentDir(path, 0);
 
-      if ((ret = indexObject(&stat, '+')) != 0)
+      mRadosFs->mPriv->stat(parentDir, &parentStat);
+
+      if ((ret = indexObject(&parentStat, &stat, '+')) != 0)
       {
         fprintf(stderr, "Error indexing %s: %s."
                 "Stopping the fixing...\n", stat.path.c_str(),
@@ -283,7 +286,7 @@ RadosFsChecker::fixInodes()
         action = "Created";
 
         RadosFsPoolSP pool;
-        RadosFsStat stat;
+        RadosFsStat stat, parentStat;
 
         pool = mRadosFs->mPriv->getMetadataPoolFromPath(hardLink);
 
@@ -302,7 +305,10 @@ RadosFsChecker::fixInodes()
         stat.statBuff.st_mode = S_IFREG;
         stat.translatedPath = inode;
 
-        indexObject(&stat, '+');
+        std::string parentDir = getParentDir(hardLink, 0);
+        mRadosFs->mPriv->stat(parentDir, &parentStat);
+
+        indexObject(&parentStat, &stat, '+');
       }
 
       fprintf(stdout, "%s %s (pointing to %s)\n", action.c_str(), hardLink,

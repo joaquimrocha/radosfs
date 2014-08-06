@@ -83,6 +83,8 @@ protected:
 
   void setFsStat(void *stat);
 
+  void * parentFsStat(void);
+
 private:
   std::auto_ptr<RadosFsInfoPriv> mPriv;
 };

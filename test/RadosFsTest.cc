@@ -115,6 +115,12 @@ RadosFsTest::radosFsFilePriv(radosfs::RadosFsFile &file)
   return file.mPriv.get();
 }
 
+radosfs::RadosFsDirPriv *
+RadosFsTest::radosFsDirPriv(radosfs::RadosFsDir &dir)
+{
+  return dir.mPriv.get();
+}
+
 void
 RadosFsTest::createNFiles(size_t numFiles)
 {

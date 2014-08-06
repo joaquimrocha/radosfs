@@ -50,6 +50,7 @@ public:
   RadosFs *radosFs;
   std::string target;
   RadosFsStat stat;
+  RadosFsStat parentDirStat;
   bool exists;
 };
 
