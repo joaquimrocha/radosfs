@@ -19,7 +19,6 @@
 
 #include <stdexcept>
 #include <sys/stat.h>
-#include <uuid/uuid.h>
 
 #include "radosfsdefines.h"
 #include "radosfscommon.h"
@@ -27,8 +26,6 @@
 #include "RadosFsFilePriv.hh"
 #include "RadosFsDir.hh"
 #include "RadosFsPriv.hh"
-
-#define UUID_STRING_SIZE 36
 
 RADOS_FS_BEGIN_NAMESPACE
 
@@ -472,13 +469,7 @@ RadosFsFile::create(int mode, const std::string pool)
   if (mode >= 0)
     permOctal = mode | S_IFREG;
 
-  uuid_t inode;
-  char inodeStr[UUID_STRING_SIZE + 1];
-
-  uuid_generate(inode);
-  uuid_unparse(inode, inodeStr);
-
-  mPriv->inode = inodeStr;
+  mPriv->inode = generateInode();
   stat->path = path();
   stat->translatedPath = mPriv->inode;
   stat->statBuff.st_mode = permOctal;
