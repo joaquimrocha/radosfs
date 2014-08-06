@@ -46,12 +46,14 @@ RadosFsPriv::RadosFsPriv(RadosFs *radosFs)
   pthread_mutex_init(&mtdPoolMutex, 0);
   pthread_mutex_init(&dirCacheMutex, 0);
   pthread_mutex_init(&operationsMutex, 0);
+  pthread_mutex_init(&dirPathInodeMutex, 0);
 }
 
 RadosFsPriv::~RadosFsPriv()
 {
   poolMap.clear();
   mtdPoolMap.clear();
+  dirPathInodeMap.clear();
 
   if (radosCluster)
     rados_shutdown(radosCluster);
@@ -251,11 +253,11 @@ RadosFsPriv::createCluster(const std::string &userName,
 }
 
 int
-RadosFsPriv::statLink(rados_ioctx_t mtdIoctx,
+RadosFsPriv::statLink(RadosFsPoolSP mtdPool,
                       RadosFsStat *stat,
                       std::string &pool)
 {
-  int ret;
+  int ret = 0;
   RadosFsStat parentStat;
   const std::string &parentDir = getParentDir(stat->path, 0);
   char fileXAttr[XATTR_FILE_LENGTH + 1];
@@ -265,16 +267,17 @@ RadosFsPriv::statLink(rados_ioctx_t mtdIoctx,
 
   stat->statBuff.st_size = 0;
 
-  if (mtdIoctx == 0)
+  if (mtdPool == 0)
     return -ENODEV;
 
-  ret = this->stat(parentDir, &parentStat);
+  RadosFsInode inode;
+  ret = getDirInode(parentDir, inode, mtdPool);
 
   if (ret != 0)
     return ret;
 
-  int length = rados_getxattr(parentStat.pool->ioctx,
-                              parentStat.translatedPath.c_str(),
+  int length = rados_getxattr(inode.pool->ioctx,
+                              inode.inode.c_str(),
                               pathXAttr.c_str(), fileXAttr,
                               XATTR_FILE_LENGTH);
 
@@ -302,6 +305,75 @@ RadosFsPriv::statLink(rados_ioctx_t mtdIoctx,
 }
 
 int
+RadosFsPriv::getDirInode(const std::string &path,
+                         RadosFsInode &inode,
+                         RadosFsPoolSP &mtdPool)
+{
+  pthread_mutex_lock(&dirPathInodeMutex);
+
+  if (dirPathInodeMap.count(path) > 0)
+    inode = dirPathInodeMap[path];
+
+  pthread_mutex_unlock(&dirPathInodeMutex);
+
+  if (inode.inode == "")
+  {
+    std::string inodeName, poolName;
+
+    int ret = getInodeAndPool(mtdPool->ioctx, path, inodeName, poolName);
+
+    if (ret != 0)
+      return ret;
+
+    RadosFsPoolSP pool = getMtdPoolFromName(poolName);
+
+    if (!pool)
+      return -ENODEV;
+
+    inode.inode = inodeName;
+    inode.pool = pool;
+    setDirInode(path, inode);
+  }
+
+  return 0;
+}
+
+void
+RadosFsPriv::setDirInode(const std::string &path, const RadosFsInode &inode)
+{
+  pthread_mutex_lock(&dirPathInodeMutex);
+
+  dirPathInodeMap[path] = inode;
+
+  pthread_mutex_unlock(&dirPathInodeMutex);
+}
+
+void
+RadosFsPriv::updateDirInode(const std::string &oldPath,
+                            const std::string &newPath)
+{
+  pthread_mutex_lock(&dirPathInodeMutex);
+
+  if (dirPathInodeMap.count(oldPath) > 0)
+  {
+    dirPathInodeMap[newPath] = dirPathInodeMap[oldPath];
+    dirPathInodeMap.erase(oldPath);
+  }
+
+  pthread_mutex_unlock(&dirPathInodeMutex);
+}
+
+void
+RadosFsPriv::removeDirInode(const std::string &path)
+{
+  pthread_mutex_lock(&dirPathInodeMutex);
+
+  dirPathInodeMap.erase(path);
+
+  pthread_mutex_unlock(&dirPathInodeMutex);
+}
+
+int
 RadosFsPriv::stat(const std::string &path,
                   RadosFsStat *stat)
 {
@@ -316,31 +388,28 @@ RadosFsPriv::stat(const std::string &path,
   if (!mtdPool.get())
     return -ENODEV;
 
-  ret = getInodeAndPool(mtdPool->ioctx, stat->path, inodeName, poolName);
+  RadosFsInode inode;
+  ret = getDirInode(stat->path, inode, mtdPool);
 
   if (ret == 0)
   {
-    RadosFsPoolSP pool = getMtdPoolFromName(poolName);
+    stat->pool = inode.pool;
+    stat->translatedPath = inode.inode;
 
-    if (!pool)
-      return -ENODEV;
-
-    stat->pool = pool;
-    stat->translatedPath = inodeName;
-    ret = genericStat(pool->ioctx, stat->translatedPath, &stat->statBuff);
+    ret = genericStat(stat->pool->ioctx, stat->translatedPath, &stat->statBuff);
 
     return ret;
   }
-  else
+  else if (ret != -ENODEV)
   {
     poolName = "";
     stat->path = getFilePath(stat->path);
-    ret = statLink(mtdPool->ioctx, stat, poolName);
+    ret = statLink(mtdPool, stat, poolName);
 
     if (ret == -ENOENT)
     {
       stat->path = getDirPath(stat->path);
-      ret = statLink(mtdPool->ioctx, stat, poolName);
+      ret = statLink(mtdPool, stat, poolName);
 
       if (ret == 0)
         stat->pool = getMtdPoolFromName(poolName);

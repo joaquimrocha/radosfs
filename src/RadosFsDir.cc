@@ -441,7 +441,11 @@ RadosFsDir::remove()
     ret = rados_remove(statPtr->pool->ioctx, dirPath.c_str());
 
     if (ret == 0)
-      ret = rados_remove(info->ioctx(), statPtr->translatedPath.c_str());
+    {
+     ret = rados_remove(info->ioctx(), statPtr->translatedPath.c_str());
+
+     mPriv->radosFsPriv()->removeDirInode(path());
+    }
   }
 
   if (ret == 0)

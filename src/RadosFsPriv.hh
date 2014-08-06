@@ -148,9 +148,18 @@ public:
   int stat(const std::string &path,
            RadosFsStat *stat);
 
-  int statLink(rados_ioctx_t mtdIoctx,
+  int statLink(RadosFsPoolSP mtdPool,
                RadosFsStat *stat,
                std::string &pool);
+
+  void updateDirInode(const std::string &oldPath, const std::string &newPath);
+
+  int getDirInode(const std::string &path, RadosFsInode &inode,
+                  RadosFsPoolSP &pool);
+
+  void setDirInode(const std::string &path, const RadosFsInode &inode);
+
+  void removeDirInode(const std::string &path);
 
   rados_t radosCluster;
   static __thread uid_t uid;
@@ -164,6 +173,8 @@ public:
   pthread_mutex_t dirCacheMutex;
   std::map<std::string, std::tr1::weak_ptr<RadosFsIO> > operations;
   pthread_mutex_t operationsMutex;
+  std::map<std::string, RadosFsInode> dirPathInodeMap;
+  pthread_mutex_t dirPathInodeMutex;
   float dirCompactRatio;
   RadosFsLogger logger;
   RadosFsFinder finder;
