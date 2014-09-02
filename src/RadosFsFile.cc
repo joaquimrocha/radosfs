@@ -311,8 +311,11 @@ RadosFsFilePriv::move(const std::string &destination)
   if (ret != 0)
     return ret;
 
+  RadosFsStat *oldParentStat =
+      reinterpret_cast<RadosFsStat *>(fsFile->parentFsStat());
+
   stat.path = fsFile->path();
-  ret = indexObject(&parentStat, &stat, '-');
+  ret = indexObject(oldParentStat, &stat, '-');
 
   if (ret != 0)
     return ret;
