@@ -1675,6 +1675,137 @@ TEST_F(RadosFsTest, CompactDir)
   }
 }
 
+TEST_F(RadosFsTest, RenameDir)
+{
+  AddPool();
+
+  std::string originalPath("/my-dir/");
+  std::string path("/moved-dir/");
+  std::string userDirPath("/user-dir/");
+
+  radosfs::RadosFsDir dir(&radosFs, originalPath);
+
+  // Rename dir that doesn't exist
+
+  EXPECT_EQ(-ENOENT, dir.rename(path));
+
+  EXPECT_EQ(0, dir.create());
+
+  // Move dir to a path that doesn't exist
+
+  EXPECT_EQ(-ENOENT, dir.rename("/phony/" + path));
+
+  // Create a user directory
+
+  radosfs::RadosFsDir userDir(&radosFs, userDirPath);
+
+  EXPECT_EQ(0, userDir.create(-1, false, TEST_UID, TEST_GID));
+
+  radosFs.setIds(TEST_UID, TEST_GID);
+
+  dir.setPath(path);
+
+  // Rename dir without the required permissions
+
+  EXPECT_EQ(-EACCES, userDir.rename(originalPath));
+
+  // Create a dir as user
+
+  originalPath = userDir.path() + "other-dir";
+  path = originalPath + "-moved";
+
+  dir.setPath(originalPath);
+
+  EXPECT_EQ(0, dir.create());
+
+  // Move the dir inside the same parent
+
+  EXPECT_EQ(0, dir.rename(path));
+
+  radosfs::RadosFsDir sameDir(&radosFs, path);
+
+  EXPECT_TRUE(sameDir.exists());
+
+  // Rename the dir (owned by the user) as root
+
+  radosFs.setIds(ROOT_UID, ROOT_UID);
+
+  path = "/other-dir-moved";
+
+  EXPECT_EQ(0, sameDir.rename(path));
+
+  dir.setPath(path);
+
+  EXPECT_TRUE(dir.exists());
+
+  // Move the dir to the user's dir
+
+  path = userDir.path() + path;
+
+  EXPECT_EQ(0, dir.rename(path));
+
+  sameDir.setPath(path);
+
+  EXPECT_TRUE(sameDir.exists());
+
+  // Rename the dir to an empty path argument
+
+  EXPECT_EQ(-EINVAL, dir.rename(""));
+
+  // Rename the dir to the same name
+
+  EXPECT_EQ(-EPERM, dir.rename(dir.path()));
+
+  EXPECT_EQ(-EPERM, dir.rename(dir.path() + "/other"));
+
+  // Create a file in the user dir to see if it is moved
+
+  dir.setPath(userDirPath);
+
+  std::string fileName = "my-file";
+  radosfs::RadosFsFile file(&radosFs, dir.path() + fileName);
+
+  EXPECT_EQ(0, file.create());
+
+  // Rename the user dir to a different name
+
+  userDirPath = "/moved-user-dir";
+
+  EXPECT_EQ(0, dir.rename(userDirPath));
+
+  // Check that the subdir of the user dir no longer exists (it was moved)
+
+  sameDir.update();
+
+  EXPECT_FALSE(sameDir.exists());
+
+  // Check that the new subdir (with the new user dir path as parent) now exists
+
+  sameDir.setPath(userDirPath + "/other-dir-moved");
+
+  EXPECT_TRUE(sameDir.exists());
+
+  // Check that the file in the old user dir no longer exists
+
+  file.update();
+
+  EXPECT_FALSE(file.exists());
+
+  // Check that the file in the new user dir exists
+
+  file.setPath(dir.path() + fileName);
+
+  EXPECT_TRUE(file.exists());
+
+  // Rename the dir to a file path
+
+  EXPECT_EQ(-EPERM, dir.rename(file.path()));
+
+  // Rename the dir to an existing dir path
+
+  EXPECT_EQ(-EPERM, sameDir.rename(dir.path()));
+}
+
 TEST_F(RadosFsTest, Metadata)
 {
   AddPool();
