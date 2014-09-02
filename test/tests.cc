@@ -1092,6 +1092,10 @@ TEST_F(RadosFsTest, RenameFile)
   // Rename the file to an empty path argument
 
   EXPECT_EQ(-EINVAL, file.rename(""));
+
+  // Rename the file to its own name
+
+  EXPECT_EQ(-EPERM, file.rename(file.path()));
 }
 
 typedef struct
