@@ -1806,6 +1806,57 @@ TEST_F(RadosFsTest, RenameDir)
   EXPECT_EQ(-EPERM, sameDir.rename(dir.path()));
 }
 
+TEST_F(RadosFsTest, RenameWithLinks)
+{
+  AddPool();
+
+  std::string dirPath("/dir"), linkPath("/dir-link"), filePath("/file");
+
+  // Create a dir and a link to it
+
+  radosfs::RadosFsDir dir(&radosFs, dirPath);
+
+  EXPECT_EQ(0, dir.create());
+
+  EXPECT_EQ(0, dir.createLink(linkPath));
+
+  // Create a file and rename it to a path that includes the dir link
+
+  radosfs::RadosFsFile file(&radosFs, filePath);
+
+  EXPECT_EQ(0, file.create());
+
+  EXPECT_EQ(0, file.rename(linkPath + filePath));
+
+  // Create a dir and rename it to a path that includes the dir link
+
+  EXPECT_EQ(-EPERM, dir.rename(linkPath + "/dir-moved"));
+
+  // Rename the dir to the link path
+
+  EXPECT_EQ(-EPERM, dir.rename(linkPath));
+
+  radosfs::RadosFsDir linkDir(&radosFs, linkPath);
+
+  EXPECT_TRUE(linkDir.exists());
+
+  // Rename the file with link path in the name
+
+  EXPECT_EQ(dir.path() + "file", file.path());
+
+  EXPECT_EQ(0, file.rename(linkPath));
+
+  // Verify that the old dir link object is now the file we renamed
+
+  linkDir.update();
+
+  EXPECT_TRUE(linkDir.exists());
+
+  EXPECT_FALSE(linkDir.isDir());
+
+  EXPECT_FALSE(linkDir.isLink());
+}
+
 TEST_F(RadosFsTest, Metadata)
 {
   AddPool();
