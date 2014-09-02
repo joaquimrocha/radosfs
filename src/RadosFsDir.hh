@@ -84,6 +84,8 @@ public:
 
   int chmod(long int permissions);
 
+  int rename(const std::string &newName);
+
 private:
   std::auto_ptr<RadosFsDirPriv> mPriv;
 

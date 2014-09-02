@@ -194,6 +194,8 @@ std::string generateInode(void);
 
 int createDirAndInode(const RadosFsStat *stat);
 
+int createDirObject(const RadosFsStat *stat);
+
 int getInodeAndPool(rados_ioctx_t ioctx, const std::string &path,
                     std::string &inode, std::string &pool);
 

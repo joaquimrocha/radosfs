@@ -17,6 +17,8 @@
  * for more details.
  */
 
+#include <sys/stat.h>
+
 #include "radosfscommon.h"
 #include "RadosFsDir.hh"
 #include "RadosFsDirPriv.hh"
@@ -243,6 +245,148 @@ RadosFsPriv *
 RadosFsDirPriv::radosFsPriv(void)
 {
   return dir->filesystem()->mPriv;
+}
+
+int
+RadosFsDirPriv::moveDirTreeObjects(const RadosFsStat *oldDir,
+                                   const RadosFsStat *newDir)
+{
+  if (dirInfo || updateDirInfoPtr())
+  {
+    dirInfo->update();
+
+    std::set<std::string> entries = dirInfo->contents();
+
+    std::set<std::string>::const_iterator it;
+    for (it = entries.begin(); it != entries.end(); it++)
+    {
+      const std::string &entry = *it;
+
+      if (entry != "" && entry[entry.length() - 1] == PATH_SEP)
+      {
+        RadosFsStat oldSubDir, newSubDir;
+        RadosFsDir subDir(dir->filesystem(), dir->path() + entry, false);
+
+        oldSubDir = *subDir.mPriv->fsStat();
+        newSubDir = oldSubDir;
+        newSubDir.path = newDir->path + entry;
+
+        int ret = subDir.mPriv->moveDirTreeObjects(&oldSubDir, &newSubDir);
+
+        if (ret != 0)
+          return ret;
+      }
+    }
+  }
+
+  int ret = rados_remove(oldDir->pool->ioctx, oldDir->path.c_str());
+
+  if (ret == 0)
+  {
+    ret = createDirObject(newDir);
+
+    radosFsPriv()->updateDirInode(oldDir->path, newDir->path);
+  }
+
+  return ret;
+}
+
+int
+RadosFsDirPriv::rename(const std::string &destination)
+{
+  int index;
+  RadosFsStat stat, oldStat, parentStat;
+  std::string destParent = getParentDir(destination, &index);
+  std::string realParentPath;
+  std::string baseName;
+
+  if (destParent != "")
+  {
+    baseName = destination.substr(index);
+  }
+
+  uid_t uid;
+  gid_t gid;
+
+  int ret = radosFsPriv()->getRealPath(destParent, &parentStat, realParentPath);
+
+  if (ret == 0 && S_ISLNK(parentStat.statBuff.st_mode))
+  {
+    destParent = parentStat.translatedPath;
+    ret = radosFsPriv()->stat(destParent, &parentStat);
+  }
+  else
+  {
+    destParent = realParentPath;
+  }
+
+  if (ret != 0)
+  {
+    radosfs_debug("Problem statting destination's parent when moving %s: %s",
+                  destination.c_str(), strerror(-ret));
+    return ret;
+  }
+
+  dir->filesystem()->getIds(&uid, &gid);
+
+  if (!statBuffHasPermission(parentStat.statBuff, uid, gid, O_WRONLY))
+  {
+    radosfs_debug("No permissions to write in parent dir when moving %s",
+                  destination.c_str());
+    return -EACCES;
+  }
+
+  const std::string &newPath = destParent + baseName;
+
+  ret = radosFsPriv()->stat(newPath, &stat);
+
+  if (ret == 0 || newPath == dir->path())
+  {
+    radosfs_debug("Error moving directory: the new name already exists %s",
+                  destination.c_str());
+
+    return -EPERM;
+  }
+  else if (ret != -ENOENT)
+  {
+    return ret;
+  }
+
+  if (dir->path().length() <= newPath.length() &&
+      dir->path() == newPath.substr(0, dir->path().length()))
+  {
+    radosfs_debug("Error moving directory. The new name contains the old name "
+                  "as a parent: %s -> %s", dir->path().c_str(),
+                  destination.c_str());
+
+    return -EPERM;
+  }
+
+  oldStat = *fsStat();
+  stat = oldStat;
+
+  stat.path = newPath;
+  ret = indexObject(&parentStat, &stat, '+');
+
+  if (ret != 0)
+    return ret;
+
+  RadosFsStat *oldParentStat =
+      reinterpret_cast<RadosFsStat *>(dir->parentFsStat());
+
+  ret = indexObject(oldParentStat, &oldStat, '-');
+
+  if (ret != 0)
+    return ret;
+
+  ret = moveDirTreeObjects(&oldStat, &stat);
+
+  if (ret == 0)
+  {
+    dir->setPath(newPath);
+  }
+
+  return ret;
 }
 
 RadosFsDir::RadosFsDir(RadosFs *radosFs, const std::string &path)
@@ -833,6 +977,30 @@ RadosFsDir::chmod(long int permissions)
   }
 
   return ret;
+}
+
+int
+RadosFsDir::rename(const std::string &newName)
+{
+  if (!exists())
+    return -ENOENT;
+
+  if (newName == "")
+    return -EINVAL;
+
+  std::string dest = newName;
+
+  if (dest[0] != PATH_SEP)
+  {
+    dest = getParentDir(path(), 0) + dest;
+  }
+
+  if (dest == "/")
+    return -EISDIR;
+
+  dest = getDirPath(sanitizePath(dest));
+
+  return mPriv->rename(dest);
 }
 
 RADOS_FS_END_NAMESPACE

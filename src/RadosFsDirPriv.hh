@@ -60,6 +60,10 @@ public:
 
   RadosFsPriv *radosFsPriv(void);
 
+  int rename(const std::string &newName);
+
+  int moveDirTreeObjects(const RadosFsStat *oldDir, const RadosFsStat *newDir);
+
   RadosFsDir *dir;
   RadosFsDir *target;
   std::string parentDir;
