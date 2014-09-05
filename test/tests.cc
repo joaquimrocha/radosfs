@@ -1009,7 +1009,7 @@ TEST_F(RadosFsTest, FileReadWrite)
   delete[] buff;
 }
 
-TEST_F(RadosFsTest, MoveFile)
+TEST_F(RadosFsTest, RenameFile)
 {
   AddPool();
 
@@ -1018,19 +1018,19 @@ TEST_F(RadosFsTest, MoveFile)
 
   radosfs::RadosFsFile file(&radosFs, originalPath);
 
-  // Move file that doesn't exist
+  // Rename file that doesn't exist
 
-  EXPECT_EQ(-ENOENT, file.move(path));
+  EXPECT_EQ(-ENOENT, file.rename(path));
 
   EXPECT_EQ(0, file.create());
 
   // Move file into a directory that doesn't exist
 
-  EXPECT_EQ(-ENOENT, file.move("/phony/" + path));
+  EXPECT_EQ(-ENOENT, file.rename("/phony/" + path));
 
   // Move file in the same directory
 
-  EXPECT_EQ(0, file.move(path));
+  EXPECT_EQ(0, file.rename(path));
 
   EXPECT_EQ(path, file.path());
 
@@ -1050,11 +1050,11 @@ TEST_F(RadosFsTest, MoveFile)
 
   file.setPath(path);
 
-  // Move file without the required permissions
+  // Rename file without the required permissions
 
-  EXPECT_EQ(-EACCES, file.move(originalPath));
+  EXPECT_EQ(-EACCES, file.rename(originalPath));
 
-  // Create a file as user
+  // Rename a file as user
 
   originalPath = userDir.path() + "user-file";
   path = "user-file-moved";
@@ -1065,34 +1065,33 @@ TEST_F(RadosFsTest, MoveFile)
 
   // Move the file inside the same directory
 
-  EXPECT_EQ(0, file.move(path));
+  EXPECT_EQ(0, file.rename(path));
 
   radosfs::RadosFsFile sameFile(&radosFs, userDir.path() + path);
 
   EXPECT_TRUE(sameFile.exists());
 
-  // Move the file (owned by the user) as root
+  // Rename the file (owned by the user) as root
 
   radosFs.setIds(ROOT_UID, ROOT_UID);
 
-  EXPECT_EQ(0, sameFile.move("/"));
+  EXPECT_EQ(0, sameFile.rename("/"));
 
   file.setPath(path);
 
   EXPECT_TRUE(file.exists());
 
-  // Move the file to the user's dir giving the dir path only and without a
-  // preceding /
+  // Move the file to the user's dir
 
-  EXPECT_EQ(0, file.move("user-dir/"));
+  EXPECT_EQ(0, file.rename("user-dir/"));
 
   sameFile.setPath(userDir.path() + path);
 
   EXPECT_TRUE(sameFile.exists());
 
-  // Move the file to an empty path argument
+  // Rename the file to an empty path argument
 
-  EXPECT_EQ(-EINVAL, file.move(""));
+  EXPECT_EQ(-EINVAL, file.rename(""));
 }
 
 typedef struct

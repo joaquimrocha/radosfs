@@ -49,7 +49,7 @@ public:
 
   RadosFsStat *fsStat(void);
 
-  int move(const std::string &destination);
+  int rename(const std::string &destination);
 
   void updateDataPool(const std::string &pool);
 

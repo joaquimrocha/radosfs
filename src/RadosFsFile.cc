@@ -245,7 +245,7 @@ RadosFsFilePriv::fsStat(void)
 }
 
 int
-RadosFsFilePriv::move(const std::string &destination)
+RadosFsFilePriv::rename(const std::string &destination)
 {
   int index;
   int ret;
@@ -796,7 +796,7 @@ RadosFsFile::chmod(long int permissions)
 }
 
 int
-RadosFsFile::move(const std::string &destination)
+RadosFsFile::rename(const std::string &newPath)
 {
   int ret;
 
@@ -805,7 +805,7 @@ RadosFsFile::move(const std::string &destination)
   if (ret != 0)
     return ret;
 
-  if (destination == "")
+  if (newPath == "")
     return -EINVAL;
 
   if (!isWritable())
@@ -813,14 +813,14 @@ RadosFsFile::move(const std::string &destination)
 
   std::string sanitizedDest;
 
-  if (destination.find(PATH_SEP) != std::string::npos)
+  if (newPath.find(PATH_SEP) != std::string::npos)
   {
-    sanitizedDest = getFilePath(sanitizePath(destination));
+    sanitizedDest = getFilePath(sanitizePath(newPath));
 
-    return mPriv->move(sanitizedDest);
+    return mPriv->rename(sanitizedDest);
   }
 
-  return mPriv->move(destination);
+  return mPriv->rename(newPath);
 }
 
 RADOS_FS_END_NAMESPACE
