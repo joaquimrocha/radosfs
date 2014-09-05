@@ -305,6 +305,61 @@ RadosFsPriv::statLink(RadosFsPoolSP mtdPool,
 }
 
 int
+RadosFsPriv::getRealPath(const std::string &path,  RadosFsStat *stat,
+                         std::string &realPath)
+{
+  int ret = -ENOENT;
+  realPath = path;
+
+  stat->reset();
+
+  while(true)
+  {
+    ret = this->stat(realPath, stat);
+
+    if (ret == 0)
+    {
+      realPath = stat->path;
+      break;
+    }
+
+    std::string parent = getParentDir(realPath, 0);
+
+    while (parent != "")
+    {
+      int ret = this->stat(parent, stat);
+
+      if (ret == -ENOENT)
+      {
+        parent = getParentDir(parent, 0);
+      }
+      else if (ret == 0)
+      {
+        break;
+      }
+      else
+      {
+        stat->reset();
+        return ret;
+      }
+    }
+
+    if (parent == "")
+      return -ENODEV;
+
+    if (S_ISLNK(stat->statBuff.st_mode))
+    {
+      realPath = stat->translatedPath + realPath.substr(parent.length());
+      continue;
+    }
+
+    break;
+  }
+
+  return ret;
+}
+
+int
 RadosFsPriv::getDirInode(const std::string &path,
                          RadosFsInode &inode,
                          RadosFsPoolSP &mtdPool)

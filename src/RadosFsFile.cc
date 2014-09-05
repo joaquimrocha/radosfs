@@ -257,22 +257,6 @@ RadosFsFilePriv::rename(const std::string &destination)
   {
     baseName = destination.substr(index);
   }
-  else
-  {
-    baseName = destination;
-    destParent = parentDir;
-  }
-
-  ret = fsFile->filesystem()->mPriv->stat(destination, &stat);
-
-  if (ret == 0)
-  {
-    if (S_ISDIR(stat.statBuff.st_mode))
-    {
-      destParent = stat.path;
-      baseName = fsFile->path().substr(parentDir.length());
-    }
-  }
 
   if (destParent == parentDir)
   {
@@ -282,12 +266,25 @@ RadosFsFilePriv::rename(const std::string &destination)
   {
     uid_t uid;
     gid_t gid;
+    std::string realParentPath;
 
-    ret = fsFile->filesystem()->mPriv->stat(destParent, &parentStat);
+    ret = fsFile->filesystem()->mPriv->getRealPath(destParent, &parentStat,
+                                                   realParentPath);
+
+    if (ret == 0 && S_ISLNK(parentStat.statBuff.st_mode))
+    {
+      destParent = parentStat.translatedPath;
+      ret = fsFile->filesystem()->mPriv->stat(destParent,
+                                              &parentStat);
+    }
+    else
+    {
+      destParent = realParentPath;
+    }
 
     if (ret != 0)
     {
-      radosfs_debug("Problem statting destination's parent dir in moving %s: %s",
+      radosfs_debug("Problem statting destination's parent when moving %s: %s",
                     destination.c_str(), strerror(-ret));
       return ret;
     }
@@ -303,6 +300,22 @@ RadosFsFilePriv::rename(const std::string &destination)
   }
 
   const std::string &newPath = destParent + baseName;
+
+  ret = fsFile->filesystem()->mPriv->stat(newPath, &stat);
+
+  if (ret == 0)
+  {
+    if (S_ISDIR(stat.statBuff.st_mode))
+      return -EISDIR;
+
+    if (newPath == fsFile->path())
+      return -EPERM;
+  }
+  else if (ret != -ENOENT)
+  {
+    return ret;
+  }
+
   stat = *fsStat();
   stat.path = newPath;
 
@@ -811,16 +824,19 @@ RadosFsFile::rename(const std::string &newPath)
   if (!isWritable())
     return -EACCES;
 
-  std::string sanitizedDest;
+  std::string dest = newPath;
 
-  if (newPath.find(PATH_SEP) != std::string::npos)
+  if (dest[0] != PATH_SEP)
   {
-    sanitizedDest = getFilePath(sanitizePath(newPath));
-
-    return mPriv->rename(sanitizedDest);
+    dest = getParentDir(path(), 0) + dest;
   }
 
-  return mPriv->rename(newPath);
+  if (dest == "/")
+    return -EISDIR;
+
+  dest = getFilePath(sanitizePath(dest));
+
+  return mPriv->rename(dest);
 }
 
 RADOS_FS_END_NAMESPACE

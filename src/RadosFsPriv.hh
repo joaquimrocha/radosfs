@@ -152,6 +152,9 @@ public:
                RadosFsStat *stat,
                std::string &pool);
 
+  int getRealPath(const std::string &path, RadosFsStat *stat,
+                  std::string &realPath);
+
   void updateDirInode(const std::string &oldPath, const std::string &newPath);
 
   int getDirInode(const std::string &path, RadosFsInode &inode,
