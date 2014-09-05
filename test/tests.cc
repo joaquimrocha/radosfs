@@ -1056,18 +1056,19 @@ TEST_F(RadosFsTest, RenameFile)
 
   // Rename a file as user
 
-  originalPath = userDir.path() + "user-file";
-  path = "user-file-moved";
+  path = userDir.path() + "user-file";
 
-  file.setPath(originalPath);
+  file.setPath(path);
 
   EXPECT_EQ(0, file.create());
 
   // Move the file inside the same directory
 
+  path = userDir.path() + "file";
+
   EXPECT_EQ(0, file.rename(path));
 
-  radosfs::RadosFsFile sameFile(&radosFs, userDir.path() + path);
+  radosfs::RadosFsFile sameFile(&radosFs, path);
 
   EXPECT_TRUE(sameFile.exists());
 
@@ -1075,7 +1076,9 @@ TEST_F(RadosFsTest, RenameFile)
 
   radosFs.setIds(ROOT_UID, ROOT_UID);
 
-  EXPECT_EQ(0, sameFile.rename("/"));
+  path = "/file-moved";
+
+  EXPECT_EQ(0, sameFile.rename(path));
 
   file.setPath(path);
 
@@ -1083,9 +1086,11 @@ TEST_F(RadosFsTest, RenameFile)
 
   // Move the file to the user's dir
 
-  EXPECT_EQ(0, file.rename("user-dir/"));
+  path = userDir.path() + path;
 
-  sameFile.setPath(userDir.path() + path);
+  EXPECT_EQ(0, file.rename(path));
+
+  sameFile.setPath(path);
 
   EXPECT_TRUE(sameFile.exists());
 
@@ -1096,6 +1101,22 @@ TEST_F(RadosFsTest, RenameFile)
   // Rename the file to its own name
 
   EXPECT_EQ(-EPERM, file.rename(file.path()));
+
+  // Rename the file to a directory path
+
+  EXPECT_EQ(-EISDIR, file.rename(userDir.path()));
+
+  // Rename the file to be in the root directory
+
+  path = "/file";
+
+  EXPECT_EQ(0, file.rename(path));
+
+  EXPECT_EQ(path, file.path());
+
+  sameFile.update();
+
+  EXPECT_FALSE(sameFile.exists());
 }
 
 typedef struct
