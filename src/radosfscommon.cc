@@ -241,7 +241,7 @@ statFromXAttr(const std::string &path,
     {
       gid = (gid_t) atoi(value.c_str());
     }
-    else if (key == "time")
+    else if (key == XATTR_TIME)
     {
       pmtime = (time_t) strtoul(value.c_str(), 0, 10);
     }
@@ -432,7 +432,7 @@ getFileXAttrDirRecord(const RadosFsStat *stat)
 
   stream << " " << XATTR_UID << "=\"" << stat->statBuff.st_uid << "\" ";
   stream << XATTR_GID << "=\"" << stat->statBuff.st_gid << "\" ";
-  stream << "time=" << "\""  << stat->statBuff.st_ctime << "\" " ;
+  stream << XATTR_TIME "=" << "\""  << stat->statBuff.st_ctime << "\" " ;
   stream << XATTR_MODE << "=\"" << std::oct << stat->statBuff.st_mode << "\" ";
 
   std::map<std::string, std::string>::const_iterator it;
