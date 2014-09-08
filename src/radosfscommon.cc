@@ -225,19 +225,19 @@ statFromXAttr(const std::string &path,
 
   while ((lastPos = splitToken(xattrValue, startPos, key, value)) != startPos)
   {
-    if (key == "link")
+    if (key == XATTR_LINK)
     {
       link = value;
     }
-    else if (key == "mode")
+    else if (key == XATTR_MODE)
     {
       permissions = (mode_t) strtoul(value.c_str(), 0, 8);
     }
-    else if (key == "uid")
+    else if (key == XATTR_UID)
     {
       uid = (uid_t) atoi(value.c_str());
     }
-    else if (key == "gid")
+    else if (key == XATTR_GID)
     {
       gid = (gid_t) atoi(value.c_str());
     }
