@@ -28,9 +28,9 @@
 #define PATH_SEP '/'
 #define XATTR_SYS_PREFIX "sys."
 #define XATTR_USER_PREFIX "usr."
-#define XATTR_UID "uid="
-#define XATTR_GID "gid="
-#define XATTR_MODE "mode="
+#define XATTR_UID "uid"
+#define XATTR_GID "gid"
+#define XATTR_MODE "mode"
 #define XATTR_POOL "pool"
 #define XATTR_LAST_STRIPE_SIZE "stripe-size"
 #define XATTR_SIZE_LENGTH 24

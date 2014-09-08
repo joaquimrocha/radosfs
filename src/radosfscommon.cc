@@ -46,19 +46,19 @@ getPermissionsXAttr(rados_ioctx_t &ioctx,
     std::string token;
     iss >> token;
 
-    if (token.compare(0, strlen(XATTR_MODE), XATTR_MODE) == 0)
+    if (token.compare(0, strlen(XATTR_MODE) + 1, XATTR_MODE "=") == 0)
     {
-      token.erase(0, strlen(XATTR_MODE));
+      token.erase(0, strlen(XATTR_MODE) + 1);
       *mode = (mode_t) strtoul(token.c_str(), 0, 8);
     }
-    else if (token.compare(0, strlen(XATTR_UID), XATTR_UID) == 0)
+    else if (token.compare(0, strlen(XATTR_UID) + 1, XATTR_UID "=") == 0)
     {
-      token.erase(0, strlen(XATTR_UID));
+      token.erase(0, strlen(XATTR_UID) + 1);
       *uid = (uid_t) atoi(token.c_str());
     }
-    else if (token.compare(0, strlen(XATTR_GID), XATTR_GID) == 0)
+    else if (token.compare(0, strlen(XATTR_GID) + 1, XATTR_GID "=") == 0)
     {
-      token.erase(0, strlen(XATTR_GID));
+      token.erase(0, strlen(XATTR_GID) + 1);
       *gid = (gid_t) atoi(token.c_str());
     }
   }
@@ -73,13 +73,13 @@ makePermissionsXAttr(long int mode,
 {
   std::ostringstream convert;
 
-  convert << XATTR_MODE;
+  convert << XATTR_MODE << "=";
   convert << std::oct << mode;
 
-  convert << " " << XATTR_UID;
+  convert << " " << XATTR_UID << "=";
   convert << std::dec << uid;
 
-  convert << " " << XATTR_GID;
+  convert << " " << XATTR_GID << "=";
   convert << std::dec << gid;
 
   return convert.str();
@@ -430,10 +430,10 @@ getFileXAttrDirRecord(const RadosFsStat *stat)
     stream << XATTR_POOL << "='" << stat->pool->name << "' ";
   }
 
-  stream << " " << XATTR_UID << "\"" << stat->statBuff.st_uid << "\" ";
-  stream << XATTR_GID << "\"" << stat->statBuff.st_gid << "\" ";
+  stream << " " << XATTR_UID << "=\"" << stat->statBuff.st_uid << "\" ";
+  stream << XATTR_GID << "=\"" << stat->statBuff.st_gid << "\" ";
   stream << "time=" << "\""  << stat->statBuff.st_ctime << "\" " ;
-  stream << XATTR_MODE << "\"" << std::oct << stat->statBuff.st_mode << "\" ";
+  stream << XATTR_MODE << "=\"" << std::oct << stat->statBuff.st_mode << "\" ";
 
   std::map<std::string, std::string>::const_iterator it;
   for (it = stat->extraData.begin(); it != stat->extraData.end(); it++)
