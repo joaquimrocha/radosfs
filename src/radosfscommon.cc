@@ -38,29 +38,21 @@ getPermissionsXAttr(rados_ioctx_t &ioctx,
 
   permXAttr[ret] = '\0';
 
-  std::string permissions(permXAttr);
+  std::map<std::string, std::string> attrs = stringAttrsToMap(permXAttr);
 
-  std::istringstream iss(permissions);
-  while (iss)
+  if (attrs.count(XATTR_MODE) > 0)
   {
-    std::string token;
-    iss >> token;
+    *mode = (mode_t) strtoul(attrs[XATTR_MODE].c_str(), 0, 8);
+  }
 
-    if (token.compare(0, strlen(XATTR_MODE) + 1, XATTR_MODE "=") == 0)
-    {
-      token.erase(0, strlen(XATTR_MODE) + 1);
-      *mode = (mode_t) strtoul(token.c_str(), 0, 8);
-    }
-    else if (token.compare(0, strlen(XATTR_UID) + 1, XATTR_UID "=") == 0)
-    {
-      token.erase(0, strlen(XATTR_UID) + 1);
-      *uid = (uid_t) atoi(token.c_str());
-    }
-    else if (token.compare(0, strlen(XATTR_GID) + 1, XATTR_GID "=") == 0)
-    {
-      token.erase(0, strlen(XATTR_GID) + 1);
-      *gid = (gid_t) atoi(token.c_str());
-    }
+  if (attrs.count(XATTR_UID) > 0)
+  {
+    *uid = (uid_t) atoi(attrs[XATTR_UID].c_str());
+  }
+
+  if (attrs.count(XATTR_GID) > 0)
+  {
+    *gid = (gid_t) atoi(attrs[XATTR_GID].c_str());
   }
 
   return 0;
