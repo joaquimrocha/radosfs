@@ -723,7 +723,12 @@ splitToken(const std::string &line,
       }
 
       if (line[i] == ' ')
+      {
+        if (token != "" && gotKey)
+            break;
+
         continue;
+      }
 
       if (op != 0)
       {
