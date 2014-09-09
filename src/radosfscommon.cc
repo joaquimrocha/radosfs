@@ -29,6 +29,9 @@ getPermissionsXAttr(rados_ioctx_t &ioctx,
                     gid_t *gid)
 {
   char permXAttr[XATTR_PERMISSIONS_LENGTH];
+  *mode = 0;
+  *uid = 0;
+  *gid = 0;
 
   int ret = rados_getxattr(ioctx, obj, XATTR_PERMISSIONS,
                            permXAttr, XATTR_PERMISSIONS_LENGTH);
