@@ -1390,13 +1390,13 @@ RadosFs::dirCompactRatio(void) const
 void
 RadosFs::setLogLevel(const RadosFs::LogLevel level)
 {
-  mPriv->logger.level = level;
+  mPriv->logger.setLogLevel(level);
 }
 
 RadosFs::LogLevel
 RadosFs::logLevel(void) const
 {
-  return mPriv->logger.level;
+  return mPriv->logger.logLevel();
 }
 
 void

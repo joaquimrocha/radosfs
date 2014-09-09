@@ -56,7 +56,10 @@ readConfiguredLogLevel(void *fsLogger)
 
       fclose(fp);
 
-      RadosFs::LogLevel newLevel = RadosFsLogger::level;
+      RadosFs::LogLevel previousLevel, newLevel;
+
+      newLevel = logger->logLevel();
+      previousLevel = newLevel;
 
       const char *levelNames[] = {"NONE", "DEBUG", 0};
       const RadosFs::LogLevel levels[] = {RadosFs::LOG_LEVEL_NONE,
@@ -77,11 +80,11 @@ readConfiguredLogLevel(void *fsLogger)
         }
       }
 
-      if (newLevel != RadosFsLogger::level)
+      if (newLevel != previousLevel)
       {
+        logger->setLogLevel(newLevel);
 
-        RadosFsLogger::level = newLevel;
-        radosfs_debug("Logger level changed to %s", level);
+        radosfs_debug("Logger level changed to %s", newLevel);
       }
     }
 
@@ -119,7 +122,9 @@ RadosFsLogger::log(const char *file,
                    const char *msg,
                    ...)
 {
-  if (level == RadosFs::LOG_LEVEL_NONE || (level & msgLevel) == 0)
+  RadosFs::LogLevel currentLevel = RadosFsLogger::level;
+
+  if (currentLevel == RadosFs::LOG_LEVEL_NONE || (currentLevel & msgLevel) == 0)
     return;
 
   va_list args;
