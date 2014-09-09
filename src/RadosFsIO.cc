@@ -43,8 +43,8 @@ RadosFsIO::RadosFsIO(RadosFs *radosFs,
   : mRadosFs(radosFs),
     mPool(pool),
     mInode(iNode),
-    mLazyRemoval(false),
     mStripeSize(stripeSize),
+    mLazyRemoval(false),
     mHasAlignment(hasAlignment)
 {
   assert(mStripeSize != 0);
