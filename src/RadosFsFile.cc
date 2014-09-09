@@ -32,9 +32,9 @@ RADOS_FS_BEGIN_NAMESPACE
 RadosFsFilePriv::RadosFsFilePriv(RadosFsFile *fsFile,
                                  RadosFsFile::OpenMode mode)
   : fsFile(fsFile),
+    target(0),
     permissions(RadosFsFile::MODE_NONE),
     mode(mode),
-    target(0),
     alignment(0)
 {
   updatePath();
