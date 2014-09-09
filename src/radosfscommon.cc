@@ -80,19 +80,6 @@ makePermissionsXAttr(long int mode,
   return convert.str();
 }
 
-int
-setPermissionsXAttr(rados_ioctx_t &ioctx,
-                    const char *obj,
-                    long int mode,
-                    uid_t uid,
-                    gid_t gid)
-{
-  const std::string &permissions = makePermissionsXAttr(mode, uid, gid);
-
-  return rados_setxattr(ioctx, obj, XATTR_PERMISSIONS, permissions.c_str(),
-                        permissions.length() + 1);
-}
-
 bool
 statBuffHasPermission(const struct stat &buff,
                       const uid_t uid,

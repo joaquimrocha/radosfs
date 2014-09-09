@@ -101,13 +101,6 @@ getPermissionsXAttr(rados_ioctx_t &ioctx,
                     uid_t *uid,
                     gid_t *gid);
 
-int
-setPermissionsXAttr(rados_ioctx_t &ioctx,
-                    const char *obj,
-                    long int mode,
-                    uid_t uid,
-                    gid_t gid);
-
 std::string makePermissionsXAttr(long int mode, uid_t uid, gid_t gid);
 
 std::string getParentDir(const std::string &path, int *pos);
