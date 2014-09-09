@@ -42,6 +42,15 @@ endif( MacOSX )
 set( NO_SOURCE CACHE BOOL false )
 
 if( NOT NO_SOURCE )
+  if ( "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR
+       "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" )
+    set( WARNING_LEVEL "-Wall" )
+    set( CMAKE_CXX_FLAGS ${WARNING_LEVEL}
+         CACHE STRING "C++ compiler flags." FORCE )
+    set( CMAKE_C_FLAGS  ${WARNING_LEVEL}
+         CACHE STRING "C compiler flags." FORCE )
+  endif()
+
   add_subdirectory( src )
   add_subdirectory( test )
   add_subdirectory( benchmark )
