@@ -139,9 +139,6 @@ genericStat(rados_ioctx_t ioctx,
 
   ret = getPermissionsXAttr(ioctx, object.c_str(), &permissions, &uid, &gid);
 
-  if (ret != 0)
-    ret = 0;
-
   buff->st_dev = 0;
   buff->st_ino = hash(object.c_str());
   buff->st_mode = permissions;
