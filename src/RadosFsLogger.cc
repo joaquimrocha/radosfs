@@ -93,6 +93,8 @@ readConfiguredLogLevel(void *fsLogger)
 
 RadosFsLogger::RadosFsLogger()
 {
+  pthread_mutex_init(&mLevelMutex, 0);
+
   int ret = pthread_create(&thread, 0, readConfiguredLogLevel, this);
 
   if (ret != 0)
@@ -107,6 +109,7 @@ RadosFsLogger::~RadosFsLogger()
   void *status;
   pthread_cancel(thread);
   pthread_join(thread, &status);
+  pthread_mutex_destroy(&mLevelMutex);
 }
 
 void
@@ -145,6 +148,30 @@ RadosFsLogger::log(const char *file,
   va_end(args);
 
   delete[] buffer;
+}
+
+void
+RadosFsLogger::setLogLevel(const RadosFs::LogLevel newLevel)
+{
+  pthread_mutex_lock(levelMutex());
+
+  level = newLevel;
+
+  pthread_mutex_unlock(levelMutex());
+}
+
+RadosFs::LogLevel
+RadosFsLogger::logLevel()
+{
+  RadosFs::LogLevel currentLevel;
+
+  pthread_mutex_lock(levelMutex());
+
+  currentLevel = level;
+
+  pthread_mutex_unlock(levelMutex());
+
+  return currentLevel;
 }
 
 RADOS_FS_END_NAMESPACE

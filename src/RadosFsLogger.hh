@@ -27,9 +27,15 @@ public:
                   const char *msg,
                   ...);
 
+  pthread_mutex_t * levelMutex(void) { return &mLevelMutex; }
+
+  void setLogLevel(const RadosFs::LogLevel level);
+  RadosFs::LogLevel logLevel(void);
+
 private:
   static const int mBufferMaxSize = 1024;
   pthread_t thread;
+  pthread_mutex_t mLevelMutex;
 };
 
 RADOS_FS_END_NAMESPACE
