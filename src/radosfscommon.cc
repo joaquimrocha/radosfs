@@ -875,3 +875,9 @@ createDirObject(const RadosFsStat *stat)
 
   return ret;
 }
+
+ino_t
+hash(const char *path)
+{
+  return hash64((ub1 *) path, strlen(path), 0);
+}

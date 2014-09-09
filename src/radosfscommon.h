@@ -79,11 +79,7 @@ typedef struct {
   RadosFsPoolSP pool;
 } RadosFsInode;
 
-static ino_t
-hash(const char *path)
-{
-  return hash64((ub1 *) path, strlen(path), 0);
-}
+ino_t hash(const char *path);
 
 int genericStat(rados_ioctx_t ioctx, const std::string &object,
                 struct stat* buff);
