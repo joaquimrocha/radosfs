@@ -388,6 +388,16 @@ TEST_F(RadosFsTest, CreateFile)
   file.setPath(otherFile.path());
 
   EXPECT_EQ(poolName, radosFsFilePriv(file)->dataPool->name);
+
+  // Instance one file when it doesn't exist and create it when it has been
+  // already created from a different instance
+
+  radosfs::RadosFsFile newFile(&radosFs, "/file");
+  radosfs::RadosFsFile sameFile(&radosFs, newFile.path());
+
+  EXPECT_EQ(0, newFile.create());
+
+  EXPECT_EQ(-EEXIST, sameFile.create());
 }
 
 TEST_F(RadosFsTest, RemoveFile)
