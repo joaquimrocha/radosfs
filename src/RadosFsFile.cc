@@ -500,6 +500,9 @@ RadosFsFile::create(int mode, const std::string pool)
 
   ret = indexObject(parentStat, stat, '+');
 
+  if (ret == -ECANCELED)
+    return -EEXIST;
+
   update();
 
   return ret;

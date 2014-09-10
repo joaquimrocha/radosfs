@@ -479,6 +479,9 @@ writeContentsAtomically(rados_ioctx_t ioctx,
   {
     if (xattrValue != "")
     {
+      rados_write_op_cmpxattr(writeOp, xattrKey.c_str(), LIBRADOS_CMPXATTR_OP_EQ,
+                              "", 0);
+
       rados_write_op_setxattr(writeOp, xattrKey.c_str(), xattrValue.c_str(),
                               xattrValue.length());
     }
