@@ -1177,12 +1177,37 @@ runFileActionInThread(FsActionInfo *actionInfo)
     pthread_mutex_unlock(actionInfo->mutex);
   }
 
-  if (actionInfo->action == "write")
+  if (actionInfo->action == "create")
+    EXPECT_EQ(0, file.create());
+  else if (actionInfo->action == "write")
     EXPECT_EQ(0, file.write(actionInfo->contents, 0, actionInfo->length));
   else if (actionInfo->action == "truncate")
     EXPECT_EQ(0, file.truncate(actionInfo->length));
   else if (actionInfo->action == "remove")
     EXPECT_EQ(0, file.remove());
+}
+
+void
+runDirActionInThread(FsActionInfo *actionInfo)
+{
+  bool useMutex = actionInfo->mutex != 0;
+  radosfs::RadosFs *fs = actionInfo->fs;
+
+  if (useMutex)
+    pthread_mutex_lock(actionInfo->mutex);
+
+  radosfs::RadosFsDir dir(fs, actionInfo->path);
+
+  actionInfo->started = true;
+
+  if (useMutex)
+  {
+    pthread_cond_signal(actionInfo->cond);
+    pthread_mutex_unlock(actionInfo->mutex);
+  }
+
+  if (actionInfo->action == "create")
+    EXPECT_EQ(0, dir.create());
 }
 
 void *
@@ -1192,6 +1217,10 @@ runInThread(void *contents)
 
   if (actionInfo->actionType == FS_ACTION_TYPE_FILE)
     runFileActionInThread(actionInfo);
+  else if (actionInfo->actionType == FS_ACTION_TYPE_DIR)
+    runDirActionInThread(actionInfo);
+  else
+    fprintf(stderr, "FS action type is unknown in 'runInThread' function!\n");
 
   pthread_exit(0);
 }
@@ -1322,6 +1351,111 @@ TEST_F(RadosFsTest, FileOpsMultipleClients)
   EXPECT_EQ(-ENOENT, file.stat(&buff));
 
   delete[] contents;
+}
+
+TEST_F(RadosFsTest, DirOpsMultipleClients)
+{
+  radosFs.addDataPool(TEST_POOL, "/", 50 * 1024);
+  radosFs.addMetadataPool(TEST_POOL, "/");
+
+  // Create another RadosFs instance to be used as a different client
+
+  radosfs::RadosFs otherClient;
+  otherClient.init("", conf());
+
+  otherClient.addDataPool(TEST_POOL, "/", 50 * 1024);
+  otherClient.addMetadataPool(TEST_POOL, "/");
+
+  // Create the same directory from both clients
+
+  radosfs::RadosFsDir cli1DirInst(&radosFs, "/dir");
+  radosfs::RadosFsDir cli2DirInst(&otherClient, "/dir");
+
+  EXPECT_EQ(0, cli1DirInst.create());
+  EXPECT_EQ(-EEXIST, cli2DirInst.create());
+
+  // Launch 10 threads for each client, creating files and dirs in the same
+  // directory
+
+  const int numOps = 10;
+  pthread_t cli1Threads[numOps], cli2Threads[numOps];
+  FsActionInfo *cli1ActionInfos[numOps];
+  FsActionInfo *cli2ActionInfos[numOps];
+
+  for (int i = 0; i < numOps; i++)
+  {
+    bool createDir = (i % 2) == 0;
+    FsActionType actionType = FS_ACTION_TYPE_FILE;
+    std::stringstream stream;
+    stream << cli1DirInst.path();
+
+    if (createDir)
+    {
+      stream << "client-1-dir-" << i;
+      actionType = FS_ACTION_TYPE_DIR;
+    }
+    else
+    {
+      stream << "client-1-file-" << i;
+    }
+
+    cli1ActionInfos[i] = new FsActionInfo(&radosFs, actionType, stream.str(),
+                                          "create", "", 0, 0, 0);
+
+    pthread_create(&cli1Threads[i], 0, runInThread, cli1ActionInfos[i]);
+  }
+
+  for (int i = 0; i < numOps; i++)
+  {
+    bool createDir = (i % 2) != 0;
+    FsActionType actionType = FS_ACTION_TYPE_FILE;
+    std::stringstream stream;
+    stream << cli2DirInst.path();
+
+    if (createDir)
+    {
+      stream << "client-1-dir-" << i;
+      actionType = FS_ACTION_TYPE_DIR;
+    }
+    else
+    {
+      stream << "client-1-file-" << i;
+    }
+
+    cli2ActionInfos[i] = new FsActionInfo(&radosFs, actionType, stream.str(),
+                                          "create", "", 0, 0, 0);
+
+    pthread_create(&cli2Threads[i], 0, runInThread, cli2ActionInfos[i]);
+  }
+
+  sleep(3);
+
+  for (int i = 0; i < numOps; i++)
+  {
+    void *status;
+    pthread_join(cli1Threads[i], &status);
+    pthread_join(cli2Threads[i], &status);
+
+    delete cli1ActionInfos[i];
+    delete cli2ActionInfos[i];
+  }
+
+  // Verify that both dir instances have the same number of entries
+
+  cli1DirInst.update();
+
+  std::set<std::string> entries;
+
+  EXPECT_EQ(0, cli1DirInst.entryList(entries));
+
+  EXPECT_EQ(2 * numOps, entries.size());
+
+  entries.clear();
+  cli2DirInst.update();
+
+  EXPECT_EQ(0, cli2DirInst.entryList(entries));
+
+  EXPECT_EQ(2 * numOps, entries.size());
 }
 
 TEST_F(RadosFsTest, StatCluster)
