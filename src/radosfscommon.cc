@@ -836,6 +836,8 @@ createDirAndInode(const RadosFsStat *stat)
 
   rados_write_op_t writeOp = rados_create_write_op();
 
+  rados_write_op_create(writeOp, LIBRADOS_CREATE_EXCLUSIVE, "");
+
   rados_write_op_setxattr(writeOp, XATTR_INODE_HARD_LINK, stat->path.c_str(),
                           stat->path.length());
 
@@ -864,6 +866,8 @@ createDirObject(const RadosFsStat *stat)
   stream << XATTR_POOL << "='" << stat->pool->name << "'";
 
   const std::string &inodeXAttr = stream.str();
+
+  rados_write_op_create(writeOp, LIBRADOS_CREATE_EXCLUSIVE, "");
 
   rados_write_op_setxattr(writeOp, XATTR_INODE, inodeXAttr.c_str(),
                           inodeXAttr.length());
