@@ -1119,36 +1119,63 @@ TEST_F(RadosFsTest, RenameFile)
   EXPECT_FALSE(sameFile.exists());
 }
 
-typedef struct
+typedef enum {
+  FS_ACTION_TYPE_FILE,
+  FS_ACTION_TYPE_DIR
+} FsActionType;
+
+struct FsActionInfo
 {
   radosfs::RadosFs *fs;
-  const std::string &fileName;
+  FsActionType actionType;
+  std::string path;
   std::string action;
   const char *contents;
   const size_t length;
   bool started;
   pthread_mutex_t *mutex;
   pthread_cond_t *cond;
-} FileActionInfo;
 
-void *
-runInThread(void *contents)
+  FsActionInfo(radosfs::RadosFs *radosFs,
+               FsActionType actionType,
+               const std::string &path,
+               std::string action,
+               const char *contents,
+               const size_t length,
+               pthread_mutex_t *mutex,
+               pthread_cond_t *cond)
+    : fs(radosFs),
+      actionType(actionType),
+      path(path),
+      action(action),
+      contents(contents),
+      length(length),
+      started(false),
+      mutex(mutex),
+      cond(cond)
+  {}
+};
+
+void
+runFileActionInThread(FsActionInfo *actionInfo)
 {
-  FileActionInfo *actionInfo = reinterpret_cast<FileActionInfo *>(contents);
-
-
+  bool useMutex = actionInfo->mutex != 0;
   radosfs::RadosFs *fs = actionInfo->fs;
 
-  pthread_mutex_lock(actionInfo->mutex);
+  if (useMutex)
+    pthread_mutex_lock(actionInfo->mutex);
 
   radosfs::RadosFsFile file(fs,
-                            actionInfo->fileName,
+                            actionInfo->path,
                             radosfs::RadosFsFile::MODE_READ_WRITE);
 
   actionInfo->started = true;
 
-  pthread_cond_signal(actionInfo->cond);
-  pthread_mutex_unlock(actionInfo->mutex);
+  if (useMutex)
+  {
+    pthread_cond_signal(actionInfo->cond);
+    pthread_mutex_unlock(actionInfo->mutex);
+  }
 
   if (actionInfo->action == "write")
     EXPECT_EQ(0, file.write(actionInfo->contents, 0, actionInfo->length));
@@ -1156,6 +1183,15 @@ runInThread(void *contents)
     EXPECT_EQ(0, file.truncate(actionInfo->length));
   else if (actionInfo->action == "remove")
     EXPECT_EQ(0, file.remove());
+}
+
+void *
+runInThread(void *contents)
+{
+  FsActionInfo *actionInfo = reinterpret_cast<FsActionInfo *>(contents);
+
+  if (actionInfo->actionType == FS_ACTION_TYPE_FILE)
+    runFileActionInThread(actionInfo);
 
   pthread_exit(0);
 }
@@ -1195,23 +1231,11 @@ TEST_F(RadosFsTest, FileOpsMultipleClients)
   // Call truncate on a file from a different thread
   // when a write is taking place
 
-  FileActionInfo c1 = {&radosFs,
-                       file.path(),
-                       "write",
-                       contents,
-                       size,
-                       false,
-                       &mutex,
-                       &cond};
+  FsActionInfo c1(&radosFs, FS_ACTION_TYPE_FILE, file.path(), "write",
+                  contents, size, &mutex, &cond);
 
-  FileActionInfo c2 = {&otherClient,
-                       file.path(),
-                       "truncate",
-                       0,
-                       0,
-                       false,
-                       &mutex,
-                       &cond};
+  FsActionInfo c2(&otherClient, FS_ACTION_TYPE_FILE, file.path(), "truncate",
+                  0, 0, &mutex, &cond);
 
   pthread_create(&t1, 0, runInThread, &c1);
 
