@@ -69,6 +69,7 @@ struct RadosFsStat {
     statBuff.st_uid = NOBODY_UID;
     statBuff.st_gid = NOBODY_UID;
     statBuff.st_mode = 0;
+    statBuff.st_ctime = 0;
     pool.reset();
     extraData.clear();
   }
