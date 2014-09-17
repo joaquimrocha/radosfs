@@ -326,7 +326,7 @@ RadosFsFilePriv::rename(const std::string &destination)
 RadosFsFile::RadosFsFile(RadosFs *radosFs,
                          const std::string &path,
                          RadosFsFile::OpenMode mode)
-  : RadosFsInfo(radosFs, path),
+  : RadosFsInfo(radosFs, getFilePath(path)),
     mPriv(new RadosFsFilePriv(this, mode))
 {}
 
@@ -709,7 +709,7 @@ RadosFsFile::update()
 void
 RadosFsFile::setPath(const std::string &path)
 {
-  std::string filePath = path;
+  std::string filePath = getFilePath(path);
 
   RadosFsInfo::setPath(filePath);
 }
