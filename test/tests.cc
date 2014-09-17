@@ -361,10 +361,6 @@ TEST_F(RadosFsTest, CreateFile)
 
   EXPECT_NE('/', path[path.length() - 1]);
 
-  // Create file with root as path
-
-  EXPECT_THROW(otherFile.setPath("/"), std::invalid_argument);
-
   // Check the shared pointer use
 
   EXPECT_EQ(1, radosFsFilePriv(otherFile)->radosFsIO.use_count());
