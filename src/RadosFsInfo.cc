@@ -17,6 +17,7 @@
  * for more details.
  */
 
+#include <stdexcept>
 #include <sys/stat.h>
 
 #include "radosfsdefines.h"
@@ -96,6 +97,12 @@ RadosFsInfoPriv::setPath(const std::string &path)
 
   stat.reset();
 
+  if (this->path.length() > MAXIMUM_PATH_LENGTH)
+  {
+    this->path = PATH_SEP;
+    throw std::invalid_argument("Path length is too big.");
+  }
+
   while ((ret = makeRealPath(this->path)) == -EAGAIN)
   {}
 
@@ -110,6 +117,12 @@ RadosFsInfoPriv::makeLink(std::string &linkPath)
 
   while ((ret = makeRealPath(linkPath)) == -EAGAIN)
   {}
+
+  if (linkPath.length() > MAXIMUM_PATH_LENGTH)
+  {
+    radosfs_debug("Error: The link path is too big.");
+    return -ENAMETOOLONG;
+  }
 
   const RadosFsPoolSP pool =
       radosFs->mPriv->getMetadataPoolFromPath(linkPath);
