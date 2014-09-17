@@ -17,7 +17,6 @@
  * for more details.
  */
 
-#include <stdexcept>
 #include <sys/stat.h>
 
 #include "radosfsdefines.h"
@@ -210,20 +209,6 @@ RadosFsFilePriv::updatePermissions()
   }
 }
 
-std::string
-RadosFsFilePriv::sanitizePath(const std::string &path)
-{
-  if (path.length() == 1 && path[0] == '/')
-    throw std::invalid_argument("Cannot use / as a path argument");
-
-  std::string filePath(path);
-
-  if (filePath != "" && filePath[filePath.length() - 1] == '/')
-    filePath.erase(filePath.length() - 1, 1);
-
-  return filePath;
-}
-
 int
 RadosFsFilePriv::removeFile()
 {
@@ -341,7 +326,7 @@ RadosFsFilePriv::rename(const std::string &destination)
 RadosFsFile::RadosFsFile(RadosFs *radosFs,
                          const std::string &path,
                          RadosFsFile::OpenMode mode)
-  : RadosFsInfo(radosFs, RadosFsFilePriv::sanitizePath(path)),
+  : RadosFsInfo(radosFs, path),
     mPriv(new RadosFsFilePriv(this, mode))
 {}
 
@@ -724,7 +709,7 @@ RadosFsFile::update()
 void
 RadosFsFile::setPath(const std::string &path)
 {
-  std::string filePath = RadosFsFilePriv::sanitizePath(path);
+  std::string filePath = path;
 
   RadosFsInfo::setPath(filePath);
 }
