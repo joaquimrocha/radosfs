@@ -204,6 +204,96 @@ TEST_F(RadosFsTest, CharacterConsistency)
   EXPECT_NE(entries.end(), entries.find(path + '/'));
 }
 
+TEST_F(RadosFsTest, PathsLength)
+{
+  AddPool();
+
+  // Create a path with the maximum length allowed
+
+  size_t length = MAXIMUM_PATH_LENGTH;
+  std::string longString(length, 'x');
+  longString[0] = PATH_SEP;
+
+  // Create a file with that path
+
+  radosfs::RadosFsFile file(&radosFs, longString);
+
+  EXPECT_EQ(0, file.create());
+
+  // Increase the path's length (1 char over the maximum allowed)
+
+  longString += "x";
+
+  // Set the file path with the one previously defined and verify that it is
+  // not allowed and it reverted to the root path
+
+  EXPECT_THROW(file.setPath(longString), std::invalid_argument);
+
+  EXPECT_EQ("/", file.path());
+
+  EXPECT_EQ(-EISDIR, file.create());
+
+  // Set the file path again to the long path and verify it exists
+
+  longString.resize(length);
+
+  EXPECT_NO_THROW(file.setPath(longString));
+
+  EXPECT_EQ(true, file.exists());
+
+  // Get the entries in the root directory
+
+  radosfs::RadosFsDir dir(&radosFs, "/");
+  dir.update();
+
+  std::set<std::string> entries;
+
+  dir.entryList(entries);
+
+  // Remove the heading '/'
+  longString.erase(0, 1);
+
+  // Verify that the long file name was indexed (is one of the entries)
+
+  std::set<std::string>::iterator fileIt = entries.find(longString);
+
+  EXPECT_NE(entries.end(), fileIt);
+
+  // Remove the long path file, set the long path to a directory and verify it
+  // is not allowed (because the directory always appends one / at the end,
+  // making it go over the maximum length allowed)
+
+  EXPECT_EQ(0, file.remove());
+
+  radosfs::RadosFsDir otherDir(&radosFs, "");
+
+  EXPECT_THROW(otherDir.setPath(longString), std::invalid_argument);
+
+  EXPECT_EQ("/", otherDir.path());
+
+  // Remove two chars of the long path so when it is set in the directory, it
+  // will be added one / at the beginning and another at the end
+
+  longString.resize(MAXIMUM_PATH_LENGTH - 2);
+
+  // Set the long path to the directory and create it
+
+  EXPECT_NO_THROW(otherDir.setPath(longString));
+
+  EXPECT_EQ(0, otherDir.create());
+
+  // Create a short path file
+
+  file.setPath("/f");
+
+  EXPECT_EQ(0, file.create());
+
+  // Create a link for the short path file inside the long path directory and
+  // verify it is not allowed
+
+  EXPECT_EQ(-ENAMETOOLONG, file.createLink(otherDir.path() + "file-link"));
+}
+
 TEST_F(RadosFsTest, CreateDir)
 {
   AddPool();
