@@ -360,6 +360,11 @@ TEST_F(RadosFsTest, CreateDir)
   dir.setPath(file.path() + "/d1");
 
   EXPECT_EQ(-ENOTDIR, dir.create(-1, true));
+
+  // Create dir with the mkdir option when the parent directory is root
+  dir.setPath("/my-dir");
+
+  EXPECT_EQ(0, dir.create(-1, true));
 }
 
 TEST_F(RadosFsTest, RemoveDir)
