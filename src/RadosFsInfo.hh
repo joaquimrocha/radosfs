@@ -78,6 +78,8 @@ public:
 
   virtual std::string targetPath(void) const;
 
+  virtual int chmod(long int permissions);
+
 protected:
   void * fsStat(void);
 

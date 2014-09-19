@@ -451,4 +451,10 @@ RadosFsInfo::parentFsStat()
   return &mPriv->parentDirStat;
 }
 
+int
+RadosFsInfo::chmod(long int permissions)
+{
+  return -EOPNOTSUPP;
+}
+
 RADOS_FS_END_NAMESPACE
