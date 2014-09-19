@@ -116,9 +116,6 @@ RadosFsDirPriv::makeDirsRecursively(RadosFsStat *stat,
   RadosFsPriv *radosFsPriv = dir->filesystem()->mPriv;
   struct stat *buff;
 
-  if (parentDir == "")
-    return -ENODEV;
-
   if (radosFsPriv->stat(dirPath.c_str(), stat) == 0)
   {
     buff = &stat->statBuff;
@@ -129,6 +126,9 @@ RadosFsDirPriv::makeDirsRecursively(RadosFsStat *stat,
     if (buff->st_mode & S_IFREG)
       return -ENOTDIR;
   }
+
+  if (parentDir == "")
+    return -ENODEV;
 
   ret = makeDirsRecursively(stat, parentDir.c_str(), uid, gid);
 
