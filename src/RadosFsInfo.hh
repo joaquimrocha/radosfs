@@ -80,6 +80,8 @@ public:
 
   virtual int chmod(long int permissions);
 
+  virtual int rename(const std::string &newPath);
+
 protected:
   void * fsStat(void);
 

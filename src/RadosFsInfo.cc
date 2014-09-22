@@ -457,4 +457,10 @@ RadosFsInfo::chmod(long int permissions)
   return -EOPNOTSUPP;
 }
 
+int
+RadosFsInfo::rename(const std::string &newPath)
+{
+  return -EOPNOTSUPP;
+}
+
 RADOS_FS_END_NAMESPACE
