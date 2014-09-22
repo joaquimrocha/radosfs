@@ -1433,4 +1433,27 @@ RadosFs::fileLocking(void) const
   return mPriv->lockFiles;
 }
 
+RadosFsInfo *
+RadosFs::getFsInfo(const std::string &path)
+{
+  RadosFsStat stat;
+
+  if (mPriv->stat(path, &stat) != 0)
+  {
+    return 0;
+  }
+
+  if (S_ISLNK(stat.statBuff.st_mode) && isDirPath(stat.translatedPath))
+  {
+    return new RadosFsDir(this, stat.path);
+  }
+  else if (S_ISDIR(stat.statBuff.st_mode))
+  {
+    return new RadosFsDir(this, stat.path);
+  }
+
+  return new RadosFsFile(this, stat.path);
+}
+
+
 RADOS_FS_END_NAMESPACE

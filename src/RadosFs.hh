@@ -35,6 +35,7 @@ class RadosFsChecker;
 RADOS_FS_BEGIN_NAMESPACE
 
 class RadosFsPriv;
+class RadosFsInfo;
 
 class RadosFs
 {
@@ -120,6 +121,8 @@ public:
 
   void setFileLocking(bool lock);
   bool fileLocking(void) const;
+
+  RadosFsInfo * getFsInfo(const std::string &path);
 
 private:
   RadosFsPriv *mPriv;
