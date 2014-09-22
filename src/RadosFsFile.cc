@@ -774,8 +774,6 @@ RadosFsFile::chmod(long int permissions)
 {
   int ret = 0;
   long int mode;
-  if (!isWritable())
-    return -EPERM;
 
   if (!exists())
     return -ENOENT;
@@ -784,6 +782,11 @@ RadosFsFile::chmod(long int permissions)
 
   RadosFsStat fsStat = *mPriv->fsStat();
   RadosFsStat *parentStat = reinterpret_cast<RadosFsStat *>(parentFsStat());
+
+  uid_t uid = filesystem()->uid();
+
+  if (uid != ROOT_UID && fsStat.statBuff.st_uid != uid)
+    return -EPERM;
 
   fsStat.statBuff.st_mode = mode;
   const std::string &baseName = path().substr(mPriv->parentDir.length());

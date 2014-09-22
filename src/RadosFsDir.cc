@@ -961,9 +961,6 @@ RadosFsDir::chmod(long int permissions)
   if (!exists())
     return -ENOENT;
 
-  if (!isWritable())
-    return -EPERM;
-
   mode = permissions | S_IFDIR;
 
   RadosFsStat stat = *reinterpret_cast<RadosFsStat *>(fsStat());
@@ -981,6 +978,11 @@ RadosFsDir::chmod(long int permissions)
   }
   else
   {
+    uid_t uid = filesystem()->uid();
+
+    if (uid != ROOT_UID && stat.statBuff.st_uid != uid)
+      return -EPERM;
+
     const std::string &permissionsXattr = makePermissionsXAttr(mode,
                                                           stat.statBuff.st_uid,
                                                           stat.statBuff.st_gid);
