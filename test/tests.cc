@@ -907,6 +907,47 @@ TEST_F(RadosFsTest, DirContents)
 
   it++;
   EXPECT_EQ(*it, otherFileName);
+
+  // Create file and write to it
+
+  file = radosfs::RadosFsFile(&radosFs, "/my-file",
+                              radosfs::RadosFsFile::MODE_READ_WRITE);
+
+  EXPECT_EQ(0, file.create());
+
+  const std::string contents = "my file contents";
+
+  EXPECT_EQ(0, file.write(contents.c_str(), 0, contents.length()));
+
+  // Verify it was correctly written
+
+  char buff[contents.length() + 1];
+
+  EXPECT_EQ(contents.length(), file.read(buff, 0, contents.length()));
+
+  buff[contents.length()] = '\0';
+
+  EXPECT_EQ(0, strcmp(contents.c_str(), buff));
+
+  // Set the file path to a dir and list it
+
+  dir.setPath(file.path());
+
+  entries.clear();
+
+  EXPECT_EQ(-ENOTDIR, dir.entryList(entries));
+
+  EXPECT_EQ(0, entries.size());
+
+  std::string entry;
+
+  EXPECT_EQ(-ENOTDIR, dir.entry(0, entry));
+
+  // Verify that the file contents were not touched
+
+  EXPECT_EQ(contents.length(), file.read(buff, 0, contents.length()));
+
+  EXPECT_EQ(0, strcmp(contents.c_str(), buff));
 }
 
 TEST_F(RadosFsTest, FileInode)
