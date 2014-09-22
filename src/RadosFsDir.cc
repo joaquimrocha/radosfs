@@ -74,7 +74,7 @@ RadosFsDirPriv::updatePath()
 bool
 RadosFsDirPriv::updateDirInfoPtr()
 {
-  if (dir->exists() && !dir->isLink())
+  if (dir->exists() && !dir->isLink() && !dir->isFile())
   {
     dirInfo = dir->filesystem()->mPriv->getDirInfo(fsStat()->translatedPath,
                                                    fsStat()->pool,
