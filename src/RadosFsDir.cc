@@ -434,6 +434,13 @@ RadosFsDir::getParent(const std::string &path, int *pos)
 int
 RadosFsDir::entryList(std::set<std::string> &entries)
 {
+  if (isFile())
+  {
+    radosfs_debug("Error: Dir instance has a path file %s ; not listing.",
+                  path().c_str());
+    return -ENOTDIR;
+  }
+
   if (isLink())
   {
     if (mPriv->target)
@@ -635,6 +642,13 @@ RadosFsDir::update()
 int
 RadosFsDir::entry(int entryIndex, std::string &entry)
 {
+  if (isFile())
+  {
+    radosfs_debug("Error: Dir instance has a path file %s ; not reading the "
+                  "entry.", path().c_str());
+    return -ENOTDIR;
+  }
+
   if (isLink())
   {
     if (mPriv->target)
