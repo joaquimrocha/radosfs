@@ -402,7 +402,7 @@ getFileXAttrDirRecord(const RadosFsStat *stat)
 {
   std::ostringstream stream;
 
-  stream << XATTR_LINK "=\"" << stat->translatedPath << "\"";
+  stream << XATTR_LINK "=\"" << stat->translatedPath << "\" ";
 
   if (stat->translatedPath != "" && stat->translatedPath[0] != PATH_SEP)
   {
