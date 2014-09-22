@@ -671,9 +671,11 @@ TEST_F(RadosFsTest, DirPermissions)
 
   EXPECT_TRUE(subDir.isWritable());
 
-  EXPECT_EQ(0, subDir.chmod(S_IREAD | S_IWRITE));
+  EXPECT_EQ(0, subDir.chmod(S_IWRITE));
 
   radosFs.setIds(TEST_UID, TEST_GID);
+
+  EXPECT_EQ(0, subDir.chmod(S_IREAD));
 
   subDir.update();
 
@@ -784,9 +786,11 @@ TEST_F(RadosFsTest, FilePermissions)
 
   EXPECT_TRUE(file.isWritable());
 
-  EXPECT_EQ(0, file.chmod(S_IRWXU));
+  EXPECT_EQ(0, file.chmod(S_IWRITE));
 
   radosFs.setIds(TEST_UID, TEST_GID);
+
+  EXPECT_EQ(0, file.chmod(S_IREAD));
 
   file.update();
 
