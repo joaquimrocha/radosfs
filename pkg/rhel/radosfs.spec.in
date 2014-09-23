@@ -11,9 +11,9 @@ Source:        %{name}-%{version}-%{release}.tar.gz
 BuildRoot:     %{_tmppath}/%{name}-root
 
 BuildRequires: cmake >= 2.6
-BuildRequires: librados2 ceph-devel
+BuildRequires: librados2 ceph-devel libuuid-devel
 
-Requires:      librados2
+Requires:      librados2 libuuid
 
 %description
 A file system library based in librados
