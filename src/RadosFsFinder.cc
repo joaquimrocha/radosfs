@@ -165,7 +165,7 @@ RadosFsFinder::checkEntrySize(FinderData *data,
     if (data->args->count(option) == 0)
       continue;
 
-    size_t size = data->args->at(option).valueInt;
+    off_t size = data->args->at(option).valueInt;
 
     if (buff.st_nlink == 0)
     {

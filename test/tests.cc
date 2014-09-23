@@ -544,7 +544,7 @@ TEST_F(RadosFsTest, RemoveFile)
 
   std::string contents;
 
-  for (int i = 0; i < stripeSize * 3; i++)
+  for (size_t i = 0; i < stripeSize * 3; i++)
   {
     contents += "test";
   }
@@ -1122,7 +1122,7 @@ TEST_F(RadosFsTest, FileReadWrite)
 
   std::string contents2("this is another test ");
 
-  for (int i = 0; i < stripeSize; i++)
+  for (size_t i = 0; i < stripeSize; i++)
     contents2 += "this is another test ";
 
   buff = new char[contents2.length() + 1];

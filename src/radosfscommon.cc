@@ -276,8 +276,8 @@ stringAttrsToMap(const std::string &attrs)
 std::string
 getParentDir(const std::string &path, int *pos)
 {
-  int length = path.length();
-  int index = path.rfind(PATH_SEP, length - 2);
+  size_t length = path.length();
+  size_t index = path.rfind(PATH_SEP, length - 2);
 
   if (length - 1 < 1 || index == std::string::npos)
     return "";
@@ -319,7 +319,7 @@ unescapeObjName(const std::string &obj)
     return str;
 
   size_t i;
-  const int length = obj.length();
+  const size_t length = obj.length();
 
   for (i = 0; i < length - 1; i++)
   {

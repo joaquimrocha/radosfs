@@ -47,7 +47,7 @@ readConfiguredLogLevel(void *fsLogger)
     if (stat(LOG_LEVEL_CONF_FILE, &statBuff) != 0)
       break;
 
-    if (fileSize != statBuff.st_size)
+    if (fileSize != (size_t) statBuff.st_size)
     {
       fileSize = statBuff.st_size;
 

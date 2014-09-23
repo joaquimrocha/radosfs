@@ -799,8 +799,8 @@ RadosFsPriv::getDataPools(const std::string &path)
 const std::string
 RadosFsPriv::getParentDir(const std::string &obj, int *pos)
 {
-  int length = obj.length();
-  int index = obj.rfind(PATH_SEP, length - 2);
+  size_t length = obj.length();
+  size_t index = obj.rfind(PATH_SEP, length - 2);
 
   if (length - 1 < 1 || index == std::string::npos)
     return "";

@@ -48,7 +48,7 @@ typedef struct _LinkedList LinkedList;
 struct _LinkedList
 {
   std::tr1::shared_ptr<DirCache> cachePtr;
-  int lastNumEntries;
+  size_t lastNumEntries;
   LinkedList *previous;
   LinkedList *next;
 };
