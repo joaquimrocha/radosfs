@@ -113,7 +113,6 @@ int
 RadosFsInfoPriv::makeLink(std::string &linkPath)
 {
   int ret;
-  rados_ioctx_t ioctx;
 
   while ((ret = makeRealPath(linkPath)) == -EAGAIN)
   {}
@@ -129,8 +128,6 @@ RadosFsInfoPriv::makeLink(std::string &linkPath)
 
   if (!pool)
     return -ENODEV;
-
-  ioctx = pool->ioctx;
 
   if (ret != 0)
   {
