@@ -11,9 +11,9 @@ Source:        %{name}-%{version}-%{release}.tar.gz
 BuildRoot:     %{_tmppath}/%{name}-root
 
 BuildRequires: cmake >= 2.6
-BuildRequires: ceph-libs ceph-devel
+BuildRequires: librados2 ceph-devel
 
-Requires:      ceph-libs
+Requires:      librados2
 
 %description
 A file system library based in librados
