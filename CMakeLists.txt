@@ -111,3 +111,5 @@ ADD_DEPENDENCIES(srpm distcheck)
 #-------------------------------------------------------------------------------
 ADD_CUSTOM_TARGET(rpm COMMAND rpmbuild -tb ${CMAKE_PROJECT_NAME}-${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}-${RELEASE}.tar.gz)
 ADD_DEPENDENCIES(rpm distcheck)
+
+message( STATUS "Installation prefix: ${CMAKE_INSTALL_PREFIX}" )
