@@ -64,6 +64,4 @@ rm -rf $RPM_BUILD_ROOT
 %files devel
 %defattr(-,root,root,-)
 %{_includedir}/libradosfs.hh
-%{_includedir}/radosfs/RadosFs.hh
-%{_includedir}/radosfs/RadosFsDir.hh
-%{_includedir}/radosfs/RadosFsFile.hh
+%{_includedir}/radosfs/
