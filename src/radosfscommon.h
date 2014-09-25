@@ -194,5 +194,6 @@ std::map<std::string, std::string> stringAttrsToMap(const std::string &attrs);
 
 std::string timespecToStr(const timespec *spec);
 
+void strToTimespec(const std::string &specStr, timespec *spec);
 
 #endif /* __RADOS_FS_COMMON_HH__ */

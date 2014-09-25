@@ -836,6 +836,26 @@ timespecToStr(const timespec *spec)
   return stream.str();
 }
 
+void
+strToTimespec(const std::string &specStr, timespec *spec)
+{
+  std::string tv_sec, tv_nsec;
+
+  for (size_t i = 0; i < specStr.length(); i++)
+  {
+    if (specStr[i] == '.')
+    {
+      tv_nsec = specStr.substr(++i);
+      break;
+    }
+
+    tv_sec.append(1, specStr[i]);
+  }
+
+  spec->tv_sec = (time_t) strtoul(tv_sec.c_str(), 0, 10);
+  spec->tv_nsec = (time_t) strtoul(tv_nsec.c_str(), 0, 10);
+}
+
 int
 createDirAndInode(const RadosFsStat *stat)
 {

@@ -737,7 +737,30 @@ RadosFsDir::isReadable()
 int
 RadosFsDir::stat(struct stat *buff)
 {
-  return RadosFsInfo::stat(buff);
+  int ret = RadosFsInfo::stat(buff);
+
+  if (ret != 0 || isLink() || !isDir())
+    return ret;
+
+  const std::string &inode = mPriv->fsStat()->translatedPath;
+
+  char ctime[XATTR_TIME_LENGTH];
+  int bytes = rados_getxattr(mPriv->fsStat()->pool->ioctx, inode.c_str(),
+                             XATTR_CTIME, ctime, XATTR_TIME_LENGTH);
+
+  if (bytes < 0)
+  {
+    radosfs_debug("Failed to retrieve the ctime for %s : %s", inode.c_str(),
+                  strerror(abs(bytes)));
+    return bytes;
+  }
+
+  ctime[bytes] = '\0';
+
+  strToTimespec(ctime, &buff->st_ctim);
+  buff->st_ctime = buff->st_ctim.tv_sec;
+
+  return ret;
 }
 
 int
