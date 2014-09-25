@@ -279,13 +279,13 @@ RadosFsDirPriv::moveDirTreeObjects(const RadosFsStat *oldDir,
     }
   }
 
-  int ret = rados_remove(oldDir->pool->ioctx, oldDir->path.c_str());
+  int ret = createDirObject(newDir);
 
   if (ret == 0)
   {
-    ret = createDirObject(newDir);
-
     radosFsPriv()->updateDirInode(oldDir->path, newDir->path);
+
+    ret = rados_remove(oldDir->pool->ioctx, oldDir->path.c_str());
   }
 
   return ret;
