@@ -532,6 +532,12 @@ RadosFsDir::create(int mode,
   stat.statBuff.st_gid = group;
   stat.pool = pool;
 
+  timespec spec;
+  clock_gettime(CLOCK_REALTIME, &spec);
+
+  stat.statBuff.st_ctim = spec;
+  stat.statBuff.st_ctime = spec.tv_sec;
+
   ret = createDirAndInode(&stat);
 
   if (ret != 0)

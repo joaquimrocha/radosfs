@@ -827,6 +827,15 @@ generateInode()
   return inodeStr;
 }
 
+std::string
+timespecToStr(const timespec *spec)
+{
+  std::stringstream stream;
+  stream << spec->tv_sec << "." << spec->tv_nsec;
+
+  return stream.str();
+}
+
 int
 createDirAndInode(const RadosFsStat *stat)
 {
@@ -850,6 +859,11 @@ createDirAndInode(const RadosFsStat *stat)
 
   rados_write_op_setxattr(writeOp, XATTR_PERMISSIONS, permissions.c_str(),
                           permissions.length());
+
+  const std::string &timeSpec = timespecToStr(&stat->statBuff.st_ctim);
+
+  rados_write_op_setxattr(writeOp, XATTR_CTIME, timeSpec.c_str(),
+                          timeSpec.length());
 
   ret = rados_write_op_operate(writeOp, stat->pool->ioctx,
                                stat->translatedPath.c_str(), NULL, 0);

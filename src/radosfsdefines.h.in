@@ -41,6 +41,7 @@
 #define XATTR_FILE_PREFIX "file."
 #define XATTR_FILE_LENGTH 1000
 #define XATTR_TIME "time"
+#define XATTR_CTIME "ctime"
 #define XATTR_INODE "inode"
 #define XATTR_INODE_HARD_LINK "hardlink"
 #define XATTR_FILE_STRIPE_SIZE "stripe"

@@ -29,6 +29,7 @@
 #include <string>
 #include <sstream>
 #include <tr1/memory>
+#include <time.h>
 
 #include "hash64.h"
 #include "radosfsdefines.h"
@@ -190,5 +191,8 @@ int getInodeAndPool(rados_ioctx_t ioctx, const std::string &path,
                     std::string &inode, std::string &pool);
 
 std::map<std::string, std::string> stringAttrsToMap(const std::string &attrs);
+
+std::string timespecToStr(const timespec *spec);
+
 
 #endif /* __RADOS_FS_COMMON_HH__ */
