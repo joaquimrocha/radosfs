@@ -18,6 +18,7 @@
  */
 
 #include "radosfscommon.h"
+#include <rados/librados.hpp>
 #include <sys/stat.h>
 #include <uuid/uuid.h>
 
@@ -380,9 +381,13 @@ int indexObject(const RadosFsStat *parentStat,
       xAttrValue = getFileXAttrDirRecord(stat);
   }
 
-  return writeContentsAtomically(parentStat->pool->ioctx,
-                                 parentStat->translatedPath, contents,
-                                 xAttrKey, xAttrValue);
+  int ret =  writeContentsAtomically(parentStat->pool->ioctx,
+                                     parentStat->translatedPath, contents,
+                                     xAttrKey, xAttrValue);
+
+  updateDirTimeAsync(parentStat, XATTR_MTIME);
+
+  return ret;
 }
 
 std::string
@@ -856,6 +861,15 @@ strToTimespec(const std::string &specStr, timespec *spec)
   spec->tv_nsec = (time_t) strtoul(tv_nsec.c_str(), 0, 10);
 }
 
+std::string
+getCurrentTimeStr()
+{
+  timespec spec;
+  clock_gettime(CLOCK_REALTIME, &spec);
+
+  return timespecToStr(&spec);
+}
+
 int
 createDirAndInode(const RadosFsStat *stat)
 {
@@ -883,6 +897,9 @@ createDirAndInode(const RadosFsStat *stat)
   const std::string &timeSpec = timespecToStr(&stat->statBuff.st_ctim);
 
   rados_write_op_setxattr(writeOp, XATTR_CTIME, timeSpec.c_str(),
+                          timeSpec.length());
+
+  rados_write_op_setxattr(writeOp, XATTR_MTIME, timeSpec.c_str(),
                           timeSpec.length());
 
   ret = rados_write_op_operate(writeOp, stat->pool->ioctx,
@@ -921,4 +938,31 @@ ino_t
 hash(const char *path)
 {
   return hash64((ub1 *) path, strlen(path), 0);
+}
+
+void
+updateDirTimeAsyncCB(rados_completion_t comp, void *arg)
+{
+  rados_aio_release(comp);
+}
+
+void
+updateDirTimeAsync(const RadosFsStat *stat, const char *timeXAttrKey)
+{
+  librados::IoCtx ctx;
+  librados::IoCtx::from_rados_ioctx_t(stat->pool->ioctx, ctx);
+
+  librados::bufferlist blist;
+  blist.append(getCurrentTimeStr());
+
+  librados::ObjectWriteOperation op;
+
+  op.setxattr(timeXAttrKey, blist);
+
+  rados_completion_t comp;
+
+  rados_aio_create_completion(0, 0, updateDirTimeAsyncCB, &comp);
+  librados::AioCompletion completion((librados::AioCompletionImpl *)comp);
+
+  ctx.aio_operate(stat->translatedPath, &completion, &op);
 }

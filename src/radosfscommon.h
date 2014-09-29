@@ -196,4 +196,8 @@ std::string timespecToStr(const timespec *spec);
 
 void strToTimespec(const std::string &specStr, timespec *spec);
 
+std::string getCurrentTimeStr(void);
+
+void updateDirTimeAsync(const RadosFsStat *stat, const char *timeXAttrKey);
+
 #endif /* __RADOS_FS_COMMON_HH__ */
