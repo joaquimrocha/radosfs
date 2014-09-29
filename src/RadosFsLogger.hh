@@ -6,12 +6,12 @@
 #include "radosfsdefines.h"
 #include "RadosFs.hh"
 
-RADOS_FS_BEGIN_NAMESPACE
+#define radosfs_debug(...) radosfs::RadosFsLogger::log(__FILE__, \
+                                            __LINE__, \
+                                            radosfs::RadosFs::LOG_LEVEL_DEBUG, \
+                                            __VA_ARGS__)
 
-#define radosfs_debug(...) RadosFsLogger::log(__FILE__, \
-                                              __LINE__, \
-                                              RadosFs::LOG_LEVEL_DEBUG, \
-                                              __VA_ARGS__)
+RADOS_FS_BEGIN_NAMESPACE
 
 class RadosFsLogger
 {
