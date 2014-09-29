@@ -742,23 +742,19 @@ RadosFsDir::stat(struct stat *buff)
   if (ret != 0 || isLink() || !isDir())
     return ret;
 
-  const std::string &inode = mPriv->fsStat()->translatedPath;
+  const RadosFsStat *stat = mPriv->fsStat();
+  std::string xattr = XATTR_CTIME;
 
-  char ctime[XATTR_TIME_LENGTH];
-  int bytes = rados_getxattr(mPriv->fsStat()->pool->ioctx, inode.c_str(),
-                             XATTR_CTIME, ctime, XATTR_TIME_LENGTH);
+  ret = getTimeFromXAttr(stat, xattr, &buff->st_ctim, &buff->st_ctime);
 
-  if (bytes < 0)
-  {
-    radosfs_debug("Failed to retrieve the ctime for %s : %s", inode.c_str(),
-                  strerror(abs(bytes)));
-    return bytes;
-  }
+  xattr = XATTR_MTIME;
 
-  ctime[bytes] = '\0';
+  if (ret == 0)
+    ret = getTimeFromXAttr(stat, xattr, &buff->st_mtim, &buff->st_mtime);
 
-  strToTimespec(ctime, &buff->st_ctim);
-  buff->st_ctime = buff->st_ctim.tv_sec;
+  if (ret != 0)
+    radosfs_debug("Failed to retrieve the %s for '%s' : %s", xattr.c_str(),
+                  stat->translatedPath.c_str(), strerror(abs(ret)));
 
   return ret;
 }

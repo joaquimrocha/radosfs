@@ -200,4 +200,7 @@ std::string getCurrentTimeStr(void);
 
 void updateDirTimeAsync(const RadosFsStat *stat, const char *timeXAttrKey);
 
+int getTimeFromXAttr(const RadosFsStat *stat, const std::string &xattr,
+                     timespec *spec, time_t *basicTime);
+
 #endif /* __RADOS_FS_COMMON_HH__ */

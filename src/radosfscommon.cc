@@ -966,3 +966,25 @@ updateDirTimeAsync(const RadosFsStat *stat, const char *timeXAttrKey)
 
   ctx.aio_operate(stat->translatedPath, &completion, &op);
 }
+
+int
+getTimeFromXAttr(const RadosFsStat *stat, const std::string &xattr,
+                 timespec *spec, time_t *basicTime)
+{
+  char timeXAttr[XATTR_TIME_LENGTH];
+  const std::string &inode = stat->translatedPath;
+  int bytes = rados_getxattr(stat->pool->ioctx, inode.c_str(), xattr.c_str(),
+                             timeXAttr, XATTR_TIME_LENGTH);
+
+  if (bytes < 0)
+    return bytes;
+
+  timeXAttr[bytes] = '\0';
+
+  strToTimespec(timeXAttr, spec);
+
+  if (basicTime)
+    *basicTime = spec->tv_sec;
+
+  return 0;
+}
