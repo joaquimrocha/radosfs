@@ -198,7 +198,8 @@ void strToTimespec(const std::string &specStr, timespec *spec);
 
 std::string getCurrentTimeStr(void);
 
-void updateDirTimeAsync(const RadosFsStat *stat, const char *timeXAttrKey);
+void updateDirTimeAsync(const RadosFsStat *stat, const char *timeXAttrKey,
+                        const std::string &time = "");
 
 int getTimeFromXAttr(const RadosFsStat *stat, const std::string &xattr,
                      timespec *spec, time_t *basicTime);

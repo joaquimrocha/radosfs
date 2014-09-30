@@ -947,13 +947,18 @@ updateDirTimeAsyncCB(rados_completion_t comp, void *arg)
 }
 
 void
-updateDirTimeAsync(const RadosFsStat *stat, const char *timeXAttrKey)
+updateDirTimeAsync(const RadosFsStat *stat, const char *timeXAttrKey,
+                   const std::string &time)
 {
   librados::IoCtx ctx;
   librados::IoCtx::from_rados_ioctx_t(stat->pool->ioctx, ctx);
 
   librados::bufferlist blist;
-  blist.append(getCurrentTimeStr());
+
+  if (time == "")
+    blist.append(getCurrentTimeStr());
+  else
+    blist.append(time);
 
   librados::ObjectWriteOperation op;
 

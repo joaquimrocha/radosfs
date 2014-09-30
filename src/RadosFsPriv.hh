@@ -164,6 +164,10 @@ public:
 
   void removeDirInode(const std::string &path);
 
+  std::vector<RadosFsStat> getParentsForTMTimeUpdate(const std::string &path);
+
+  void updateTMTime(RadosFsStat *stat, timespec *spec = 0);
+
   rados_t radosCluster;
   static __thread uid_t uid;
   static __thread gid_t gid;

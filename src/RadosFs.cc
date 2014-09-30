@@ -898,6 +898,52 @@ RadosFsPriv::removeRadosFsIO(std::tr1::shared_ptr<RadosFsIO> sharedFsIO)
   pthread_mutex_unlock(&operationsMutex);
 }
 
+std::vector<RadosFsStat>
+RadosFsPriv::getParentsForTMTimeUpdate(const std::string &path)
+{
+  std::vector<RadosFsStat> parents;
+  std::string currentPath = path;
+
+  while ((currentPath = getParentDir(currentPath, 0)) != "")
+  {
+    RadosFsStat parentStat;
+
+    int ret = stat(currentPath, &parentStat);
+
+    if (ret != 0)
+    {
+      radosfs_debug("Problem statting %s : %s", currentPath.c_str(),
+                    strerror(abs(ret)));
+      break;
+    }
+
+    if (!hasTMTimeEnabled(parentStat.statBuff.st_mode))
+      break;
+
+    parents.push_back(parentStat);
+  }
+
+  return parents;
+}
+
+void
+RadosFsPriv::updateTMTime(RadosFsStat *stat, timespec *spec)
+{
+  std::vector<RadosFsStat> parents = getParentsForTMTimeUpdate(stat->path);
+  std::vector<RadosFsStat>::iterator it;
+  std::string timeStr;
+
+  if (spec)
+    timeStr = timespecToStr(spec);
+  else
+    timeStr = getCurrentTimeStr();
+
+  for (it = parents.begin(); it != parents.end(); it++)
+  {
+    updateDirTimeAsync(&(*it), XATTR_TMTIME, timeStr);
+  }
+}
+
 RadosFs::RadosFs()
   : mPriv(new RadosFsPriv(this))
 {
