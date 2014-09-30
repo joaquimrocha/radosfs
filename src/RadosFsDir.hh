@@ -86,6 +86,10 @@ public:
 
   int rename(const std::string &newName);
 
+  int useTMTime(bool useTMTime);
+
+  bool usingTMTime(void);
+
 private:
   std::auto_ptr<RadosFsDirPriv> mPriv;
 

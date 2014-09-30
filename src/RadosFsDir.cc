@@ -1044,4 +1044,32 @@ RadosFsDir::rename(const std::string &newName)
   return mPriv->rename(dest);
 }
 
+int
+RadosFsDir::useTMTime(bool useTMTime)
+{
+  mode_t mode;
+  RadosFsStat stat = *reinterpret_cast<RadosFsStat *>(fsStat());
+
+  if (useTMTime)
+    mode = stat.statBuff.st_mode | TMTIME_MASK;
+  else
+    mode = stat.statBuff.st_mode & ~TMTIME_MASK;
+
+  const std::string &permissionsXattr = makePermissionsXAttr(mode,
+                                                        stat.statBuff.st_uid,
+                                                        stat.statBuff.st_gid);
+
+  return rados_setxattr(stat.pool->ioctx, stat.translatedPath.c_str(),
+                        XATTR_PERMISSIONS, permissionsXattr.c_str(),
+                        permissionsXattr.length());
+}
+
+bool
+RadosFsDir::usingTMTime()
+{
+  RadosFsStat stat = *reinterpret_cast<RadosFsStat *>(fsStat());
+
+  return hasTMTimeEnabled(stat.statBuff.st_mode);
+}
+
 RADOS_FS_END_NAMESPACE

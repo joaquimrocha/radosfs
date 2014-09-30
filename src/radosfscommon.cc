@@ -988,3 +988,9 @@ getTimeFromXAttr(const RadosFsStat *stat, const std::string &xattr,
 
   return 0;
 }
+
+bool
+hasTMTimeEnabled(mode_t mode)
+{
+  return (mode & TMTIME_MASK) != 0;
+}

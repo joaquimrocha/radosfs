@@ -43,6 +43,7 @@
 #define XATTR_TIME "time"
 #define XATTR_CTIME "ctime"
 #define XATTR_MTIME "mtime"
+#define XATTR_TMTIME "tmtime"
 #define XATTR_TIME_LENGTH 50
 #define XATTR_INODE "inode"
 #define XATTR_INODE_HARD_LINK "hardlink"
@@ -76,5 +77,6 @@
 #define FILE_STRIPE_LENGTH 8
 #define UUID_STRING_SIZE 36
 #define MAXIMUM_PATH_LENGTH 2048 // 2KB
+#define TMTIME_MASK (1 << 16)
 
 #endif /* __RADOS_FS_DEFINES_HH__ */
