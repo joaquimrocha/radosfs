@@ -482,6 +482,12 @@ RadosFsFile::create(int mode, const std::string pool)
   stat->statBuff.st_gid = gid;
   stat->pool = mPriv->dataPool;
 
+  timespec spec;
+  clock_gettime(CLOCK_REALTIME, &spec);
+
+  stat->statBuff.st_ctim = spec;
+  stat->statBuff.st_ctime = spec.tv_sec;
+
   std::stringstream stream;
   stream << mPriv->alignStripeSize(filesystem()->fileStripeSize());
 

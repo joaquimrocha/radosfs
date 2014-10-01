@@ -416,7 +416,7 @@ getFileXAttrDirRecord(const RadosFsStat *stat)
 
   stream << " " << XATTR_UID << "=\"" << stat->statBuff.st_uid << "\" ";
   stream << XATTR_GID << "=\"" << stat->statBuff.st_gid << "\" ";
-  stream << XATTR_TIME "=" << "\""  << stat->statBuff.st_ctime << "\" " ;
+  stream << XATTR_TIME "=\""  << timespecToStr(&stat->statBuff.st_ctim) << "\" " ;
   stream << XATTR_MODE << "=\"" << std::oct << stat->statBuff.st_mode << "\" ";
 
   std::map<std::string, std::string>::const_iterator it;
