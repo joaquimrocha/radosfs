@@ -739,6 +739,9 @@ RadosFsFile::stat(struct stat *buff)
 
   stat = mPriv->fsStat();
 
+  getTimeFromXAttr(stat, XATTR_MTIME, &stat->statBuff.st_mtim,
+                   &stat->statBuff.st_mtime);
+
   *buff = stat->statBuff;
 
   if (isLink())

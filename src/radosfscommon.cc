@@ -194,7 +194,7 @@ statFromXAttr(const std::string &path,
               std::map<std::string, std::string> &extraData)
 {
   int ret = 0;
-  time_t pmtime;
+  timespec ctime;
   uid_t uid = 0;
   gid_t gid = 0;
   mode_t permissions = DEFAULT_MODE_FILE;
@@ -223,7 +223,7 @@ statFromXAttr(const std::string &path,
     }
     else if (key == XATTR_TIME)
     {
-      pmtime = (time_t) strtoul(value.c_str(), 0, 10);
+      strToTimespec(value, &ctime);
     }
     else if (key == XATTR_POOL)
     {
@@ -248,9 +248,10 @@ statFromXAttr(const std::string &path,
   buff->st_size = 0;
   buff->st_blksize = 4;
   buff->st_blocks = 0;
-  buff->st_atime = pmtime;
-  buff->st_mtime = pmtime;
-  buff->st_ctime = pmtime;
+  buff->st_ctim = ctime;
+  buff->st_mtim = ctime;
+  buff->st_ctime = ctime.tv_sec;
+  buff->st_mtime = ctime.tv_sec;
 
   return ret;
 }
