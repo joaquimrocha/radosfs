@@ -399,6 +399,8 @@ RadosFsFile::write(const char *buff, off_t offset, size_t blen)
     if (isLink())
       return mPriv->target->write(buff, offset, blen);
 
+    updateTimeAsync(mPriv->fsStat(), XATTR_MTIME);
+
     return mPriv->radosFsIO->write(buff, offset, blen);
   }
 
@@ -416,6 +418,8 @@ RadosFsFile::writeSync(const char *buff, off_t offset, size_t blen)
   {
     if (isLink())
       return mPriv->target->writeSync(buff, offset, blen);
+
+    updateTimeAsync(mPriv->fsStat(), XATTR_MTIME);
 
     return mPriv->radosFsIO->writeSync(buff, offset, blen);
   }
@@ -634,6 +638,8 @@ RadosFsFile::truncate(unsigned long long size)
       newLastStripe = (size - 1) / stripeSize;
 
     const size_t emptyStripeSize = mPriv->hasAlignment() ? stripeSize : 0;
+
+    updateTimeAsync(mPriv->fsStat(), XATTR_MTIME);
 
     if (lastStripe > newLastStripe)
       removeStripes(ioctx, fsStat->translatedPath, lastStripe, newLastStripe);
