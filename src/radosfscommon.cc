@@ -385,7 +385,7 @@ int indexObject(const RadosFsStat *parentStat,
                                      parentStat->translatedPath, contents,
                                      xAttrKey, xAttrValue);
 
-  updateDirTimeAsync(parentStat, XATTR_MTIME);
+  updateTimeAsync(parentStat, XATTR_MTIME);
 
   return ret;
 }
@@ -941,14 +941,14 @@ hash(const char *path)
 }
 
 void
-updateDirTimeAsyncCB(rados_completion_t comp, void *arg)
+updateTimeAsyncCB(rados_completion_t comp, void *arg)
 {
   rados_aio_release(comp);
 }
 
 void
-updateDirTimeAsync(const RadosFsStat *stat, const char *timeXAttrKey,
-                   const std::string &time)
+updateTimeAsync(const RadosFsStat *stat, const char *timeXAttrKey,
+                const std::string &time)
 {
   librados::IoCtx ctx;
   librados::IoCtx::from_rados_ioctx_t(stat->pool->ioctx, ctx);
@@ -966,7 +966,7 @@ updateDirTimeAsync(const RadosFsStat *stat, const char *timeXAttrKey,
 
   rados_completion_t comp;
 
-  rados_aio_create_completion(0, 0, updateDirTimeAsyncCB, &comp);
+  rados_aio_create_completion(0, 0, updateTimeAsyncCB, &comp);
   librados::AioCompletion completion((librados::AioCompletionImpl *)comp);
 
   ctx.aio_operate(stat->translatedPath, &completion, &op);

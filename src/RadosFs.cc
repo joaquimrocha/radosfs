@@ -940,7 +940,7 @@ RadosFsPriv::updateTMTime(RadosFsStat *stat, timespec *spec)
 
   for (it = parents.begin(); it != parents.end(); it++)
   {
-    updateDirTimeAsync(&(*it), XATTR_TMTIME, timeStr);
+    updateTimeAsync(&(*it), XATTR_TMTIME, timeStr);
   }
 }
 
@@ -957,7 +957,7 @@ RadosFsPriv::updateDirTimes(RadosFsStat *stat, timespec *spec)
 
   timeStr = timespecToStr(&timeInfo);
 
-  updateDirTimeAsync(stat, XATTR_MTIME, timeStr);
+  updateTimeAsync(stat, XATTR_MTIME, timeStr);
 
   updateTMTime(stat, &timeInfo);
 }
