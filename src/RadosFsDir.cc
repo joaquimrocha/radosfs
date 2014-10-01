@@ -766,6 +766,32 @@ RadosFsDir::stat(struct stat *buff)
   return ret;
 }
 
+
+int
+RadosFsDir::stat(struct stat *buff, timespec *tmtime)
+{
+  int ret = stat(buff);
+
+  if (ret == 0)
+  {
+    const RadosFsStat *stat = mPriv->fsStat();
+    ret = getTimeFromXAttr(stat, XATTR_TMTIME, tmtime, 0);
+
+    if (ret == -ENODATA)
+    {
+      *tmtime = buff->st_mtim;
+      ret = 0;
+    }
+    else if (ret != 0)
+    {
+      radosfs_debug("Failed to retrieve the %s for '%s' : %s", XATTR_MTIME,
+                    stat->translatedPath.c_str(), strerror(abs(ret)));
+    }
+  }
+
+  return ret;
+}
+
 int
 RadosFsDir::compact()
 {

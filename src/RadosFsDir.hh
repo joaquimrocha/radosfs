@@ -68,6 +68,8 @@ public:
 
   int stat(struct stat *buff);
 
+  int stat(struct stat *buff, timespec *tmtime);
+
   int compact(void);
 
   int setMetadata(const std::string &entry,
