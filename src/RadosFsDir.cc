@@ -386,6 +386,9 @@ RadosFsDirPriv::rename(const std::string &destination)
     dir->setPath(newPath);
   }
 
+  radosFsPriv()->updateTMTime(&parentStat);
+  radosFsPriv()->updateTMTime(oldParentStat);
+
   return ret;
 }
 
@@ -552,6 +555,8 @@ RadosFsDir::create(int mode,
   RadosFsInfo::update();
   mPriv->updateDirInfoPtr();
 
+  mPriv->radosFsPriv()->updateTMTime(&stat, &stat.statBuff.st_ctim);
+
   return 0;
 }
 
@@ -614,6 +619,8 @@ RadosFsDir::remove()
     mPriv->updateFsDirCache();
 
   mPriv->updateDirInfoPtr();
+
+  mPriv->radosFsPriv()->updateTMTime(statPtr);
 
   return ret;
 }
@@ -809,8 +816,13 @@ RadosFsDir::setMetadata(const std::string &entry,
       std::map<std::string, std::string> metadata;
       metadata[key] = value;
 
-      return indexObjectMetadata(mPriv->dirInfo->ioctx(),
-                                 mPriv->dirInfo->inode(), entry, metadata, '+');
+      int ret = indexObjectMetadata(mPriv->dirInfo->ioctx(),
+                                    mPriv->dirInfo->inode(), entry, metadata,
+                                    '+');
+
+      mPriv->radosFsPriv()->updateDirTimes(mPriv->fsStat());
+
+      return ret;
     }
 
     return -ENOENT;
@@ -879,8 +891,14 @@ RadosFsDir::removeMetadata(const std::string &entry, const std::string &key)
       std::map<std::string, std::string> metadata;
       metadata[key] = "";
 
-      return indexObjectMetadata(mPriv->dirInfo->ioctx(),
-                                 mPriv->dirInfo->inode(), entry, metadata, '-');
+      int ret = indexObjectMetadata(mPriv->dirInfo->ioctx(),
+                                    mPriv->dirInfo->inode(), entry, metadata,
+                                    '-');
+
+
+      mPriv->radosFsPriv()->updateDirTimes(mPriv->fsStat());
+
+      return ret;
     }
 
     return -ENOENT;
