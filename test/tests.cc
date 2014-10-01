@@ -2970,6 +2970,51 @@ TEST_F(RadosFsTest, DirTimes)
   EXPECT_LT(oldTMTime.tv_sec, newTMTime.tv_sec);
 }
 
+TEST_F(RadosFsTest, FileTimes)
+{
+  AddPool();
+
+  // Create a file
+
+  radosfs::RadosFsFile file(&radosFs, "/my-file");
+
+  ASSERT_EQ(0, file.create());
+
+  // Check the creation and modification time
+
+  struct stat statBuff, newStatBuff;
+
+  ASSERT_EQ(0, file.stat(&statBuff));
+
+  EXPECT_EQ(statBuff.st_ctim.tv_sec, statBuff.st_mtim.tv_sec);
+
+  // Write to the file
+
+  // Sleep to affect the tested times
+  sleep(1);
+
+  const std::string &contents = "CERN · 60 Years of Science of Piece!";
+
+  ASSERT_EQ(0, file.write(contents.c_str(), 0, contents.length()));
+
+  ASSERT_EQ(0, file.stat(&newStatBuff));
+
+  EXPECT_LT(statBuff.st_mtim.tv_sec, newStatBuff.st_mtim.tv_sec);
+
+  // Truncate the file
+
+  // Sleep to affect the tested times
+  sleep(1);
+
+  ASSERT_EQ(0, file.truncate(4));
+
+  statBuff = newStatBuff;
+
+  ASSERT_EQ(0, file.stat(&newStatBuff));
+
+  EXPECT_LT(statBuff.st_mtim.tv_sec, newStatBuff.st_mtim.tv_sec);
+}
+
 GTEST_API_ int
 main(int argc, char **argv)
 {
