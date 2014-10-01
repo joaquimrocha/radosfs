@@ -944,6 +944,24 @@ RadosFsPriv::updateTMTime(RadosFsStat *stat, timespec *spec)
   }
 }
 
+void
+RadosFsPriv::updateDirTimes(RadosFsStat *stat, timespec *spec)
+{
+  std::string timeStr;
+  timespec timeInfo;
+
+  if (spec)
+    timeInfo = *spec;
+  else
+    clock_gettime(CLOCK_REALTIME, &timeInfo);
+
+  timeStr = timespecToStr(&timeInfo);
+
+  updateDirTimeAsync(stat, XATTR_MTIME, timeStr);
+
+  updateTMTime(stat, &timeInfo);
+}
+
 RadosFs::RadosFs()
   : mPriv(new RadosFsPriv(this))
 {

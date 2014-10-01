@@ -168,6 +168,8 @@ public:
 
   void updateTMTime(RadosFsStat *stat, timespec *spec = 0);
 
+  void updateDirTimes(RadosFsStat *stat, timespec *spec = 0);
+
   rados_t radosCluster;
   static __thread uid_t uid;
   static __thread gid_t gid;
