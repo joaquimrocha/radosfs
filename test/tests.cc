@@ -23,6 +23,7 @@
 #include <cmath>
 #include <sstream>
 #include <stdexcept>
+#include <time.h>
 
 #include "RadosFsIO.hh"
 #include "RadosFsTest.hh"
@@ -2811,6 +2812,162 @@ TEST_F(RadosFsTest, PoolAlignment)
   EXPECT_EQ(0, file.stat(&statBuff));
 
   EXPECT_EQ(contentsSize * 2, statBuff.st_size);
+}
+
+TEST_F(RadosFsTest, DirTimes)
+{
+  AddPool();
+
+  // Create a dir
+
+  std::string dirPath = "/my-dir";
+  radosfs::RadosFsDir dir(&radosFs, dirPath);
+
+  ASSERT_EQ(0, dir.create());
+
+  dir.update();
+
+  // Check the creation and modification time
+
+  struct stat statBuff;
+
+  ASSERT_EQ(0, dir.stat(&statBuff));
+
+  EXPECT_EQ(statBuff.st_ctim.tv_sec, statBuff.st_mtim.tv_sec);
+
+  radosfs::RadosFsFile file(&radosFs, dir.path() + "file");
+
+  // sleep for one sec before creating the file so the dir's mtime will be
+  // significantly different
+  sleep(1);
+
+  // Create a file in the dir and see if it changed its modification time
+
+  ASSERT_EQ(0, file.create());
+
+  struct stat newStatBuff;
+
+  ASSERT_EQ(0, dir.stat(&newStatBuff));
+
+  EXPECT_LT(statBuff.st_mtim.tv_sec, newStatBuff.st_mtim.tv_sec);
+
+  // Remove the file and see if it changed its modification time
+
+  statBuff = newStatBuff;
+
+  sleep(1);
+
+  ASSERT_EQ(0, file.remove());
+
+  ASSERT_EQ(0, dir.stat(&newStatBuff));
+
+  EXPECT_LT(statBuff.st_mtim.tv_sec, newStatBuff.st_mtim.tv_sec);
+
+  // Create a subdirectory and see if it changed its modification time
+
+  sleep(1);
+
+  radosfs::RadosFsDir subdir(&radosFs, dir.path() + "a/b/c");
+
+  ASSERT_EQ(0, subdir.create(-1, true));
+
+  statBuff = newStatBuff;
+
+  ASSERT_EQ(0, dir.stat(&newStatBuff));
+
+  EXPECT_LT(statBuff.st_mtim.tv_sec, newStatBuff.st_mtim.tv_sec);
+
+  // Set the use of TM time in a sub directory
+
+  sleep(1);
+
+  dir.setPath(dirPath + "/a/b");
+
+  ASSERT_EQ(0, dir.useTMTime(true));
+
+  timespec oldTMTime, newTMTime;
+
+  ASSERT_EQ(0, dir.stat(&statBuff, &oldTMTime));
+
+  sleep(1);
+
+  dir.setPath(dirPath + "/a");
+
+  ASSERT_EQ(0, dir.stat(&statBuff, &oldTMTime));
+
+  subdir.setPath(dirPath + "/a/b/c1");
+
+  // Create a subdirectory of the when that has the TM time set but verify that
+  // does not affect other parents
+
+  ASSERT_EQ(0, subdir.create());
+
+  ASSERT_EQ(0, dir.stat(&newStatBuff, &newTMTime));
+
+  EXPECT_EQ(statBuff.st_mtim.tv_sec, newStatBuff.st_mtim.tv_sec);
+
+  EXPECT_EQ(oldTMTime.tv_sec, newTMTime.tv_sec);
+
+  // Set the TM time to yet another parent
+
+  dir.setPath(dirPath + "/a");
+
+  oldTMTime = newTMTime;
+
+  ASSERT_EQ(0, dir.useTMTime(true));
+
+  statBuff = newStatBuff;
+
+  sleep(1);
+
+  // Remove the previously created deeper subdir and verify how it affects
+  // its grandparent's TM time
+
+  ASSERT_EQ(0, subdir.remove());
+
+  ASSERT_EQ(0, dir.stat(&newStatBuff, &newTMTime));
+
+  EXPECT_EQ(statBuff.st_mtim.tv_sec, newStatBuff.st_mtim.tv_sec);
+
+  EXPECT_LT(oldTMTime.tv_sec, newTMTime.tv_sec);
+
+  subdir.setPath(dirPath + "/a/b");
+
+  ASSERT_EQ(0, subdir.stat(&statBuff));
+
+  // Set and remove metadata and see how it affects the times
+
+  sleep(1);
+
+  subdir.update();
+
+  ASSERT_EQ(0, subdir.setMetadata("c/", "metadata", "value"));
+
+  ASSERT_EQ(0, subdir.stat(&newStatBuff));
+
+  EXPECT_LT(statBuff.st_mtim.tv_sec, newStatBuff.st_mtim.tv_sec);
+
+  oldTMTime = newTMTime;
+
+  ASSERT_EQ(0, dir.stat(&newStatBuff, &newTMTime));
+
+  EXPECT_LT(oldTMTime.tv_sec, newTMTime.tv_sec);
+
+  statBuff = newStatBuff;
+
+  sleep(1);
+
+  ASSERT_EQ(0, subdir.removeMetadata("c/", "metadata"));
+
+  ASSERT_EQ(0, subdir.stat(&newStatBuff));
+
+  EXPECT_LT(statBuff.st_mtim.tv_sec, newStatBuff.st_mtim.tv_sec);
+
+  oldTMTime = newTMTime;
+
+  ASSERT_EQ(0, dir.stat(&newStatBuff, &newTMTime));
+
+  EXPECT_LT(oldTMTime.tv_sec, newTMTime.tv_sec);
 }
 
 GTEST_API_ int
