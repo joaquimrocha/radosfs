@@ -189,8 +189,6 @@ RadosFsFilePriv::updatePermissions()
 
   fileStat = fsStat();
 
-  fsFile->RadosFsInfo::update();
-
   if (fsFile->exists() && !fsFile->isFile())
     return;
 
