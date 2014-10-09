@@ -152,6 +152,10 @@ public:
                RadosFsStat *stat,
                std::string &pool);
 
+  int statFile(RadosFsPoolSP mtdPool, RadosFsStat *stat);
+
+  int statDir(RadosFsPoolSP mtdPool, RadosFsStat *stat);
+
   int getRealPath(const std::string &path, RadosFsStat *stat,
                   std::string &realPath);
 

@@ -432,19 +432,38 @@ int
 RadosFsPriv::stat(const std::string &path,
                   RadosFsStat *stat)
 {
-  RadosFsPoolSP mtdPool, dataPool;
+  RadosFsPoolSP mtdPool;
   int ret = -ENODEV;
   stat->reset();
   stat->path = getDirPath(path);
-  std::string poolName(""), inodeName("");
-
   mtdPool = getMetadataPoolFromPath(stat->path);
 
   if (!mtdPool.get())
     return -ENODEV;
 
+  if (isDirPath(path))
+  {
+    ret = statDir(mtdPool, stat);
+
+    if (ret == 0 || ret == -ENODEV)
+      return ret;
+  }
+
+  ret = statFile(mtdPool, stat);
+
+  if (ret == 0 || ret == -ENODEV)
+    return ret;
+
+  ret = statDir(mtdPool, stat);
+
+  return ret;
+}
+
+int
+RadosFsPriv::statDir(RadosFsPoolSP mtdPool, RadosFsStat *stat)
+{
   RadosFsInode inode;
-  ret = getDirInode(stat->path, inode, mtdPool);
+  int ret = getDirInode(stat->path, inode, mtdPool);
 
   if (ret == 0)
   {
@@ -452,47 +471,51 @@ RadosFsPriv::stat(const std::string &path,
     stat->translatedPath = inode.inode;
 
     ret = genericStat(stat->pool->ioctx, stat->translatedPath, &stat->statBuff);
-
-    return ret;
   }
-  else if (ret != -ENODEV)
+
+  return ret;
+}
+
+int
+RadosFsPriv::statFile(RadosFsPoolSP mtdPool, RadosFsStat *stat)
+{
+  int ret;
+  RadosFsPoolSP dataPool;
+  std::string poolName("");
+  stat->path = getFilePath(stat->path);
+  ret = statLink(mtdPool, stat, poolName);
+
+  if (ret == -ENOENT)
   {
-    poolName = "";
-    stat->path = getFilePath(stat->path);
+    stat->path = getDirPath(stat->path);
     ret = statLink(mtdPool, stat, poolName);
 
-    if (ret == -ENOENT)
+    if (ret == 0)
+      stat->pool = getMtdPoolFromName(poolName);
+  }
+  else
+  {
+    const RadosFsPoolList &pools = getDataPools(stat->path);
+    if (poolName != "")
     {
-      stat->path = getDirPath(stat->path);
-      ret = statLink(mtdPool, stat, poolName);
+      const RadosFsPoolList &pools = getDataPools(stat->path);
+      RadosFsPoolList::const_iterator it;
 
-      if (ret == 0)
-        stat->pool = getMtdPoolFromName(poolName);
+      for (it = pools.begin(); it != pools.end(); it++)
+      {
+        if ((*it)->name == poolName)
+        {
+          dataPool = *it;
+          break;
+        }
+      }
     }
     else
     {
-      const RadosFsPoolList &pools = getDataPools(stat->path);
-      if (poolName != "")
-      {
-        const RadosFsPoolList &pools = getDataPools(stat->path);
-        RadosFsPoolList::const_iterator it;
-
-        for (it = pools.begin(); it != pools.end(); it++)
-        {
-          if ((*it)->name == poolName)
-          {
-            dataPool = *it;
-            break;
-          }
-        }
-      }
-      else
-      {
-        dataPool = pools.front();
-      }
-
-      stat->pool = dataPool;
+      dataPool = pools.front();
     }
+
+    stat->pool = dataPool;
   }
 
   return ret;
