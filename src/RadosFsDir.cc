@@ -744,26 +744,7 @@ RadosFsDir::isReadable()
 int
 RadosFsDir::stat(struct stat *buff)
 {
-  int ret = RadosFsInfo::stat(buff);
-
-  if (ret != 0 || isLink() || !isDir())
-    return ret;
-
-  const RadosFsStat *stat = mPriv->fsStat();
-  std::string xattr = XATTR_CTIME;
-
-  ret = getTimeFromXAttr(stat, xattr, &buff->st_ctim, &buff->st_ctime);
-
-  xattr = XATTR_MTIME;
-
-  if (ret == 0)
-    ret = getTimeFromXAttr(stat, xattr, &buff->st_mtim, &buff->st_mtime);
-
-  if (ret != 0)
-    radosfs_debug("Failed to retrieve the %s for '%s' : %s", xattr.c_str(),
-                  stat->translatedPath.c_str(), strerror(abs(ret)));
-
-  return ret;
+  return RadosFsInfo::stat(buff);
 }
 
 

@@ -23,24 +23,14 @@
 #include <uuid/uuid.h>
 
 int
-getPermissionsXAttr(rados_ioctx_t &ioctx,
-                    const char *obj,
+getPermissionsXAttr(const std::string &permXAttr,
                     mode_t *mode,
                     uid_t *uid,
                     gid_t *gid)
 {
-  char permXAttr[XATTR_PERMISSIONS_LENGTH];
   *mode = 0;
   *uid = 0;
   *gid = 0;
-
-  int ret = rados_getxattr(ioctx, obj, XATTR_PERMISSIONS,
-                           permXAttr, XATTR_PERMISSIONS_LENGTH);
-
-  if (ret < 0)
-    return ret;
-
-  permXAttr[ret] = '\0';
 
   std::map<std::string, std::string> attrs = stringAttrsToMap(permXAttr);
 
@@ -118,17 +108,32 @@ genericStat(rados_ioctx_t ioctx,
 {
   uint64_t psize;
   time_t pmtime;
-  int ret;
+  int ret, statRet, permRet, ctimeRet, mtimeRet;
   uid_t uid = 0;
   gid_t gid = 0;
   mode_t permissions = 0;
+  librados::IoCtx ctx;
+  librados::IoCtx::from_rados_ioctx_t(ioctx, ctx);
+  librados::bufferlist permXAttr, ctimeXAttr, mtimeXAttr;
+  librados::ObjectReadOperation op;
 
-  ret = rados_stat(ioctx, object.c_str(), &psize, &pmtime);
+  op.stat(&psize, &pmtime, &statRet);
+  op.getxattr(XATTR_PERMISSIONS, &permXAttr, &permRet);
+  op.getxattr(XATTR_MTIME, &mtimeXAttr, &mtimeRet);
+  op.set_op_flags(librados::OP_FAILOK);
+  op.getxattr(XATTR_CTIME, &ctimeXAttr, &ctimeRet);
+  op.set_op_flags(librados::OP_FAILOK);
+  op.assert_exists();
+
+  ret = ctx.operate(object, &op, 0);
 
   if (ret != 0)
     return ret;
 
-  ret = getPermissionsXAttr(ioctx, object.c_str(), &permissions, &uid, &gid);
+  if (statRet != 0)
+    return statRet;
+
+  getPermissionsXAttr(permXAttr.c_str(), &permissions, &uid, &gid);
 
   buff->st_dev = 0;
   buff->st_ino = hash(object.c_str());
@@ -141,10 +146,24 @@ genericStat(rados_ioctx_t ioctx,
   buff->st_blksize = 4;
   buff->st_blocks = buff->st_size / buff->st_blksize;
   buff->st_atime = pmtime;
-  buff->st_mtime = pmtime;
   buff->st_ctime = pmtime;
+  buff->st_mtime = pmtime;
 
-  return ret;
+  if (ctimeRet == 0 && ctimeXAttr.length() != 0)
+  {
+    strToTimespec(ctimeXAttr.c_str(), &buff->st_ctim);
+    buff->st_ctime = buff->st_ctim.tv_sec;
+  }
+
+  if (mtimeRet == 0 && mtimeXAttr.length() != 0)
+  {
+    strToTimespec(mtimeXAttr.c_str(), &buff->st_mtim);
+    buff->st_mtime = buff->st_mtim.tv_sec;
+  }
+
+  buff->st_atime = buff->st_mtime;
+
+  return statRet;
 }
 
 int
