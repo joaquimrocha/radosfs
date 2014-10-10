@@ -746,7 +746,7 @@ RadosFsFile::stat(struct stat *buff)
     return 0;
 
   u_int64_t size = 0;
-  size_t numStripes = mPriv->radosFsIO->getLastStripeIndex();
+  size_t numStripes = mPriv->radosFsIO->getLastStripeIndexAndSize(&size);
   const std::string &lastStripeName = makeFileStripeName(stat->translatedPath,
                                                          numStripes);
 
@@ -766,20 +766,9 @@ RadosFsFile::stat(struct stat *buff)
     }
   }
 
-  if (size == 0)
-  {
-    ret = rados_stat(mPriv->dataPool->ioctx, lastStripeName.c_str(), &size, 0);
-  }
-
-  if (ret != 0)
-  {
-    buff->st_size = 0;
-    return 0;
-  }
-
   buff->st_size = numStripes * mPriv->radosFsIO->stripeSize() + size;
 
-  return ret;
+  return 0;
 }
 
 int

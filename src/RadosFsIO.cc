@@ -316,28 +316,37 @@ RadosFsIO::remove()
 size_t
 RadosFsIO::getLastStripeIndex(void) const
 {
-  int lastStripe = 1;
+  return getLastStripeIndexAndSize(0);
+}
+
+size_t
+RadosFsIO::getLastStripeIndexAndSize(uint64_t *size) const
+{
+  int lastStripe = 0;
   int nextIndex = lastStripe + FILE_STRIPE_SEARCH_STEP;
   int lastInexistingIndex = INT_MAX;
 
   int ret = rados_stat(mPool->ioctx,
                        makeFileStripeName(mInode, lastStripe).c_str(),
-                       0,
+                       size,
                        0);
 
   if (ret != 0)
     return 0;
 
-
   while (nextIndex != lastStripe)
   {
+    u_int64_t stripeSize;
     ret = rados_stat(mPool->ioctx,
                      makeFileStripeName(mInode, nextIndex).c_str(),
-                     0,
+                     &stripeSize,
                      0);
 
     if (ret == 0)
     {
+      if (size)
+        *size = stripeSize;
+
       lastStripe = nextIndex;
       nextIndex = std::min(nextIndex + FILE_STRIPE_SEARCH_STEP,
                            lastInexistingIndex - 1);
