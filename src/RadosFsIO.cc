@@ -21,6 +21,7 @@
 #include <climits>
 #include <cstdio>
 #include <errno.h>
+#include <rados/librados.hpp>
 
 #include "radosfsdefines.h"
 #include "RadosFsIO.hh"
@@ -319,33 +320,60 @@ RadosFsIO::getLastStripeIndex(void) const
   return getLastStripeIndexAndSize(0);
 }
 
+librados::ObjectReadOperation
+makeStripeReadOp(bool hasAlignment, u_int64_t *size, int *statRet,
+                 librados::bufferlist *stripeXAttr)
+{
+  librados::ObjectReadOperation op;
+
+  op.stat(size, 0, statRet);
+
+  if (hasAlignment)
+  {
+    // Since the alignment is set, the last stripe will be the same size as the
+    // other ones so we retrieve the real data size which was set as an XAttr
+    op.getxattr(XATTR_LAST_STRIPE_SIZE, stripeXAttr, 0);
+    op.set_op_flags(librados::OP_FAILOK);
+  }
+
+  return op;
+}
+
 size_t
 RadosFsIO::getLastStripeIndexAndSize(uint64_t *size) const
 {
+  int ret;
   int lastStripe = 0;
   int nextIndex = lastStripe + FILE_STRIPE_SEARCH_STEP;
   int lastInexistingIndex = INT_MAX;
 
-  int ret = rados_stat(mPool->ioctx,
-                       makeFileStripeName(mInode, lastStripe).c_str(),
-                       size,
-                       0);
+  librados::IoCtx ctx;
+  librados::bufferlist stripeXAttr;
+  librados::IoCtx::from_rados_ioctx_t(mPool->ioctx, ctx);
+
+  librados::ObjectReadOperation op = makeStripeReadOp(mHasAlignment, size, &ret,
+                                                      &stripeXAttr);
+  ctx.operate(makeFileStripeName(mInode, lastStripe), &op, 0);
 
   if (ret != 0)
     return 0;
 
   while (nextIndex != lastStripe)
   {
-    u_int64_t stripeSize;
-    ret = rados_stat(mPool->ioctx,
-                     makeFileStripeName(mInode, nextIndex).c_str(),
-                     &stripeSize,
-                     0);
+    librados::ObjectReadOperation op = makeStripeReadOp(mHasAlignment, size,
+                                                        &ret, &stripeXAttr);
+    ctx.operate(makeFileStripeName(mInode, nextIndex), &op, 0);
 
     if (ret == 0)
     {
       if (size)
-        *size = stripeSize;
+      {
+        if (mHasAlignment && stripeXAttr.length() > 0)
+        {
+          std::string stripeXAttrStr(stripeXAttr.c_str(), stripeXAttr.length());
+          *size = atol(stripeXAttrStr.c_str());
+        }
+      }
 
       lastStripe = nextIndex;
       nextIndex = std::min(nextIndex + FILE_STRIPE_SEARCH_STEP,

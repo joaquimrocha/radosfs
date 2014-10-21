@@ -747,24 +747,6 @@ RadosFsFile::stat(struct stat *buff)
 
   u_int64_t size = 0;
   size_t numStripes = mPriv->radosFsIO->getLastStripeIndexAndSize(&size);
-  const std::string &lastStripeName = makeFileStripeName(stat->translatedPath,
-                                                         numStripes);
-
-  if (mPriv->hasAlignment())
-  {
-    // Since the alignment is set, the last stripe will be the same size as the
-    // other ones so we retrieve the real data size which was set as an XAttr
-    char xattr[XATTR_LINK_LENGTH];
-    ret = rados_getxattr(mPriv->dataPool->ioctx, lastStripeName.c_str(),
-                         XATTR_LAST_STRIPE_SIZE, xattr, XATTR_LINK_LENGTH);
-
-    if (ret != 0)
-    {
-      xattr[ret] = '\0';
-      size = atol(xattr);
-      ret = 0;
-    }
-  }
 
   buff->st_size = numStripes * mPriv->radosFsIO->stripeSize() + size;
 
