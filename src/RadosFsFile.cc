@@ -727,7 +727,6 @@ RadosFsFile::setPath(const std::string &path)
 int
 RadosFsFile::stat(struct stat *buff)
 {
-  int ret;
   RadosFsStat *stat;
 
   RadosFsInfo::update();
@@ -745,10 +744,7 @@ RadosFsFile::stat(struct stat *buff)
   if (isLink())
     return 0;
 
-  u_int64_t size = 0;
-  size_t numStripes = mPriv->radosFsIO->getLastStripeIndexAndSize(&size);
-
-  buff->st_size = numStripes * mPriv->radosFsIO->stripeSize() + size;
+  buff->st_size = mPriv->radosFsIO->getSize();
 
   return 0;
 }

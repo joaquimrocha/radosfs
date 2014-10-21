@@ -395,4 +395,13 @@ RadosFsIO::getStripePath(off_t offset) const
   return makeFileStripeName(mInode, offset / mStripeSize);
 }
 
+size_t
+RadosFsIO::getSize() const
+{
+  u_int64_t size = 0;
+  size_t numStripes = getLastStripeIndexAndSize(&size);
+
+  return numStripes * stripeSize() + size;
+}
+
 RADOS_FS_END_NAMESPACE

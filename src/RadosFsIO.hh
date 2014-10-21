@@ -63,6 +63,8 @@ public:
 
   size_t getLastStripeIndex(void) const;
 
+  size_t getSize(void) const;
+
   int remove(void);
 
 private:
