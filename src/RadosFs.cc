@@ -1052,6 +1052,7 @@ RadosFs::addDataPool(const std::string &name,
     goto unlockAndExit;
 
   pool = new RadosFsPool(name.c_str(), size * MEGABYTE_CONVERSION, ioctx);
+  pool->setAlignment(rados_ioctx_pool_required_alignment(ioctx));
 
   if (pools == 0)
   {

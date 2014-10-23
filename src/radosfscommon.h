@@ -38,11 +38,13 @@ struct RadosFsPool {
   std::string name;
   size_t size;
   rados_ioctx_t ioctx;
+  u_int64_t alignment;
 
   RadosFsPool(const std::string &poolName, size_t poolSize, rados_ioctx_t ioctx)
     : name(poolName),
       size(poolSize),
-      ioctx(ioctx)
+      ioctx(ioctx),
+      alignment(0)
   {}
 
   ~RadosFsPool(void)
@@ -50,6 +52,10 @@ struct RadosFsPool {
     rados_ioctx_destroy(ioctx);
     ioctx = 0;
   }
+
+  void setAlignment(u_int64_t alignment) { this->alignment = alignment; }
+
+  bool hasAlignment(void) { return alignment != 0; }
 };
 
 typedef std::tr1::shared_ptr<RadosFsPool> RadosFsPoolSP;
