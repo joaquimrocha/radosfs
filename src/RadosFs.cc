@@ -885,10 +885,10 @@ RadosFsPriv::getDirInfo(const std::string &inode, RadosFsPoolSP pool,
   return cache;
 }
 
-std::tr1::shared_ptr<RadosFsIO>
+RadosFsIOSP
 RadosFsPriv::getRadosFsIO(const std::string &path)
 {
-  std::tr1::shared_ptr<RadosFsIO> fsIO;
+  RadosFsIOSP fsIO;
 
   pthread_mutex_lock(&operationsMutex);
 
@@ -901,7 +901,7 @@ RadosFsPriv::getRadosFsIO(const std::string &path)
 }
 
 void
-RadosFsPriv::setRadosFsIO(std::tr1::shared_ptr<RadosFsIO> sharedFsIO)
+RadosFsPriv::setRadosFsIO(RadosFsIOSP sharedFsIO)
 {
   pthread_mutex_lock(&operationsMutex);
 
@@ -911,7 +911,7 @@ RadosFsPriv::setRadosFsIO(std::tr1::shared_ptr<RadosFsIO> sharedFsIO)
 }
 
 void
-RadosFsPriv::removeRadosFsIO(std::tr1::shared_ptr<RadosFsIO> sharedFsIO)
+RadosFsPriv::removeRadosFsIO(RadosFsIOSP sharedFsIO)
 {
   pthread_mutex_lock(&operationsMutex);
 

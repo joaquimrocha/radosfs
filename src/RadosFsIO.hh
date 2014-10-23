@@ -80,6 +80,8 @@ private:
   void cleanCompletion(bool sync = false);
 };
 
+typedef std::tr1::shared_ptr<RadosFsIO> RadosFsIOSP;
+
 RADOS_FS_END_NAMESPACE
 
 #endif /* RADOS_FS_OP_HH */

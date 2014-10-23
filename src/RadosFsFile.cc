@@ -131,7 +131,7 @@ RadosFsFilePriv::updatePath()
                                       stat->translatedPath, stripeSize,
                                       hasAlignment());
 
-      radosFsIO = std::tr1::shared_ptr<RadosFsIO>(fsIO);
+      radosFsIO = RadosFsIOSP(fsIO);
       radosFs->mPriv->setRadosFsIO(radosFsIO);
     }
   }
