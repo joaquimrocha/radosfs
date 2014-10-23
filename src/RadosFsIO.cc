@@ -39,14 +39,12 @@ typedef struct {
 RadosFsIO::RadosFsIO(RadosFs *radosFs,
                      const RadosFsPoolSP pool,
                      const std::string &iNode,
-                     size_t stripeSize,
-                     bool hasAlignment)
+                     size_t stripeSize)
   : mRadosFs(radosFs),
     mPool(pool),
     mInode(iNode),
     mStripeSize(stripeSize),
-    mLazyRemoval(false),
-    mHasAlignment(hasAlignment)
+    mLazyRemoval(false)
 {
   assert(mStripeSize != 0);
 }
@@ -182,7 +180,7 @@ RadosFsIO::write(const char *buff, off_t offset, size_t blen)
 
     char *contents;
 
-    if (length < mStripeSize && mHasAlignment)
+    if (length < mStripeSize && mPool->hasAlignment())
     {
       contents = new char[mStripeSize];
 
@@ -371,7 +369,7 @@ RadosFsIO::getLastStripeIndexAndSize(uint64_t *size) const
   {
     for (size_t i = 0; i < numOps; i++)
     {
-      librados::ObjectReadOperation op = makeStripeReadOp(mHasAlignment,
+      librados::ObjectReadOperation op = makeStripeReadOp(mPool->hasAlignment(),
                                                           &stripeSizes[i],
                                                           &xattrsRets[i],
                                                           &stripeSizeXAttrs[i]);
@@ -408,7 +406,7 @@ RadosFsIO::getLastStripeIndexAndSize(uint64_t *size) const
     *size = stripeSizes[validIndex];
 
     librados::bufferlist *stripeXAttr = &stripeSizeXAttrs[validIndex];
-    if (mHasAlignment && stripeXAttr->length() > 0)
+    if (mPool->hasAlignment() && stripeXAttr->length() > 0)
     {
       std::string stripeXAttrStr(stripeXAttr->c_str(), stripeXAttr->length());
       *size = atol(stripeXAttrStr.c_str());

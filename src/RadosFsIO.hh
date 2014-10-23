@@ -42,8 +42,7 @@ public:
   RadosFsIO(RadosFs *radosFs,
             const RadosFsPoolSP pool,
             const std::string &iNode,
-            size_t stripeSize,
-            bool hasAligment);
+            size_t stripeSize);
   ~RadosFsIO();
 
   ssize_t read(char *buff, off_t offset, size_t blen);
@@ -73,7 +72,6 @@ private:
   const std::string mInode;
   size_t mStripeSize;
   bool mLazyRemoval;
-  bool mHasAlignment;
   std::vector<rados_completion_t> mCompletionList;
 
   void sync(void);

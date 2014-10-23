@@ -2742,7 +2742,7 @@ TEST_F(RadosFsTest, PoolAlignment)
 
   // Pretend the file is in an aligned pool
 
-  radosFsFilePriv(file)->alignment = alignment;
+  radosFsFilePriv(file)->dataPool->alignment = alignment;
 
   file.update();
 

@@ -33,8 +33,7 @@ RadosFsFilePriv::RadosFsFilePriv(RadosFsFile *fsFile,
   : fsFile(fsFile),
     target(0),
     permissions(RadosFsFile::MODE_NONE),
-    mode(mode),
-    alignment(0)
+    mode(mode)
 {
   updatePath();
 }
@@ -88,12 +87,7 @@ RadosFsFilePriv::updatePath()
   // alignment.
   if (stat->pool.get() != dataPool.get())
   {
-    alignment = 0;
-
     dataPool = stat->pool;
-
-    if (dataPool)
-      alignment = rados_ioctx_pool_required_alignment(dataPool->ioctx);
   }
 
   if (!dataPool)
@@ -128,8 +122,7 @@ RadosFsFilePriv::updatePath()
         stripeSize = alignStripeSize(radosFs->fileStripeSize());
 
       RadosFsIO *fsIO = new RadosFsIO(fsFile->filesystem(), dataPool,
-                                      stat->translatedPath, stripeSize,
-                                      hasAlignment());
+                                      stat->translatedPath, stripeSize);
 
       radosFsIO = RadosFsIOSP(fsIO);
       radosFs->mPriv->setRadosFsIO(radosFsIO);
@@ -140,6 +133,8 @@ RadosFsFilePriv::updatePath()
 size_t
 RadosFsFilePriv::alignStripeSize(size_t stripeSize) const
 {
+  u_int64_t alignment = dataPool->alignment;
+
   if (alignment == 0 || stripeSize % alignment == 0)
     return stripeSize;
 
@@ -641,7 +636,8 @@ RadosFsFile::truncate(unsigned long long size)
     if (size > 0)
       newLastStripe = (size - 1) / stripeSize;
 
-    const size_t emptyStripeSize = mPriv->hasAlignment() ? stripeSize : 0;
+    const size_t emptyStripeSize =
+        mPriv->dataPool->hasAlignment() ? stripeSize : 0;
 
     updateTimeAsync(mPriv->fsStat(), XATTR_MTIME);
 
