@@ -44,19 +44,19 @@ getPermissionsXAttr(rados_ioctx_t &ioctx,
 
   std::map<std::string, std::string> attrs = stringAttrsToMap(permXAttr);
 
-  if (attrs.count(XATTR_MODE) > 0)
+  if (attrs.count(MODE_KEY) > 0)
   {
-    *mode = (mode_t) strtoul(attrs[XATTR_MODE].c_str(), 0, 8);
+    *mode = (mode_t) strtoul(attrs[MODE_KEY].c_str(), 0, 8);
   }
 
-  if (attrs.count(XATTR_UID) > 0)
+  if (attrs.count(UID_KEY) > 0)
   {
-    *uid = (uid_t) atoi(attrs[XATTR_UID].c_str());
+    *uid = (uid_t) atoi(attrs[UID_KEY].c_str());
   }
 
-  if (attrs.count(XATTR_GID) > 0)
+  if (attrs.count(GID_KEY) > 0)
   {
-    *gid = (gid_t) atoi(attrs[XATTR_GID].c_str());
+    *gid = (gid_t) atoi(attrs[GID_KEY].c_str());
   }
 
   return 0;
@@ -69,13 +69,13 @@ makePermissionsXAttr(long int mode,
 {
   std::ostringstream convert;
 
-  convert << XATTR_MODE << "=";
+  convert << MODE_KEY << "=";
   convert << std::oct << mode;
 
-  convert << " " << XATTR_UID << "=";
+  convert << " " << UID_KEY << "=";
   convert << std::dec << uid;
 
-  convert << " " << XATTR_GID << "=";
+  convert << " " << GID_KEY << "=";
   convert << std::dec << gid;
 
   return convert.str();
@@ -169,18 +169,18 @@ getInodeAndPool(rados_ioctx_t ioctx,
 
   std::map<std::string, std::string> attrs = stringAttrsToMap(inodeXAttr);
 
-  if (attrs.count(XATTR_POOL) == 0)
+  if (attrs.count(POOL_KEY) == 0)
   {
     return -ENODATA;
   }
 
-  if (attrs.count(XATTR_LINK) == 0)
+  if (attrs.count(LINK_KEY) == 0)
   {
     return -ENODATA;
   }
 
-  pool = attrs[XATTR_POOL];
-  inode = attrs[XATTR_LINK];
+  pool = attrs[POOL_KEY];
+  inode = attrs[LINK_KEY];
 
   return ret;
 }
@@ -205,27 +205,27 @@ statFromXAttr(const std::string &path,
 
   while ((lastPos = splitToken(xattrValue, startPos, key, value)) != startPos)
   {
-    if (key == XATTR_LINK)
+    if (key == LINK_KEY)
     {
       link = value;
     }
-    else if (key == XATTR_MODE)
+    else if (key == MODE_KEY)
     {
       permissions = (mode_t) strtoul(value.c_str(), 0, 8);
     }
-    else if (key == XATTR_UID)
+    else if (key == UID_KEY)
     {
       uid = (uid_t) atoi(value.c_str());
     }
-    else if (key == XATTR_GID)
+    else if (key == GID_KEY)
     {
       gid = (gid_t) atoi(value.c_str());
     }
-    else if (key == XATTR_TIME)
+    else if (key == TIME_KEY)
     {
       strToTimespec(value, &ctime);
     }
-    else if (key == XATTR_POOL)
+    else if (key == POOL_KEY)
     {
       pool = value;
     }
@@ -408,17 +408,17 @@ getFileXAttrDirRecord(const RadosFsStat *stat)
 {
   std::ostringstream stream;
 
-  stream << XATTR_LINK "=\"" << stat->translatedPath << "\" ";
+  stream << LINK_KEY "=\"" << stat->translatedPath << "\" ";
 
   if (stat->translatedPath != "" && stat->translatedPath[0] != PATH_SEP)
   {
-    stream << XATTR_POOL << "='" << stat->pool->name << "' ";
+    stream << POOL_KEY << "='" << stat->pool->name << "' ";
   }
 
-  stream << " " << XATTR_UID << "=\"" << stat->statBuff.st_uid << "\" ";
-  stream << XATTR_GID << "=\"" << stat->statBuff.st_gid << "\" ";
-  stream << XATTR_TIME "=\""  << timespecToStr(&stat->statBuff.st_ctim) << "\" " ;
-  stream << XATTR_MODE << "=\"" << std::oct << stat->statBuff.st_mode << "\" ";
+  stream << " " << UID_KEY << "=\"" << stat->statBuff.st_uid << "\" ";
+  stream << GID_KEY << "=\"" << stat->statBuff.st_gid << "\" ";
+  stream << TIME_KEY "=\""  << timespecToStr(&stat->statBuff.st_ctim) << "\" " ;
+  stream << MODE_KEY << "=\"" << std::oct << stat->statBuff.st_mode << "\" ";
 
   std::map<std::string, std::string>::const_iterator it;
   for (it = stat->extraData.begin(); it != stat->extraData.end(); it++)
@@ -917,8 +917,8 @@ createDirObject(const RadosFsStat *stat)
   std::stringstream stream;
   rados_write_op_t writeOp = rados_create_write_op();
 
-  stream << XATTR_LINK << "='" << stat->translatedPath << "' ";
-  stream << XATTR_POOL << "='" << stat->pool->name << "'";
+  stream << LINK_KEY << "='" << stat->translatedPath << "' ";
+  stream << POOL_KEY << "='" << stat->pool->name << "'";
 
   const std::string &inodeXAttr = stream.str();
 
