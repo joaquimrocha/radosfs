@@ -980,6 +980,14 @@ TEST_F(RadosFsTest, FileInode)
   EXPECT_EQ(0, file.write("X", 0, 1));
 
   EXPECT_EQ(0, rados_stat(stat.pool->ioctx, stat.translatedPath.c_str(), 0, 0));
+
+  std::string inode, pool;
+
+  ASSERT_EQ(0, radosFs.getInodeAndPool(file.path(), &inode, &pool));
+
+  EXPECT_EQ(stat.translatedPath, inode);
+
+  EXPECT_EQ(stat.pool->name, pool);
 }
 
 TEST_F(RadosFsTest, FileTruncate)
