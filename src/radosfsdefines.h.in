@@ -28,26 +28,27 @@
 #define PATH_SEP '/'
 #define XATTR_SYS_PREFIX "sys."
 #define XATTR_USER_PREFIX "usr."
+#define XATTR_RADOSFS_PREFIX "rfs."
 #define UID_KEY "uid"
 #define GID_KEY "gid"
 #define MODE_KEY "mode"
 #define POOL_KEY "pool"
-#define XATTR_LAST_STRIPE_SIZE "stripe-size"
+#define XATTR_LAST_STRIPE_SIZE XATTR_RADOSFS_PREFIX "stripe-size"
 #define XATTR_SIZE_LENGTH 24
 #define LINK_KEY "link"
 #define XATTR_PERMISSIONS_LENGTH 50
-#define XATTR_PERMISSIONS "permissions"
+#define XATTR_PERMISSIONS XATTR_RADOSFS_PREFIX "permissions"
 #define XATTR_LINK_LENGTH 1024
-#define XATTR_FILE_PREFIX "file."
+#define XATTR_FILE_PREFIX XATTR_RADOSFS_PREFIX "file."
 #define XATTR_FILE_LENGTH 1000
 #define TIME_KEY "time"
-#define XATTR_CTIME "ctime"
-#define XATTR_MTIME "mtime"
-#define XATTR_TMTIME "tmtime"
+#define XATTR_CTIME XATTR_RADOSFS_PREFIX "ctime"
+#define XATTR_MTIME XATTR_RADOSFS_PREFIX "mtime"
+#define XATTR_TMTIME XATTR_RADOSFS_PREFIX "tmtime"
 #define XATTR_TIME_LENGTH 50
-#define XATTR_INODE "inode"
-#define XATTR_INODE_HARD_LINK "hardlink"
-#define XATTR_FILE_STRIPE_SIZE "stripe"
+#define XATTR_INODE XATTR_RADOSFS_PREFIX "inode"
+#define XATTR_INODE_HARD_LINK XATTR_RADOSFS_PREFIX "hardlink"
+#define XATTR_FILE_STRIPE_SIZE XATTR_RADOSFS_PREFIX "stripe"
 #define DEFAULT_MODE (S_IRWXU | S_IRGRP | S_IROTH)
 #define DEFAULT_MODE_FILE (S_IFREG | DEFAULT_MODE)
 #define DEFAULT_MODE_LINK (S_IFLNK | DEFAULT_MODE)
