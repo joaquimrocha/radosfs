@@ -1543,5 +1543,30 @@ RadosFs::getFsInfo(const std::string &path)
   return new RadosFsFile(this, stat.path);
 }
 
+int
+RadosFs::getInodeAndPool(const std::string &path, std::string *inode,
+                         std::string *pool)
+{
+  RadosFsStat stat;
+  int ret = mPriv->stat(path, &stat);
+
+  if (ret == 0)
+  {
+    if (S_ISLNK(stat.statBuff.st_mode))
+    {
+      ret = -EINVAL;
+      radosfs_debug("%s: The path '%s' is a link. Links have no inodes.",
+                    strerror(abs(ret)), path.c_str());
+    }
+
+    if (inode)
+      inode->assign(stat.translatedPath);
+
+    if (pool)
+      pool->assign(stat.pool->name);
+  }
+
+  return ret;
+}
 
 RADOS_FS_END_NAMESPACE

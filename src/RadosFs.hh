@@ -124,6 +124,9 @@ public:
 
   RadosFsInfo * getFsInfo(const std::string &path);
 
+  int getInodeAndPool(const std::string &path, std::string *inode,
+                      std::string *pool);
+
 private:
   RadosFsPriv *mPriv;
 
