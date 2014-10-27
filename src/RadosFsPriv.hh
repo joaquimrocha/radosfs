@@ -136,10 +136,10 @@ public:
                                             RadosFsPoolSP pool,
                                             bool addToCache = true);
 
-  std::tr1::shared_ptr<RadosFsIO> getRadosFsIO(const std::string &path);
+  RadosFsIOSP getRadosFsIO(const std::string &path);
 
-  void setRadosFsIO(std::tr1::shared_ptr<RadosFsIO> sharedFsIO);
-  void removeRadosFsIO(std::tr1::shared_ptr<RadosFsIO> sharedFsIO);
+  void setRadosFsIO(RadosFsIOSP sharedFsIO);
+  void removeRadosFsIO(RadosFsIOSP sharedFsIO);
 
   void updateDirCache(std::tr1::shared_ptr<DirCache> &cache);
 
