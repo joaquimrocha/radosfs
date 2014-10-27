@@ -3001,7 +3001,7 @@ TEST_F(RadosFsTest, FileTimes)
   // Sleep to affect the tested times
   sleep(1);
 
-  const std::string &contents = "CERN · 60 Years of Science of Piece!";
+  const std::string &contents = "CERN · 60 Years of Science of Peace!";
 
   ASSERT_EQ(0, file.write(contents.c_str(), 0, contents.length()));
 
