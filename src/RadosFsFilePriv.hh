@@ -53,8 +53,6 @@ public:
 
   void updateDataPool(const std::string &pool);
 
-  size_t alignStripeSize(size_t stripeSize) const;
-
   RadosFsFile *fsFile;
   RadosFsFile *target;
   RadosFsPoolSP dataPool;

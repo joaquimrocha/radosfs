@@ -107,38 +107,8 @@ RadosFsFilePriv::updatePath()
   }
   else if (stat && stat->translatedPath != "")
   {
-    radosFsIO = radosFs->mPriv->getRadosFsIO(stat->translatedPath);
-
-    if (!radosFsIO.get())
-    {
-      int stripeSize = 0;
-
-      if (stat->extraData.count(XATTR_FILE_STRIPE_SIZE))
-      {
-        stripeSize = atol(stat->extraData[XATTR_FILE_STRIPE_SIZE].c_str());
-      }
-
-      if (stripeSize == 0)
-        stripeSize = alignStripeSize(radosFs->fileStripeSize());
-
-      RadosFsIO *fsIO = new RadosFsIO(fsFile->filesystem(), dataPool,
-                                      stat->translatedPath, stripeSize);
-
-      radosFsIO = RadosFsIOSP(fsIO);
-      radosFs->mPriv->setRadosFsIO(radosFsIO);
-    }
+    radosFsIO = radosFs->mPriv->getOrCreateFsIO(stat->translatedPath, stat);
   }
-}
-
-size_t
-RadosFsFilePriv::alignStripeSize(size_t stripeSize) const
-{
-  u_int64_t alignment = dataPool->alignment;
-
-  if (alignment == 0 || stripeSize % alignment == 0)
-    return stripeSize;
-
-  return alignment * (stripeSize / alignment);
 }
 
 int
@@ -482,7 +452,8 @@ RadosFsFile::create(int mode, const std::string pool, size_t stripe)
   stat->statBuff.st_ctime = spec.tv_sec;
 
   std::stringstream stream;
-  stream << mPriv->alignStripeSize((stripe) ? stripe: filesystem()->fileStripeSize());
+  stream << alignStripeSize((stripe) ? stripe : filesystem()->fileStripeSize(),
+                            mPriv->dataPool->alignment);
 
   stat->extraData[XATTR_FILE_STRIPE_SIZE] = stream.str();
 

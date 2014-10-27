@@ -1019,3 +1019,11 @@ hasTMTimeEnabled(mode_t mode)
 {
   return (mode & TMTIME_MASK) != 0;
 }
+
+size_t alignStripeSize(size_t stripeSize, size_t alignment)
+{
+  if (alignment == 0 || stripeSize % alignment == 0)
+    return stripeSize;
+
+  return alignment * (stripeSize / alignment);
+}

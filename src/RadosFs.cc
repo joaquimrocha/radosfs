@@ -901,6 +901,33 @@ RadosFsPriv::getRadosFsIO(const std::string &path)
   return fsIO;
 }
 
+RadosFsIOSP
+RadosFsPriv::getOrCreateFsIO(const std::string &path, const RadosFsStat *stat)
+{
+  RadosFsIOSP fsIO = getRadosFsIO(path);
+
+  if (!fsIO)
+  {
+    int stripeSize = 0;
+
+    if (stat->extraData.count(XATTR_FILE_STRIPE_SIZE))
+    {
+      stripeSize = atol(stat->extraData.at(XATTR_FILE_STRIPE_SIZE).c_str());
+    }
+
+    if (stripeSize == 0)
+      stripeSize = alignStripeSize(radosFs->fileStripeSize(),
+                                   stat->pool->alignment);
+
+    fsIO = RadosFsIOSP(new RadosFsIO(radosFs, stat->pool, stat->translatedPath,
+                                     stripeSize));
+
+    setRadosFsIO(fsIO);
+  }
+
+  return fsIO;
+}
+
 void
 RadosFsPriv::setRadosFsIO(RadosFsIOSP sharedFsIO)
 {

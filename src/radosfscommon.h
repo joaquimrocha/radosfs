@@ -211,4 +211,6 @@ int getTimeFromXAttr(const RadosFsStat *stat, const std::string &xattr,
 
 bool hasTMTimeEnabled(mode_t mode);
 
+size_t alignStripeSize(size_t stripeSize, size_t alignment);
+
 #endif /* __RADOS_FS_COMMON_HH__ */

@@ -138,6 +138,8 @@ public:
 
   RadosFsIOSP getRadosFsIO(const std::string &path);
 
+  RadosFsIOSP getOrCreateFsIO(const std::string &path, const RadosFsStat *stat);
+
   void setRadosFsIO(RadosFsIOSP sharedFsIO);
   void removeRadosFsIO(RadosFsIOSP sharedFsIO);
 
