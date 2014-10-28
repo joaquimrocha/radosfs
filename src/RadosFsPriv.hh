@@ -174,6 +174,7 @@ public:
 
   void updateDirTimes(RadosFsStat *stat, timespec *spec = 0);
 
+  RadosFs *radosFs;
   rados_t radosCluster;
   static __thread uid_t uid;
   static __thread gid_t gid;

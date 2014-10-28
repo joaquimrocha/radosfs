@@ -32,7 +32,8 @@ __thread uid_t RadosFsPriv::uid;
 __thread gid_t RadosFsPriv::gid;
 
 RadosFsPriv::RadosFsPriv(RadosFs *radosFs)
-  : radosCluster(0),
+  : radosFs(radosFs),
+    radosCluster(0),
     dirCompactRatio(DEFAULT_DIR_COMPACT_RATIO),
     finder(radosFs),
     fileStripeSize(FILE_STRIPE_SIZE),
