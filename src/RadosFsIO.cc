@@ -29,13 +29,6 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
-typedef struct {
-  char *contents;
-  size_t lastStripeContentsSize;
-  std::string path;
-  RadosFsPoolSP pool;
-} WriteCompletionData;
-
 RadosFsIO::RadosFsIO(RadosFs *radosFs,
                      const RadosFsPoolSP pool,
                      const std::string &iNode,
@@ -106,38 +99,21 @@ RadosFsIO::writeSync(const char *buff, off_t offset, size_t blen)
 {
   sync();
 
-  int ret = write(buff, offset, blen);
+  int ret = write(buff, offset, blen, true);
 
   sync();
 
   return ret;
 }
 
-void writeCommitCallback(rados_completion_t comp, void *arg)
+int
+RadosFsIO::write(const char *buff, off_t offset, size_t blen)
 {
-  WriteCompletionData *data = reinterpret_cast<WriteCompletionData *>(arg);
-
-  delete[] data->contents;
-
-  std::stringstream stream;
-  stream << data->lastStripeContentsSize;
-
-  const std::string &sizeStr = stream.str();
-
-  int ret = rados_setxattr(data->pool->ioctx, data->path.c_str(),
-                           XATTR_LAST_STRIPE_SIZE, sizeStr.c_str(),
-                           sizeStr.length());
-
-  if (ret != 0)
-    radosfs_debug("Problem setting the stripe-size XAttr (%s=%s) in %s",
-                  XATTR_FILE_STRIPE_SIZE, sizeStr.c_str(),
-                  data->path.c_str());
-
-  delete data;
+  return write(buff, offset, blen, false);
 }
 
 int
-RadosFsIO::write(const char *buff, off_t offset, size_t blen)
+RadosFsIO::write(const char *buff, off_t offset, size_t blen, bool sync)
 {
   int ret;
 
@@ -147,7 +123,9 @@ RadosFsIO::write(const char *buff, off_t offset, size_t blen)
     return -EINVAL;
   }
 
-  if (((size_t) offset + blen) > mPool->size)
+  const size_t totalSize = offset + blen;
+
+  if (totalSize > mPool->size)
     return -EFBIG;
 
   const bool lockFiles =  mRadosFs->fileLocking();
@@ -165,73 +143,59 @@ RadosFsIO::write(const char *buff, off_t offset, size_t blen)
     {}
   }
 
+  librados::IoCtx ctx;
+  librados::IoCtx::from_rados_ioctx_t(mPool->ioctx, ctx);
   off_t currentOffset =  offset % mStripeSize;
   size_t bytesToWrite = blen;
+  size_t firstStripe = offset / mStripeSize;
+  size_t lastStripe = (offset + blen - 1) / mStripeSize;
+  size_t totalStripes = lastStripe - firstStripe + 1;
+  librados::AioCompletion **compList = 0;
 
-  while (bytesToWrite > 0)
+  if (sync)
+    compList = new librados::AioCompletion*[totalStripes];
+
+  for (size_t i = 0; i < totalStripes; i++)
   {
-    rados_completion_t comp;
-
-    mCompletionList.push_back(comp);
-
-    size_t compIndex = mCompletionList.size() - 1;
-    const std::string &fileStripe = getStripePath(blen - bytesToWrite + offset);
+    librados::ObjectWriteOperation op;
+    librados::bufferlist contents;
+    librados::AioCompletion *completion;
+    const std::string &fileStripe = makeFileStripeName(inode(), firstStripe + i);
     size_t length = std::min(mStripeSize - currentOffset, bytesToWrite);
+    std::string contentsStr(buff + (blen - bytesToWrite), length);
 
-    char *contents;
-
-    if (length < mStripeSize && mPool->hasAlignment())
+    if (mPool->hasAlignment())
     {
-      contents = new char[mStripeSize];
+      size_t stripeRemaining = stripeSize() - length;
 
-      WriteCompletionData *data = new WriteCompletionData;
-      data->contents = contents;
-      data->lastStripeContentsSize = length;
-      data->path = fileStripe;
-      data->pool = mPool;
-
-      memcpy(contents, buff + currentOffset, length);
-      memset(contents + length, '\0', mStripeSize - length);
-      length = mStripeSize;
-      currentOffset = 0;
-
-      rados_aio_create_completion(data, 0, writeCommitCallback,
-                                  &mCompletionList[compIndex]);
+      if (stripeRemaining > 0)
+        contents.append_zero(stripeRemaining);
     }
+
+    contents.append(contentsStr);
+    op.write(currentOffset, contents);
+    completion = librados::Rados::aio_create_completion();
+    ctx.aio_operate(fileStripe, completion, &op);
+
+    if (sync)
+      compList[i] = completion;
     else
-    {
-      contents = const_cast<char *>(buff);
-      rados_aio_create_completion(0, 0, 0, &mCompletionList[compIndex]);
-    }
-
-    ret = rados_aio_write(mPool->ioctx, fileStripe.c_str(),
-                          mCompletionList[compIndex],
-                          contents,
-                          length,
-                          currentOffset);
+      completion->release();
 
     currentOffset = 0;
-
-    // remove the completion object if something failed
-    if (ret != 0)
-    {
-      std::vector<rados_completion_t>::iterator it = mCompletionList.begin();
-      std::advance(it, compIndex);
-      mCompletionList.erase(it);
-
-      radosfs_debug("Problem writing to %s: %s",
-                    fileStripe.c_str(),
-                    strerror(ret));
-      break;
-    }
-
-    if (bytesToWrite < mStripeSize)
-      break;
-    else
-      bytesToWrite -= length;
-
-    buff += length;
+    bytesToWrite -= length;
   }
+
+  if (sync)
+  {
+    for (size_t i = 0; i < totalStripes; i++)
+    {
+      compList[i]->wait_for_complete();
+      compList[i]->release();
+    }
+  }
+
+  delete[] compList;
 
   if (lockFiles)
   {

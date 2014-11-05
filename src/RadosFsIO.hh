@@ -76,6 +76,7 @@ private:
 
   void sync(void);
   void cleanCompletion(bool sync = false);
+  int write(const char *buff, off_t offset, size_t blen, bool sync);
 };
 
 typedef std::tr1::shared_ptr<RadosFsIO> RadosFsIOSP;
