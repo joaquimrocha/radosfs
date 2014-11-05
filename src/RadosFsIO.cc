@@ -44,8 +44,6 @@ RadosFsIO::RadosFsIO(RadosFs *radosFs,
 
 RadosFsIO::~RadosFsIO()
 {
-  cleanCompletion();
-
   if (mLazyRemoval)
     remove();
 }
@@ -53,8 +51,6 @@ RadosFsIO::~RadosFsIO()
 ssize_t
 RadosFsIO::read(char *buff, off_t offset, size_t blen)
 {
-  sync();
-
   if (blen == 0)
   {
     radosfs_debug("Invalid length for reading. Cannot read 0 bytes.");
@@ -97,13 +93,7 @@ RadosFsIO::read(char *buff, off_t offset, size_t blen)
 int
 RadosFsIO::writeSync(const char *buff, off_t offset, size_t blen)
 {
-  sync();
-
-  int ret = write(buff, offset, blen, true);
-
-  sync();
-
-  return ret;
+  return write(buff, offset, blen, true);
 }
 
 int
@@ -206,28 +196,6 @@ RadosFsIO::write(const char *buff, off_t offset, size_t blen, bool sync)
   }
 
   return ret;
-}
-
-void
-RadosFsIO::sync()
-{
-  cleanCompletion(true);
-}
-
-void
-RadosFsIO::cleanCompletion(bool sync)
-{
-  std::vector<rados_completion_t>::iterator it;
-
-  it = mCompletionList.begin();
-  while (it != mCompletionList.end())
-  {
-    if (sync)
-      rados_aio_wait_for_complete(*it);
-
-    rados_aio_release(*it);
-    it = mCompletionList.erase(it);
-  }
 }
 
 int

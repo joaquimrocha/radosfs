@@ -73,9 +73,6 @@ private:
   size_t mStripeSize;
   bool mLazyRemoval;
   std::vector<rados_completion_t> mCompletionList;
-
-  void sync(void);
-  void cleanCompletion(bool sync = false);
   int write(const char *buff, off_t offset, size_t blen, bool sync);
 };
 
