@@ -62,7 +62,7 @@ public:
 
   int writeSync(const char *buff, off_t offset, size_t blen);
 
-  int create(int permissions = -1, const std::string pool = "");
+  int create(int permissions = -1, const std::string pool = "", size_t stripe=0);
 
   int remove(void);
 

@@ -421,7 +421,7 @@ RadosFsFile::writeSync(const char *buff, off_t offset, size_t blen)
 }
 
 int
-RadosFsFile::create(int mode, const std::string pool)
+RadosFsFile::create(int mode, const std::string pool, size_t stripe)
 {
   RadosFsStat *stat = reinterpret_cast<RadosFsStat *>(fsStat());
   RadosFsStat *parentStat = reinterpret_cast<RadosFsStat *>(parentFsStat());
@@ -482,7 +482,7 @@ RadosFsFile::create(int mode, const std::string pool)
   stat->statBuff.st_ctime = spec.tv_sec;
 
   std::stringstream stream;
-  stream << mPriv->alignStripeSize(filesystem()->fileStripeSize());
+  stream << mPriv->alignStripeSize((stripe) ? stripe: filesystem()->fileStripeSize());
 
   stat->extraData[XATTR_FILE_STRIPE_SIZE] = stream.str();
 
