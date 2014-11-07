@@ -961,7 +961,7 @@ RadosFsDir::find(std::set<std::string> &results, const std::string args)
 
     FinderArg arg;
     arg.valueStr = "";
-    RadosFsFinder::FindOptions option;
+    RadosFsFinder::FindOptions option  = RadosFsFinder::FIND_NAME_EQ;
 
     bool isIName = key == FINDER_KEY_INAME;
     if (key == FINDER_KEY_NAME || isIName)

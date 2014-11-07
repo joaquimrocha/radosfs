@@ -69,10 +69,9 @@ struct RadosFsStat {
 
   void reset(void)
   {
-    struct stat buff;
+    memset(&statBuff, sizeof (struct stat), 0);
     path = "";
     translatedPath = "";
-    statBuff = buff;
     statBuff.st_uid = NOBODY_UID;
     statBuff.st_gid = NOBODY_UID;
     statBuff.st_mode = 0;

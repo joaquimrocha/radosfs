@@ -537,7 +537,7 @@ createStripes(rados_ioctx_t ioctx,
               size_t to,
               size_t stripeSize)
 {
-  int ret;
+  int ret = 0;
 
   for (; from < to; from++)
   {
@@ -560,7 +560,7 @@ removeStripes(rados_ioctx_t ioctx,
               size_t from,
               size_t to)
 {
-  int ret;
+  int ret = 0;
 
   for (; from > to; from--)
   {

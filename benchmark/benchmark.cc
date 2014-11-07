@@ -279,6 +279,10 @@ main(int argc, char **argv)
   bool createInDir;
   size_t bufferSize, bufferDivision;
 
+  runTime = numThreads = 0;
+  createInDir = false;
+  bufferSize = bufferDivision = 0;
+
   int ret = parseArguments(argc, argv, confPath, &runTime, &numThreads,
                            &createInDir, &bufferSize, &bufferDivision);
 
