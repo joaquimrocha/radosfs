@@ -29,6 +29,17 @@ Requires: %{name}%{?_isa} = %{version}-%{release}
 %description devel
 This package contains the header files for RadosFs.
 
+#-------------------------------------------------------------------------------
+# tools
+#------------------------------------------------------------------------------
+%package tools
+Summary: Tools for radosfs
+Group: Applications/File
+Requires: %{name}%{?_isa} = %{version}-%{release}
+
+%description tools
+This package contains the fsck utility for radosfs.
+
 %prep
 %setup -n %{name}-%{version}-%{release}
 
@@ -65,3 +76,11 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(-,root,root,-)
 %{_includedir}/libradosfs.hh
 %{_includedir}/radosfs/
+
+
+%files tools
+%defattr(-,root,root,-)
+%{_sbindir}/radosfsck
+
+
+

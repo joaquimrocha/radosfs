@@ -18,7 +18,7 @@
 
 set( VERSION_MAJOR "0" )
 set( VERSION_MINOR "5" )
-set( VERSION_PATCH "0")
+set( VERSION_PATCH "1")
 set( RELEASE       "1")
 
 cmake_minimum_required( VERSION 2.6 )
@@ -38,6 +38,9 @@ if( MacOSX )
 else( MacOSX )
   set( LIB_INSTALL_DIR lib64 )
 endif( MacOSX )
+
+# include GNU path settings
+include (GNUInstallDirs)
 
 # This is so we only build the targets for creating the
 # tarball and rpm packages (helpful for the build system)
