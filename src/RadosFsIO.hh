@@ -64,7 +64,7 @@ public:
 
   size_t getSize(void) const;
 
-  int remove(void);
+  int remove(bool sync);
 
   int truncate(size_t newSize, bool sync);
 

@@ -45,7 +45,7 @@ RadosFsIO::RadosFsIO(RadosFs *radosFs,
 RadosFsIO::~RadosFsIO()
 {
   if (mLazyRemoval)
-    remove();
+    remove(false);
 }
 
 ssize_t
@@ -199,7 +199,7 @@ RadosFsIO::write(const char *buff, off_t offset, size_t blen, bool sync)
 }
 
 int
-RadosFsIO::remove()
+RadosFsIO::remove(bool sync)
 {
   int ret = 0;
 
@@ -217,21 +217,42 @@ RadosFsIO::remove()
     {}
   }
 
+  librados::IoCtx ctx;
+  librados::IoCtx::from_rados_ioctx_t(mPool->ioctx, ctx);
   size_t lastStripe = getLastStripeIndex();
+  librados::AioCompletion **compList = 0;
 
-  for (int i = lastStripe; i >= 0; i--)
+  if (sync)
+    compList = new librados::AioCompletion*[lastStripe + 1];
+
+  // We start deleting from the base stripe onward because this will result
+  // in other calls to the object eventually seeing the removal sooner
+  for (size_t i = 0; i <= lastStripe; i++)
   {
-    const std::string &stripe = makeFileStripeName(mInode, i);
-    ret = rados_remove(mPool->ioctx, stripe.c_str());
+    librados::ObjectWriteOperation op;
+    librados::AioCompletion *completion;
+    const std::string &fileStripe = makeFileStripeName(inode(), i);
 
-    if (ret != 0)
+    op.remove();
+    completion = librados::Rados::aio_create_completion();
+    ctx.aio_operate(fileStripe, completion, &op);
+
+    if (sync)
+      compList[i] = completion;
+    else
+      completion->release();
+  }
+
+  if (sync)
+  {
+    for (size_t i = 0; i <= lastStripe; i++)
     {
-      radosfs_debug("Cannot remove file stripe %s: %s",
-                    stripe.c_str(),
-                    strerror(ret));
-      break;
+      compList[i]->wait_for_complete();
+      compList[i]->release();
     }
   }
+
+  delete[] compList;
 
   if (lockFiles)
   {

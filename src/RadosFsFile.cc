@@ -181,7 +181,7 @@ RadosFsFilePriv::removeFile()
   if (radosFsIO.use_count() > 1)
     radosFsIO->setLazyRemoval(true);
   else
-    return radosFsIO->remove();
+    return radosFsIO->remove(true);
 
   return 0;
 }
