@@ -145,6 +145,8 @@ RadosFsIO::write(const char *buff, off_t offset, size_t blen, bool sync)
   if (sync)
     compList = new librados::AioCompletion*[totalStripes];
 
+  setSizeIfBigger(totalSize);
+
   for (size_t i = 0; i < totalStripes; i++)
   {
     librados::ObjectWriteOperation op;
@@ -486,6 +488,25 @@ RadosFsIO::getSize() const
   size_t numStripes = getLastStripeIndexAndSize(&size);
 
   return numStripes * stripeSize() + size;
+}
+
+int
+RadosFsIO::setSizeIfBigger(size_t size)
+{
+  librados::IoCtx ctx;
+  librados::IoCtx::from_rados_ioctx_t(mPool->ioctx, ctx);
+  librados::ObjectWriteOperation writeOp;
+  librados::bufferlist xattrValue;
+  std::stringstream stream;
+
+  stream << size;
+  xattrValue.append(stream.str());
+
+  // Set the new size only if it's greater than the one already set
+  writeOp.setxattr(XATTR_FILE_SIZE, xattrValue);
+  writeOp.cmpxattr(XATTR_FILE_SIZE, LIBRADOS_CMPXATTR_OP_GT, size);
+
+  return ctx.operate(inode(), &writeOp);
 }
 
 RADOS_FS_END_NAMESPACE
