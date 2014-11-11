@@ -414,67 +414,29 @@ getLastValid(int *retValues, size_t valuesSize)
 size_t
 RadosFsIO::getLastStripeIndexAndSize(uint64_t *size) const
 {
-  int lastStripe = -1;
-  const size_t numOps(FILE_STRIPE_NUM_CHECKS);
-  librados::bufferlist stripeSizeXAttrs[numOps];
-  int xattrsRets[numOps];
-  size_t stripeSizes[numOps];
-  rados_completion_t comps[numOps];
   librados::IoCtx ctx;
-
   librados::IoCtx::from_rados_ioctx_t(mPool->ioctx, ctx);
-  memset(xattrsRets, 0, numOps);
-  ssize_t lastValid(numOps - 1);
+  librados::ObjectReadOperation op;
+  librados::bufferlist sizeXAttr;
+  size_t fileSize(0);
 
-  while (lastValid == (ssize_t) numOps - 1)
+  op.getxattr(XATTR_FILE_SIZE, &sizeXAttr, 0);
+  op.assert_exists();
+  ctx.operate(inode(), &op, 0);
+
+  if (sizeXAttr.length() > 0)
   {
-    for (size_t i = 0; i < numOps; i++)
-    {
-      librados::ObjectReadOperation op = makeStripeReadOp(mPool->hasAlignment(),
-                                                          &stripeSizes[i],
-                                                          &xattrsRets[i],
-                                                          &stripeSizeXAttrs[i]);
-
-      rados_aio_create_completion(0, 0, 0, &comps[i]);
-      librados::AioCompletion completion((librados::AioCompletionImpl *)
-                                         comps[i]);
-
-      ctx.aio_operate(makeFileStripeName(mInode, lastStripe + 1 + i),
-                      &completion, &op, 0);
-    }
-
-    for (size_t i = 0; i < numOps; i++)
-    {
-      rados_aio_wait_for_complete(comps[i]);
-      rados_aio_release(comps[i]);
-    }
-
-    lastValid = getLastValid(xattrsRets, numOps);
-
-    if (lastValid < 0)
-      break;
-
-    lastStripe += lastValid + 1;
+    const std::string sizeStr(sizeXAttr.c_str(), sizeXAttr.length());
+    fileSize = atoll(sizeStr.c_str());
   }
 
-  if (lastStripe < 0)
-    lastStripe = 0;
+  if (size)
+    *size = fileSize;
 
-  size_t validIndex = (lastStripe % numOps);
+  if (fileSize > 0)
+    fileSize = (fileSize - 1) / stripeSize();
 
-  if (xattrsRets[validIndex] == 0 && size)
-  {
-    *size = stripeSizes[validIndex];
-
-    librados::bufferlist *stripeXAttr = &stripeSizeXAttrs[validIndex];
-    if (mPool->hasAlignment() && stripeXAttr->length() > 0)
-    {
-      std::string stripeXAttrStr(stripeXAttr->c_str(), stripeXAttr->length());
-      *size = atol(stripeXAttrStr.c_str());
-    }
-  }
-
-  return lastStripe;
+  return fileSize;
 }
 
 std::string
@@ -487,9 +449,9 @@ size_t
 RadosFsIO::getSize() const
 {
   u_int64_t size = 0;
-  size_t numStripes = getLastStripeIndexAndSize(&size);
+  getLastStripeIndexAndSize(&size);
 
-  return numStripes * stripeSize() + size;
+  return size;
 }
 
 int
