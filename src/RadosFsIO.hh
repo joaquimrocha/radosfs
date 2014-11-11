@@ -77,6 +77,7 @@ private:
   std::vector<rados_completion_t> mCompletionList;
   int write(const char *buff, off_t offset, size_t blen, bool sync);
   int setSizeIfBigger(size_t size);
+  int setSize(size_t size);
 };
 
 typedef std::tr1::shared_ptr<RadosFsIO> RadosFsIOSP;

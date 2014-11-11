@@ -310,6 +310,8 @@ RadosFsIO::truncate(size_t newSize, bool sync)
   if (sync)
     compList = new librados::AioCompletion*[totalStripes];
 
+  setSize(newSize);
+
   for (ssize_t i = totalStripes - 1; i >= 0; i--)
   {
     librados::ObjectWriteOperation op;
@@ -505,6 +507,23 @@ RadosFsIO::setSizeIfBigger(size_t size)
   // Set the new size only if it's greater than the one already set
   writeOp.setxattr(XATTR_FILE_SIZE, xattrValue);
   writeOp.cmpxattr(XATTR_FILE_SIZE, LIBRADOS_CMPXATTR_OP_GT, size);
+
+  return ctx.operate(inode(), &writeOp);
+}
+
+int
+RadosFsIO::setSize(size_t size)
+{
+  librados::IoCtx ctx;
+  librados::IoCtx::from_rados_ioctx_t(mPool->ioctx, ctx);
+  librados::ObjectWriteOperation writeOp;
+  librados::bufferlist xattrValue;
+  std::stringstream stream;
+  stream << size;
+
+  xattrValue.append(stream.str());
+  writeOp.create(false);
+  writeOp.setxattr(XATTR_FILE_SIZE, xattrValue);
 
   return ctx.operate(inode(), &writeOp);
 }
