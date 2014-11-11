@@ -194,7 +194,7 @@ std::string getFileXAttrDirRecord(const RadosFsStat *stat);
 
 bool isDirPath(const std::string &path);
 
-std::string generateInode(void);
+std::string generateUuid(void);
 
 int createDirAndInode(const RadosFsStat *stat);
 

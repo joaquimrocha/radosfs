@@ -152,7 +152,7 @@ RadosFsDirPriv::makeDirsRecursively(RadosFsStat *stat,
 
     *stat = parentStat;
     stat->path = dir;
-    stat->translatedPath = generateInode();
+    stat->translatedPath = generateUuid();
 
     ret = createDirAndInode(stat);
 
@@ -529,7 +529,7 @@ RadosFsDir::create(int mode,
   stat = parentStat;
 
   stat.path = dir;
-  stat.translatedPath = generateInode();
+  stat.translatedPath = generateUuid();
   stat.statBuff.st_mode = permOctal;
   stat.statBuff.st_uid = owner;
   stat.statBuff.st_gid = group;

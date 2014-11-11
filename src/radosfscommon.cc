@@ -863,7 +863,7 @@ isDirPath(const std::string &path)
 }
 
 std::string
-generateInode()
+generateUuid()
 {
   uuid_t inode;
   char inodeStr[UUID_STRING_SIZE + 1];

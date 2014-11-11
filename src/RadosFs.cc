@@ -765,7 +765,7 @@ RadosFsPriv::createPrefixDir(RadosFsPoolSP pool, const std::string &prefix)
   {
     RadosFsStat stat;
     stat.path = prefix;
-    stat.translatedPath = generateInode();
+    stat.translatedPath = generateUuid();
     stat.pool = pool;
     stat.statBuff.st_uid = ROOT_UID;
     stat.statBuff.st_gid = ROOT_UID;

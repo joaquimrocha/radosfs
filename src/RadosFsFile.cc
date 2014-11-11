@@ -437,7 +437,7 @@ RadosFsFile::create(int mode, const std::string pool, size_t stripe)
   if (mode >= 0)
     permOctal = mode | S_IFREG;
 
-  mPriv->inode = generateInode();
+  mPriv->inode = generateUuid();
   stat->path = path();
   stat->translatedPath = mPriv->inode;
   stat->statBuff.st_mode = permOctal;
