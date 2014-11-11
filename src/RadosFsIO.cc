@@ -244,6 +244,110 @@ RadosFsIO::remove()
   return ret;
 }
 
+int
+RadosFsIO::truncate(size_t newSize, bool sync)
+{
+  if (newSize > mPool->size)
+  {
+    radosfs_debug("The size given for truncating is too big for the pool.");
+    return -EFBIG;
+  }
+
+  const bool lockFiles =  mRadosFs->fileLocking();
+
+  if (lockFiles)
+  {
+    while (rados_lock_exclusive(mPool->ioctx,
+                                inode().c_str(),
+                                FILE_STRIPE_LOCKER,
+                                FILE_STRIPE_LOCKER_COOKIE_OTHER,
+                                "",
+                                0,
+                                0) != 0)
+    {}
+  }
+
+  librados::IoCtx ctx;
+  librados::IoCtx::from_rados_ioctx_t(mPool->ioctx, ctx);
+  size_t currentSize;
+  size_t lastStripe = getLastStripeIndexAndSize(&currentSize);
+  size_t newLastStripe = (newSize == 0) ? 0 : (newSize - 1) / stripeSize();
+  librados::AioCompletion **compList = 0;
+  bool truncateDown = currentSize > newSize;
+  size_t totalStripes = 1;
+  size_t newLastStripeSize = newSize % stripeSize();
+  bool hasAlignment = mPool->hasAlignment();
+
+  if (newLastStripe == 0 && newSize > stripeSize())
+    newLastStripe = stripeSize();
+
+  if (truncateDown)
+    totalStripes = lastStripe - newLastStripe + 1;
+
+  if (sync)
+    compList = new librados::AioCompletion*[totalStripes];
+
+  for (ssize_t i = totalStripes - 1; i >= 0; i--)
+  {
+    librados::ObjectWriteOperation op;
+    librados::AioCompletion *completion;
+    const std::string &fileStripe = makeFileStripeName(inode(),
+                                                       newLastStripe + i);
+
+    if (i == 0)
+    {
+      // The base stripe should never be deleting on when a truncate occurs
+      // but rather really truncated -- in the case the pool has no alignment --
+      // or have the part out of the truncated range zeroed otherwise.
+      if (hasAlignment)
+      {
+        librados::bufferlist zeroContents;
+        zeroContents.append_zero(stripeSize() - newLastStripeSize);
+        op.write(newLastStripeSize, zeroContents);
+      }
+      else
+      {
+        op.truncate(newLastStripeSize);
+      }
+
+      op.assert_exists();
+    }
+    else
+    {
+      op.remove();
+    }
+
+    completion = librados::Rados::aio_create_completion();
+    ctx.aio_operate(fileStripe, completion, &op);
+
+    if (sync)
+      compList[i] = completion;
+    else
+      completion->release();
+  }
+
+  if (sync)
+  {
+    for (size_t i = 0; i < totalStripes; i++)
+    {
+      compList[i]->wait_for_complete();
+      compList[i]->release();
+    }
+  }
+
+  delete[] compList;
+
+  if (lockFiles)
+  {
+    rados_unlock(mPool->ioctx,
+                 inode().c_str(),
+                 FILE_STRIPE_LOCKER,
+                 FILE_STRIPE_LOCKER_COOKIE_OTHER);
+  }
+
+  return 0;
+}
+
 size_t
 RadosFsIO::getLastStripeIndex(void) const
 {

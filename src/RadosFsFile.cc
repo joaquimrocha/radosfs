@@ -553,115 +553,17 @@ removeStripes(rados_ioctx_t ioctx,
 int
 RadosFsFile::truncate(unsigned long long size)
 {
-  int ret;
-  struct stat statBuff;
-  uid_t uid;
-  gid_t gid;
-  RadosFsStat *fsStat = mPriv->fsStat();
-  rados_ioctx_t ioctx = mPriv->dataPool->ioctx;
-  const bool fileIsLink = isLink();
-  const bool lockFiles = filesystem()->fileLocking() && !fileIsLink;
+  if (isLink())
+    return mPriv->target->truncate(size);
 
-  if (lockFiles)
+  if (mPriv->radosFsIO)
   {
-    while (rados_lock_exclusive(ioctx,
-                                fsStat->translatedPath.c_str(),
-                                FILE_STRIPE_LOCKER,
-                                FILE_STRIPE_LOCKER_COOKIE_OTHER,
-                                "",
-                                0,
-                                0) != 0)
-    {}
-  }
-
-  ret = stat(&statBuff);
-
-  if (ret != 0)
-  {
-    goto bailout;
-  }
-
-  ret = mPriv->verifyExistanceAndType();
-
-  if (ret != 0)
-  {
-    goto bailout;
-  }
-
-  filesystem()->getIds(&uid, &gid);
-
-  if (statBuffHasPermission(mPriv->fsStat()->statBuff, uid, gid,
-                            O_WRONLY | O_RDWR))
-  {
-    if (fileIsLink)
-      return mPriv->target->truncate(size);
-
-    const size_t stripeSize = mPriv->radosFsIO->stripeSize();
-    size_t lastStripe = 0;
-
-    if (statBuff.st_size > 0)
-      lastStripe = (statBuff.st_size - 1) / stripeSize;
-
-    size_t newLastStripe = 0;
-
-    if (size > 0)
-      newLastStripe = (size - 1) / stripeSize;
-
-    const size_t emptyStripeSize =
-        mPriv->dataPool->hasAlignment() ? stripeSize : 0;
-
     updateTimeAsync(mPriv->fsStat(), XATTR_MTIME);
 
-    if (lastStripe > newLastStripe)
-      removeStripes(ioctx, fsStat->translatedPath, lastStripe, newLastStripe);
-    else if (lastStripe < newLastStripe)
-      createStripes(ioctx, fsStat->translatedPath, lastStripe + 1, newLastStripe,
-                    emptyStripeSize);
-
-    const std::string &stripe = makeFileStripeName(fsStat->translatedPath,
-                                                   newLastStripe);
-
-    // create new last stripe if it didn't exist before
-    if (newLastStripe > lastStripe)
-      ret = rados_write(ioctx, stripe.c_str(), "", emptyStripeSize, 0);
-
-    if (ret == 0)
-    {
-      size_t remainingSize = size - newLastStripe * stripeSize;
-
-      if (emptyStripeSize == 0)
-      {
-        ret = rados_trunc(ioctx, stripe.c_str(), remainingSize);
-      }
-      else
-      {
-        std::stringstream stream;
-        stream << remainingSize;
-        const std::string &sizeStr = stream.str();
-
-        ret = rados_setxattr(ioctx, stripe.c_str(), XATTR_LAST_STRIPE_SIZE,
-                             sizeStr.c_str(), sizeStr.length());
-        if (ret != 0)
-        {
-          radosfs_debug("Problem setting stripe size XAttr (%s=%s) in %s",
-                        XATTR_LAST_STRIPE_SIZE, sizeStr.c_str(), stripe.c_str());
-        }
-      }
-    }
-  }
-  else
-    ret = -EACCES;
-
-bailout:
-  if (lockFiles)
-  {
-    rados_unlock(mPriv->dataPool->ioctx,
-                 fsStat->translatedPath.c_str(),
-                 FILE_STRIPE_LOCKER,
-                 FILE_STRIPE_LOCKER_COOKIE_OTHER);
+    return mPriv->radosFsIO->truncate(size, true);
   }
 
-  return ret;
+  return -ENODEV;
 }
 
 bool

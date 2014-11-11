@@ -66,6 +66,8 @@ public:
 
   int remove(void);
 
+  int truncate(size_t newSize, bool sync);
+
 private:
   RadosFs *mRadosFs;
   const RadosFsPoolSP mPool;
