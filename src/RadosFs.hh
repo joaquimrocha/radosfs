@@ -88,6 +88,9 @@ public:
 
   int stat(const std::string &path, struct stat *buff);
 
+  std::vector<std::pair<int, struct stat> >
+      stat(const std::vector<std::string> &paths);
+
   std::vector<std::string> allPoolsInCluster(void) const;
 
   int setXAttr(const std::string &path,

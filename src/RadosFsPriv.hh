@@ -26,6 +26,7 @@
 #include <map>
 #include <vector>
 #include <set>
+#include <rados/librados.hpp>
 #include <string>
 #include <tr1/memory>
 
@@ -54,6 +55,15 @@ struct _LinkedList
   LinkedList *previous;
   LinkedList *next;
 };
+
+typedef struct {
+  RadosFsStat stat;
+  std::map<std::string, std::pair<int, struct stat> > entryStats;
+  const std::vector<std::string> *entries;
+  uint64_t psize;
+  time_t pmtime;
+  int statRet;
+} StatAsyncInfo;
 
 class PriorityCache
 {
@@ -149,8 +159,16 @@ public:
 
   void removeDirCache(std::tr1::shared_ptr<DirCache> &cache);
 
-  int stat(const std::string &path,
-           RadosFsStat *stat);
+  int stat(const std::string &path, RadosFsStat *stat);
+
+  void parallelStat(
+      const std::map<std::string, std::vector<std::string> > &paths,
+      std::map<std::string, std::pair<int, struct stat> > *stats);
+
+  void statAsync(StatAsyncInfo *info);
+
+  void statEntries(StatAsyncInfo *info,
+                   std::map<std::string, std::string> &xattrs);
 
   int statLink(RadosFsPoolSP mtdPool,
                RadosFsStat *stat,
@@ -177,6 +195,14 @@ public:
   void updateTMTime(RadosFsStat *stat, timespec *spec = 0);
 
   void updateDirTimes(RadosFsStat *stat, timespec *spec = 0);
+
+  void statXAttrInThread(std::string path, std::string xattr, RadosFsStat *stat,
+                         int *ret, boost::mutex *mutex,
+                         boost::condition_variable *cond, int *numJobs);
+
+  int statAsyncInfoInThread(const std::string path, StatAsyncInfo *info,
+                            boost::mutex *mutex, boost::condition_variable *cond,
+                            int *numJobs);
 
   void generalWorkerThread(boost::shared_ptr<boost::asio::io_service> ioService);
 

@@ -18,7 +18,6 @@
  */
 
 #include "radosfscommon.h"
-#include <rados/librados.hpp>
 #include <sys/stat.h>
 #include <uuid/uuid.h>
 
@@ -109,9 +108,7 @@ genericStat(rados_ioctx_t ioctx,
   uint64_t psize;
   time_t pmtime;
   int ret, statRet, permRet, ctimeRet, mtimeRet;
-  uid_t uid = 0;
-  gid_t gid = 0;
-  mode_t permissions = 0;
+  std:: string ctime, mtime, permissions;
   librados::IoCtx ctx;
   librados::IoCtx::from_rados_ioctx_t(ioctx, ctx);
   librados::bufferlist permXAttr, ctimeXAttr, mtimeXAttr;
@@ -133,6 +130,33 @@ genericStat(rados_ioctx_t ioctx,
   if (statRet != 0)
     return statRet;
 
+  if (ctimeXAttr.length() > 0)
+    ctime = std::string(ctimeXAttr.c_str(), ctimeXAttr.length());
+
+  if (mtimeXAttr.length() > 0)
+    mtime = std::string(mtimeXAttr.c_str(), mtimeXAttr.length());
+
+  if (permXAttr.length() > 0)
+    permissions = std::string(permXAttr.c_str(), permXAttr.length());
+
+  genericStatFromAttrs(object, permissions, ctime, mtime, psize, pmtime, buff);
+
+  return statRet;
+}
+
+void
+genericStatFromAttrs(const std::string &object,
+                     const std::string &permXAttr,
+                     const std::string &ctimeXAttr,
+                     const std::string &mtimeXAttr,
+                     u_int64_t psize,
+                     time_t pmtime,
+                     struct stat* buff)
+{
+  uid_t uid = 0;
+  gid_t gid = 0;
+  mode_t permissions = 0;
+
   getPermissionsXAttr(permXAttr.c_str(), &permissions, &uid, &gid);
 
   buff->st_dev = 0;
@@ -149,21 +173,19 @@ genericStat(rados_ioctx_t ioctx,
   buff->st_ctime = pmtime;
   buff->st_mtime = pmtime;
 
-  if (ctimeRet == 0 && ctimeXAttr.length() != 0)
+  if (ctimeXAttr != "")
   {
-    strToTimespec(ctimeXAttr.c_str(), &buff->st_ctim);
+    strToTimespec(ctimeXAttr, &buff->st_ctim);
     buff->st_ctime = buff->st_ctim.tv_sec;
   }
 
-  if (mtimeRet == 0 && mtimeXAttr.length() != 0)
+  if (mtimeXAttr != "")
   {
-    strToTimespec(mtimeXAttr.c_str(), &buff->st_mtim);
+    strToTimespec(mtimeXAttr, &buff->st_mtim);
     buff->st_mtime = buff->st_mtim.tv_sec;
   }
 
   buff->st_atime = buff->st_mtime;
-
-  return statRet;
 }
 
 int
@@ -1026,4 +1048,43 @@ size_t alignStripeSize(size_t stripeSize, size_t alignment)
     return stripeSize;
 
   return alignment * (stripeSize / alignment);
+}
+
+int statAndGetXAttrs(rados_ioctx_t ioctx, const std::string &obj,
+                     u_int64_t *size, time_t *mtime,
+                     std::map<std::string, std::string> &xattrs)
+{
+  int statRet;
+  librados::ObjectReadOperation op;
+  librados::IoCtx ctx;
+  librados::IoCtx::from_rados_ioctx_t(ioctx, ctx);
+  librados::bufferlist *xattrsResults = new librados::bufferlist[xattrs.size()];
+
+  op.stat(size, mtime, &statRet);
+
+  std::map<std::string, std::string>::iterator it;
+  size_t i;
+  for (it = xattrs.begin(), i = 0; it != xattrs.end(); it++, i++)
+  {
+    const std::string &xattr = (*it).first;
+    op.getxattr(xattr.c_str(), &xattrsResults[i], 0);
+    op.set_op_flags(librados::OP_FAILOK);
+  }
+
+  ctx.operate(obj, &op, 0);
+
+  for (it = xattrs.begin(), i = 0; it != xattrs.end(); it++, i++)
+  {
+    librados::bufferlist *xattrValue = &xattrsResults[i];
+
+    if (xattrValue->length() > 0)
+    {
+      xattrs[(*it).first] = std::string(xattrValue->c_str(),
+                                        xattrValue->length());
+    }
+  }
+
+  delete[] xattrsResults;
+
+  return statRet;
 }

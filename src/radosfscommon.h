@@ -24,6 +24,7 @@
 #include <cstdlib>
 #include <errno.h>
 #include <rados/librados.h>
+#include <rados/librados.hpp>
 #include <fcntl.h>
 #include <map>
 #include <string>
@@ -91,6 +92,14 @@ ino_t hash(const char *path);
 int genericStat(rados_ioctx_t ioctx, const std::string &object,
                 struct stat* buff);
 
+void genericStatFromAttrs(const std::string &object,
+                          const std::string &permXAttr,
+                          const std::string &ctimeXAttr,
+                          const std::string &mtimeXAttr,
+                          u_int64_t psize,
+                          time_t pmtime,
+                          struct stat* buff);
+
 bool
 statBuffHasPermission(const struct stat &buff,
               const uid_t uid,
@@ -98,8 +107,7 @@ statBuffHasPermission(const struct stat &buff,
               const int permission);
 
 int
-getPermissionsXAttr(rados_ioctx_t &ioctx,
-                    const char *obj,
+getPermissionsXAttr(const std::string &permXAttr,
                     mode_t *mode,
                     uid_t *uid,
                     gid_t *gid);
@@ -212,5 +220,9 @@ int getTimeFromXAttr(const RadosFsStat *stat, const std::string &xattr,
 bool hasTMTimeEnabled(mode_t mode);
 
 size_t alignStripeSize(size_t stripeSize, size_t alignment);
+
+int statAndGetXAttrs(rados_ioctx_t ioctx, const std::string &obj,
+                     u_int64_t *size, time_t *mtime,
+                     std::map<std::string, std::string> &xattrs);
 
 #endif /* __RADOS_FS_COMMON_HH__ */

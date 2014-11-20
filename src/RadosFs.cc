@@ -448,10 +448,220 @@ RadosFsPriv::launchThreads(void)
 }
 
 void
+RadosFsPriv::statXAttrInThread(std::string path, std::string xattr,
+                               RadosFsStat *stat, int *ret, boost::mutex *mutex,
+                               boost::condition_variable *cond, int *numJobs)
+{
+  RadosFsPoolSP dataPool;
+  std::string pool;
+  *ret = statFromXAttr(path, xattr, &stat->statBuff, stat->translatedPath,
+                          pool, stat->extraData);
+
+  if (*ret != 0)
+  {
+    return;
+  }
+
+  dataPool = getDataPool(path, pool);
+  stat->pool = dataPool;
+  RadosFsIOSP radosFsIO = getOrCreateFsIO(stat->translatedPath, stat);
+  stat->statBuff.st_size = radosFsIO->getSize();
+
+  bool notify = false;
+
+  {
+    boost::unique_lock<boost::mutex> lock(*mutex);
+
+    notify = --*numJobs == 0;
+  }
+
+  if (notify)
+    cond->notify_all();
+}
+
+void
 RadosFsPriv::generalWorkerThread(
     boost::shared_ptr<boost::asio::io_service> ioService)
 {
   ioService->run();
+}
+
+void
+RadosFsPriv::statEntries(StatAsyncInfo *info,
+                         std::map<std::string, std::string> &xattrs)
+{
+  RadosFsStat *stats = new RadosFsStat[info->entries->size()];
+  int *rets = new int[info->entries->size()];
+  boost::mutex mutex;
+  boost::condition_variable cond;
+  int numJobs = info->entries->size();
+
+  for (size_t i = 0; i < info->entries->size(); i++)
+  {
+    const std::string &path = info->stat.path + (*info->entries)[i];
+    const std::string &xattr = xattrs[XATTR_FILE_PREFIX + (*info->entries)[i]];
+
+    if (xattr == "")
+    {
+      rets[i] = -ENOENT;
+      mutex.lock();
+      numJobs--;
+      mutex.unlock();
+      continue;
+    }
+
+    ioService->post(boost::bind(&RadosFsPriv::statXAttrInThread, this, path,
+                                xattr, &stats[i], &rets[i], &mutex, &cond,
+                                &numJobs));
+  }
+
+  boost::unique_lock<boost::mutex> lock(mutex);
+
+  if (numJobs > 0)
+    cond.wait(lock);
+
+  for (size_t i = 0; i < info->entries->size(); i++)
+  {
+    const std::string &path = info->stat.path + (*info->entries)[i];
+
+    if (rets[i] == 0 || info->entryStats.count(path) == 0)
+    {
+      std::pair<int, struct stat> statValue(rets[i], stats[i].statBuff);
+      info->entryStats[path] = statValue;
+    }
+  }
+
+  delete[] rets;
+  delete[] stats;
+}
+
+void
+RadosFsPriv::statAsync(StatAsyncInfo *info)
+{
+  std::map<std::string, std::string> xattrs;
+  u_int64_t size;
+  time_t mtime;
+  xattrs[XATTR_PERMISSIONS] = "";
+  xattrs[XATTR_MTIME] = "";
+  xattrs[XATTR_CTIME] = "";
+
+  for (size_t i = 0; i < info->entries->size(); i++)
+  {
+    const std::string &entry = XATTR_FILE_PREFIX + (*info->entries)[i];
+    xattrs[entry] = "";
+  }
+
+  info->statRet = statAndGetXAttrs(info->stat.pool->ioctx,
+                                   info->stat.translatedPath, &size,
+                                   &mtime, xattrs);
+
+  genericStatFromAttrs(info->stat.path, xattrs[XATTR_PERMISSIONS],
+                       xattrs[XATTR_CTIME], xattrs[XATTR_MTIME], size, mtime,
+                       &info->stat.statBuff);
+
+  if (info->entries->size() == 0 || info->statRet != 0)
+    return;
+
+  statEntries(info, xattrs);
+}
+
+int
+RadosFsPriv::statAsyncInfoInThread(const std::string path, StatAsyncInfo *info,
+                                   boost::mutex *mutex,
+                                   boost::condition_variable *cond, int *numJobs)
+{
+  int ret;
+  info->stat.reset();
+  info->stat.path = getDirPath(path);
+  RadosFsPoolSP mtdPool = getMetadataPoolFromPath(info->stat.path);
+
+  if (!mtdPool.get())
+  {
+    ret = -ENODEV;
+    return ret;
+  }
+
+  RadosFsInode inode;
+  ret = getDirInode(info->stat.path, inode, mtdPool);
+
+  if (ret == 0)
+  {
+    info->stat.pool = inode.pool;
+    info->stat.translatedPath = inode.inode;
+
+    statAsync(info);
+  }
+  else
+  {
+    info->statRet = ret;
+  }
+
+  mutex->lock();
+  int remaininNumJobs = --*numJobs;
+  mutex->unlock();
+
+  if (remaininNumJobs == 0)
+    cond->notify_all();
+
+  return ret;
+}
+
+void
+RadosFsPriv::parallelStat(
+    const std::map<std::string, std::vector<std::string> > &paths,
+    std::map<std::string, std::pair<int, struct stat> > *stats)
+{
+  launchThreads();
+
+  StatAsyncInfo *statInfoList = new StatAsyncInfo[paths.size()];
+  boost::mutex mutex;
+  boost::condition_variable cond;
+  int numJobs = paths.size();
+  std::map<std::string, std::vector<std::string> >::const_iterator it;
+  size_t i;
+
+  for (it = paths.begin(), i = 0; it != paths.end(); it++, i++)
+  {
+    std::string dir = (*it).first;
+    StatAsyncInfo *info = &statInfoList[i];
+    info->entries = &(*it).second;
+
+    ioService->post(boost::bind(&RadosFsPriv::statAsyncInfoInThread, this, dir,
+                                info, &mutex, &cond, &numJobs));
+  }
+
+  boost::unique_lock<boost::mutex> lock(mutex);
+
+  if (numJobs > 0)
+    cond.wait(lock);
+
+  // Assign the result of statting all the paths to the stats output parameter
+  for (size_t i = 0; i < paths.size(); i++)
+  {
+    StatAsyncInfo *statInfo = &statInfoList[i];
+    std::map<std::string, std::pair<int, struct stat> >::const_iterator it;
+
+    if (statInfo->statRet == 0)
+    {
+      std::pair<int, struct stat> statResult(statInfo->statRet,
+                                             statInfo->stat.statBuff);
+      (*stats)[statInfo->stat.path] = statResult;
+    }
+
+    for (it = statInfo->entryStats.begin(); it != statInfo->entryStats.end();
+         it++)
+    {
+      const std::string &path = (*it).first;
+      const std::pair<int, struct stat> &statResult = (*it).second;
+
+      if (stats->count(path) > 0 && stats->at(path).first == 0)
+        continue;
+
+      (*stats)[path] = statResult;
+    }
+  }
+
+  delete[] statInfoList;
 }
 
 int
@@ -1306,6 +1516,62 @@ uid_t
 RadosFs::gid(void) const
 {
   return mPriv->gid;
+}
+
+static void
+gatherPathsByParentDir(const std::vector<std::string> &paths,
+                       std::map<std::string, std::vector<std::string> > &entries)
+{
+  for (size_t i = 0; i < paths.size(); i++)
+  {
+    const std::string &path = paths[i];
+
+    if (path == "/" && entries.count(path) == 0)
+    {
+      entries[path].clear();
+      continue;
+    }
+
+    std::string parentDir = getParentDir(path, 0);
+    entries[parentDir].push_back(path.substr(parentDir.length()));
+  }
+}
+
+std::vector<std::pair<int, struct stat> >
+RadosFs::stat(const std::vector<std::string> &paths)
+{
+  std::map<std::string, std::pair<int, struct stat> > stats;
+  std::map<std::string, std::vector<std::string> > entries;
+
+  gatherPathsByParentDir(paths, entries);
+
+  mPriv->parallelStat(entries, &stats);
+
+  // Call parallel stat again on the paths that were not found
+  entries.clear();
+  std::map<std::string, std::pair<int, struct stat> >::iterator it;
+  for (it = stats.begin(); it != stats.end(); it++)
+  {
+    std::pair<int, struct stat> statResult = (*it).second;
+
+    if (statResult.first != 0)
+    {
+      const std::string &path = (*it).first;
+      entries[path].clear();
+    }
+  }
+
+  if (entries.size())
+    mPriv->parallelStat(entries, &stats);
+
+  std::vector<std::pair<int, struct stat> > results;
+  for (size_t i = 0; i < paths.size(); i++)
+  {
+    const std::string &path = paths[i];
+    results.push_back(stats[path]);
+  }
+
+  return results;
 }
 
 int
