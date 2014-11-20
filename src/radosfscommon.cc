@@ -886,6 +886,9 @@ timespecToStr(const timespec *spec)
 void
 strToTimespec(const std::string &specStr, timespec *spec)
 {
+  if (specStr == "")
+    return;
+
   std::string tv_sec, tv_nsec;
 
   for (size_t i = 0; i < specStr.length(); i++)
