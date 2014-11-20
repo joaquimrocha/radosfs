@@ -265,7 +265,6 @@ RadosFsPriv::statLink(RadosFsPoolSP mtdPool,
                       std::string &pool)
 {
   int ret = 0;
-  RadosFsStat parentStat;
   const std::string &parentDir = getParentDir(stat->path, 0);
   char fileXAttr[XATTR_FILE_LENGTH + 1];
 
