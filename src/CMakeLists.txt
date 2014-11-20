@@ -19,6 +19,7 @@
 find_package( LibRados REQUIRED )
 find_package( Threads REQUIRED )
 find_package( Uuid REQUIRED )
+find_package( Boost REQUIRED COMPONENTS thread )
 
 set( CONF_DIR "/etc/${PROJECT_NAME}" )
 set( LOG_LEVEL_FILE_BASE_NAME loglevel )
@@ -55,7 +56,7 @@ include_directories( ${RADOS_INCLUDE_DIR} )
 
 add_definitions( -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 )
 
-target_link_libraries( radosfs ${RADOS_LIB} pthread ${UUID_LIB} )
+target_link_libraries( radosfs ${RADOS_LIB} pthread ${UUID_LIB} ${Boost_LIBRARIES} )
 
 if( Linux )
   set_target_properties( radosfs PROPERTIES
