@@ -20,6 +20,8 @@
 #ifndef __RADOS_IMPL_HH__
 #define __RADOS_IMPL_HH__
 
+#include <boost/asio.hpp>
+#include <boost/thread.hpp>
 #include <pthread.h>
 #include <map>
 #include <vector>
@@ -176,6 +178,10 @@ public:
 
   void updateDirTimes(RadosFsStat *stat, timespec *spec = 0);
 
+  void generalWorkerThread(boost::shared_ptr<boost::asio::io_service> ioService);
+
+  void launchThreads(void);
+
   RadosFs *radosFs;
   rados_t radosCluster;
   static __thread uid_t uid;
@@ -196,6 +202,9 @@ public:
   RadosFsFinder finder;
   size_t fileStripeSize;
   bool lockFiles;
+  boost::shared_ptr<boost::asio::io_service> ioService;
+  boost::shared_ptr<boost::asio::io_service::work> asyncWork;
+  boost::thread_group generalWorkerThreads;
 };
 
 RADOS_FS_END_NAMESPACE

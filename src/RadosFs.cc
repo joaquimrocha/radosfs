@@ -17,6 +17,10 @@
  * for more details.
  */
 
+#include <boost/asio.hpp>
+#include <boost/shared_ptr.hpp>
+#include <boost/thread.hpp>
+#include <boost/progress.hpp>
 #include <rados/librados.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -37,7 +41,9 @@ RadosFsPriv::RadosFsPriv(RadosFs *radosFs)
     dirCompactRatio(DEFAULT_DIR_COMPACT_RATIO),
     finder(radosFs),
     fileStripeSize(FILE_STRIPE_SIZE),
-    lockFiles(true)
+    lockFiles(true),
+    ioService(new boost::asio::io_service),
+    asyncWork(new boost::asio::io_service::work(*ioService))
 {
   uid = 0;
   gid = 0;
@@ -427,6 +433,25 @@ RadosFsPriv::removeDirInode(const std::string &path)
   dirPathInodeMap.erase(path);
 
   pthread_mutex_unlock(&dirPathInodeMutex);
+}
+
+void
+RadosFsPriv::launchThreads(void)
+{
+  size_t currentLaunchedThreads = generalWorkerThreads.size();
+  size_t threadsToLaunch = DEFAULT_NUM_WORKER_THREADS - currentLaunchedThreads;
+  while (threadsToLaunch-- > 0)
+  {
+    generalWorkerThreads.create_thread(
+          boost::bind(&RadosFsPriv::generalWorkerThread, this, ioService));
+  }
+}
+
+void
+RadosFsPriv::generalWorkerThread(
+    boost::shared_ptr<boost::asio::io_service> ioService)
+{
+  ioService->run();
 }
 
 int
