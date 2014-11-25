@@ -208,6 +208,8 @@ public:
 
   void launchThreads(void);
 
+  void checkFileLocks(void);
+
   RadosFs *radosFs;
   rados_t radosCluster;
   static __thread uid_t uid;
@@ -231,6 +233,7 @@ public:
   boost::shared_ptr<boost::asio::io_service> ioService;
   boost::shared_ptr<boost::asio::io_service::work> asyncWork;
   boost::thread_group generalWorkerThreads;
+  boost::thread fileOpsIdleChecker;
 };
 
 RADOS_FS_END_NAMESPACE

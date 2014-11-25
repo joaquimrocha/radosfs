@@ -43,7 +43,8 @@ RadosFsPriv::RadosFsPriv(RadosFs *radosFs)
     fileStripeSize(FILE_STRIPE_SIZE),
     lockFiles(true),
     ioService(new boost::asio::io_service),
-    asyncWork(new boost::asio::io_service::work(*ioService))
+    asyncWork(new boost::asio::io_service::work(*ioService)),
+    fileOpsIdleChecker(boost::bind(&RadosFsPriv::checkFileLocks, this))
 {
   uid = 0;
   gid = 0;
@@ -58,6 +59,7 @@ RadosFsPriv::RadosFsPriv(RadosFs *radosFs)
 
 RadosFsPriv::~RadosFsPriv()
 {
+  fileOpsIdleChecker.interrupt();
   poolMap.clear();
   mtdPoolMap.clear();
   dirPathInodeMap.clear();
@@ -1245,6 +1247,29 @@ RadosFsPriv::updateDirTimes(RadosFsStat *stat, timespec *spec)
   updateTimeAsync(stat, XATTR_MTIME, timeStr);
 
   updateTMTime(stat, &timeInfo);
+}
+
+void
+RadosFsPriv::checkFileLocks(void)
+{
+  const boost::chrono::milliseconds sleepTime(FILE_OPS_IDLE_CHECKER_SLEEP);
+  std::map<std::string, std::tr1::weak_ptr<RadosFsIO> >::iterator it;
+
+  while (true)
+  {
+    pthread_mutex_lock(&operationsMutex);
+    for (it = operations.begin(); it != operations.end(); it++)
+    {
+      boost::this_thread::interruption_point();
+      RadosFsIOSP fsIO = (*it).second.lock();
+      if (fsIO)
+      {
+        fsIO->manageIdleLock(FILE_IDLE_LOCK_TIMEOUT);
+      }
+    }
+    pthread_mutex_unlock(&operationsMutex);
+    boost::this_thread::sleep_for(sleepTime);
+  }
 }
 
 RadosFs::RadosFs()
