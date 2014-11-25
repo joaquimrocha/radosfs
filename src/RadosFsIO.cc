@@ -561,7 +561,12 @@ RadosFsIO::setSizeIfBigger(size_t size)
   writeOp.setxattr(XATTR_FILE_SIZE, xattrValue);
   writeOp.cmpxattr(XATTR_FILE_SIZE, LIBRADOS_CMPXATTR_OP_GT, size);
 
-  return ctx.operate(inode(), &writeOp);
+  int ret = ctx.operate(inode(), &writeOp);
+
+  radosfs_debug("Set size %d to '%s' if it's greater: retcode=%d (%s)",
+                size, inode().c_str(), ret, strerror(abs(ret)));
+
+  return ret;
 }
 
 int
@@ -578,7 +583,12 @@ RadosFsIO::setSize(size_t size)
   writeOp.create(false);
   writeOp.setxattr(XATTR_FILE_SIZE, xattrValue);
 
-  return ctx.operate(inode(), &writeOp);
+  int ret = ctx.operate(inode(), &writeOp);
+
+  radosfs_debug("Set size %d to '%s': retcode=%d (%s)", size,
+                inode().c_str(), ret, strerror(abs(ret)));
+
+  return ret;
 }
 
 void
