@@ -37,7 +37,8 @@ RadosFsIO::RadosFsIO(RadosFs *radosFs,
     mPool(pool),
     mInode(iNode),
     mStripeSize(stripeSize),
-    mLazyRemoval(false)
+    mLazyRemoval(false),
+    mLocker("")
 {
   assert(mStripeSize != 0);
 }
@@ -47,7 +48,14 @@ RadosFsIO::~RadosFsIO()
   mOpManager.sync();
 
   if (mLazyRemoval)
+  {
     remove(false);
+    return;
+  }
+
+  boost::unique_lock<boost::mutex> lock(mLockMutex);
+  unlockShared();
+  unlockExclusive();
 }
 
 ssize_t
@@ -104,10 +112,126 @@ RadosFsIO::write(const char *buff, off_t offset, size_t blen)
   return write(buff, offset, blen, false);
 }
 
+void
+onCompleted(rados_completion_t comp, void *arg)
+{
+  int ret = rados_aio_get_return_value(comp);
+  std::string *msg = reinterpret_cast<std::string *>(arg);
+
+  radosfs_debug("Completed: %s: retcode=%d (%s)", msg->c_str(), ret,
+                strerror(abs(ret)));
+  delete msg;
+}
+
+void
+RadosFsIO::setCompletionDebugMsg(librados::AioCompletion *completion,
+                                 const std::string &message)
+{
+  if (mRadosFs->logLevel() == RadosFs::LOG_LEVEL_DEBUG)
+  {
+    std::string *arg = new std::string(message);
+    completion->set_complete_callback(arg, onCompleted);
+  }
+}
+
+void
+RadosFsIO::lockShared(const std::string &uuid)
+{
+  int ret;
+  librados::IoCtx ctx;
+  librados::IoCtx::from_rados_ioctx_t(mPool->ioctx, ctx);
+
+  boost::chrono::duration<double> seconds;
+  seconds = boost::chrono::system_clock::now() - mLockStart;
+  if (seconds.count() < FILE_LOCK_DURATION - 1)
+  {
+    boost::unique_lock<boost::mutex> lock(mLockMutex);
+    radosfs_debug("Keep shared lock: %s %s", mLocker.c_str(), uuid.c_str());
+    if (mLocker == "")
+      mLocker = uuid;
+
+    if (mLocker == uuid)
+      return;
+  }
+
+  timeval tm;
+  tm.tv_sec = FILE_LOCK_DURATION;
+  tm.tv_usec = 0;
+  while ((ret = ctx.lock_shared(inode(), FILE_STRIPE_LOCKER,
+                                FILE_STRIPE_LOCKER_COOKIE_WRITE,
+                                FILE_STRIPE_LOCKER_TAG, "", &tm, 0)) == -EBUSY)
+  {}
+
+  boost::unique_lock<boost::mutex> lock(mLockMutex);
+  mLocker = uuid;
+  mLockStart = boost::chrono::system_clock::now();
+
+  radosfs_debug("Set/renew shared lock: %s ", mLocker.c_str());
+}
+
+void
+RadosFsIO::lockExclusive(const std::string &uuid)
+{
+  int ret;
+  librados::IoCtx ctx;
+  librados::IoCtx::from_rados_ioctx_t(mPool->ioctx, ctx);
+
+  boost::chrono::duration<double> seconds;
+  seconds = boost::chrono::system_clock::now() - mLockStart;
+  if (seconds.count() < FILE_LOCK_DURATION - 1)
+  {
+    boost::unique_lock<boost::mutex> lock(mLockMutex);
+    radosfs_debug("Keep exclusive lock: %s %s", mLocker.c_str(), uuid.c_str());
+    if (mLocker == "")
+    {
+      mLocker = uuid;
+    }
+
+    if (mLocker == uuid)
+      return;
+  }
+
+  timeval tm;
+  tm.tv_sec = FILE_LOCK_DURATION;
+  tm.tv_usec = 0;
+  while ((ret = ctx.lock_exclusive(inode(), FILE_STRIPE_LOCKER,
+                                   FILE_STRIPE_LOCKER_COOKIE_OTHER,
+                                   "", &tm, 0)) != 0)
+  {}
+
+  boost::unique_lock<boost::mutex> lock(mLockMutex);
+  mLocker = uuid;
+  mLockStart = boost::chrono::system_clock::now();
+
+  radosfs_debug("Set/renew exclusive lock: %s ", mLocker.c_str());
+}
+
+void
+RadosFsIO::unlockShared()
+{
+  librados::IoCtx ctx;
+  librados::IoCtx::from_rados_ioctx_t(mPool->ioctx, ctx);
+
+  ctx.unlock(inode(), FILE_STRIPE_LOCKER, FILE_STRIPE_LOCKER_COOKIE_WRITE);
+  mLocker = "";
+  radosfs_debug("Unlocked shared lock.");
+}
+
+void
+RadosFsIO::unlockExclusive()
+{
+  librados::IoCtx ctx;
+  librados::IoCtx::from_rados_ioctx_t(mPool->ioctx, ctx);
+
+  ctx.unlock(inode(), FILE_STRIPE_LOCKER, FILE_STRIPE_LOCKER_COOKIE_OTHER);
+  mLocker = "";
+  radosfs_debug("Unlocked exclusive lock.");
+}
+
 int
 RadosFsIO::write(const char *buff, off_t offset, size_t blen, bool sync)
 {
-  int ret;
+  int ret = 0;
 
   if (blen == 0)
   {
@@ -120,21 +244,6 @@ RadosFsIO::write(const char *buff, off_t offset, size_t blen, bool sync)
   if (totalSize > mPool->size)
     return -EFBIG;
 
-  const bool lockFiles =  mRadosFs->fileLocking();
-
-  if (lockFiles)
-  {
-    while ((ret = rados_lock_shared(mPool->ioctx,
-                                    inode().c_str(),
-                                    FILE_STRIPE_LOCKER,
-                                    FILE_STRIPE_LOCKER_COOKIE_WRITE,
-                                    FILE_STRIPE_LOCKER_TAG,
-                                    "",
-                                    0,
-                                    0)) == -EBUSY)
-    {}
-  }
-
   librados::IoCtx ctx;
   librados::IoCtx::from_rados_ioctx_t(mPool->ioctx, ctx);
   off_t currentOffset =  offset % mStripeSize;
@@ -142,12 +251,27 @@ RadosFsIO::write(const char *buff, off_t offset, size_t blen, bool sync)
   size_t firstStripe = offset / mStripeSize;
   size_t lastStripe = (offset + blen - 1) / mStripeSize;
   size_t totalStripes = lastStripe - firstStripe + 1;
-  const std::string &opId = generateUuid();
+
+  std::string opId = generateUuid();
+
+  if (totalStripes > 1)
+    lockExclusive(opId);
+  else
+    lockShared(opId);
 
   setSizeIfBigger(totalSize);
 
+  radosfs_debug("Writing in inode '%s' (op id: '%s') to size %lu affecting "
+                "stripes %lu-%lu", inode().c_str(), opId.c_str(), totalSize,
+                firstStripe, lastStripe);
+
   for (size_t i = 0; i < totalStripes; i++)
   {
+    if (totalStripes > 1)
+      lockExclusive(opId);
+    else
+      lockShared(opId);
+
     librados::ObjectWriteOperation op;
     librados::bufferlist contents;
     librados::AioCompletion *completion;
@@ -165,26 +289,27 @@ RadosFsIO::write(const char *buff, off_t offset, size_t blen, bool sync)
 
     contents.append(contentsStr);
     op.write(currentOffset, contents);
+
     completion = librados::Rados::aio_create_completion();
 
-    mOpManager.addCompletion(opId, completion);
+    std::stringstream stream;
+    stream << "Wrote (od id='" << opId << "') stripe '" << fileStripe << "'";
+    setCompletionDebugMsg(completion, stream.str());
+
     ctx.aio_operate(fileStripe, completion, &op);
+
+    mOpManager.addCompletion(opId, completion);
 
     currentOffset = 0;
     bytesToWrite -= length;
+
+    radosfs_debug("Scheduling writing of stripe '%s' in (op id='%s')",
+                  fileStripe.c_str(), opId.c_str());
   }
 
   if (sync)
   {
-    mOpManager.sync();
-  }
-
-  if (lockFiles)
-  {
-    rados_unlock(mPool->ioctx,
-                 inode().c_str(),
-                 FILE_STRIPE_LOCKER,
-                 FILE_STRIPE_LOCKER_COOKIE_WRITE);
+    syncAndResetLocker(opId);
   }
 
   return ret;
@@ -193,53 +318,51 @@ RadosFsIO::write(const char *buff, off_t offset, size_t blen, bool sync)
 int
 RadosFsIO::remove(bool sync)
 {
+  const std::string &opId = generateUuid();
+  mOpManager.sync();
+
+  mLockMutex.lock();
+  unlockShared();
+  mLockMutex.unlock();
+
+  lockExclusive(opId);
+
   int ret = 0;
-
-  const bool lockFiles =  mRadosFs->fileLocking();
-
-  if (lockFiles)
-  {
-    while (rados_lock_exclusive(mPool->ioctx,
-                                inode().c_str(),
-                                FILE_STRIPE_LOCKER,
-                                FILE_STRIPE_LOCKER_COOKIE_OTHER,
-                                "",
-                                0,
-                                0) != 0)
-    {}
-  }
 
   librados::IoCtx ctx;
   librados::IoCtx::from_rados_ioctx_t(mPool->ioctx, ctx);
   size_t lastStripe = getLastStripeIndex();
-  const std::string &opId = generateUuid();
+
+  radosfs_debug("Remove (op id='%s') inode '%s' affecting stripes 0-%lu",
+                opId.c_str(), inode().c_str(), 0, lastStripe);
 
   // We start deleting from the base stripe onward because this will result
   // in other calls to the object eventually seeing the removal sooner
   for (size_t i = 0; i <= lastStripe; i++)
   {
+    lockExclusive(opId);
+
     librados::ObjectWriteOperation op;
     librados::AioCompletion *completion;
     const std::string &fileStripe = makeFileStripeName(inode(), i);
 
+    radosfs_debug("Removing stripe '%s' in (op id= '%s')",
+                  fileStripe.c_str(), opId.c_str());
+
     op.remove();
     completion = librados::Rados::aio_create_completion();
 
-    mOpManager.addCompletion(opId, completion);
+    std::stringstream stream;
+    stream << "Remove (op id='" << opId << "') stripe '" << fileStripe << "'";
+    setCompletionDebugMsg(completion, stream.str());
+
     ctx.aio_operate(fileStripe, completion, &op);
+    mOpManager.addCompletion(opId, completion);
   }
 
   if (sync)
   {
-    mOpManager.sync();
-  }
-
-  if (lockFiles)
-  {
-    rados_unlock(mPool->ioctx,
-                 inode().c_str(),
-                 FILE_STRIPE_LOCKER,
-                 FILE_STRIPE_LOCKER_COOKIE_OTHER);
+    syncAndResetLocker(opId);
   }
 
   return ret;
@@ -254,20 +377,15 @@ RadosFsIO::truncate(size_t newSize, bool sync)
     return -EFBIG;
   }
 
-  const bool lockFiles =  mRadosFs->fileLocking();
   mOpManager.sync();
 
-  if (lockFiles)
-  {
-    while (rados_lock_exclusive(mPool->ioctx,
-                                inode().c_str(),
-                                FILE_STRIPE_LOCKER,
-                                FILE_STRIPE_LOCKER_COOKIE_OTHER,
-                                "",
-                                0,
-                                0) != 0)
-    {}
-  }
+  const std::string &opId = generateUuid();
+
+  mLockMutex.lock();
+  unlockShared();
+  mLockMutex.unlock();
+
+  lockExclusive(opId);
 
   librados::IoCtx ctx;
   librados::IoCtx::from_rados_ioctx_t(mPool->ioctx, ctx);
@@ -278,7 +396,6 @@ RadosFsIO::truncate(size_t newSize, bool sync)
   size_t totalStripes = 1;
   size_t newLastStripeSize = newSize % stripeSize();
   bool hasAlignment = mPool->hasAlignment();
-  const std::string &opId = generateUuid();
 
   if (newLastStripe == 0 && newSize > stripeSize())
     newLastStripe = stripeSize();
@@ -288,8 +405,13 @@ RadosFsIO::truncate(size_t newSize, bool sync)
 
   setSize(newSize);
 
+  radosfs_debug("Truncating stripe '%s' (op id='%s').", inode().c_str(),
+                opId.c_str());
+
   for (ssize_t i = totalStripes - 1; i >= 0; i--)
   {
+    lockExclusive(opId);
+
     librados::ObjectWriteOperation op;
     librados::AioCompletion *completion;
     const std::string &fileStripe = makeFileStripeName(inode(),
@@ -311,30 +433,32 @@ RadosFsIO::truncate(size_t newSize, bool sync)
         op.truncate(newLastStripeSize);
       }
 
+      radosfs_debug("Truncating stripe '%s' (op id='%s').", fileStripe.c_str(),
+                    opId.c_str());
+
       op.assert_exists();
     }
     else
     {
       op.remove();
+
+      radosfs_debug("Removing stripe '%s' in truncate (op id='%s')",
+                    fileStripe.c_str(), opId.c_str());
     }
 
     completion = librados::Rados::aio_create_completion();
-    ctx.aio_operate(fileStripe, completion, &op);
 
+    std::stringstream stream;
+    stream << "Truncate (op id='" << opId << "') stripe '" << fileStripe << "'";
+    setCompletionDebugMsg(completion, stream.str());
+
+    ctx.aio_operate(fileStripe, completion, &op);
     mOpManager.addCompletion(opId, completion);
   }
 
   if (sync)
   {
-    mOpManager.sync();
-  }
-
-  if (lockFiles)
-  {
-    rados_unlock(mPool->ioctx,
-                 inode().c_str(),
-                 FILE_STRIPE_LOCKER,
-                 FILE_STRIPE_LOCKER_COOKIE_OTHER);
+    syncAndResetLocker(opId);
   }
 
   return 0;
@@ -457,6 +581,42 @@ RadosFsIO::setSize(size_t size)
   return ctx.operate(inode(), &writeOp);
 }
 
+void
+RadosFsIO::manageIdleLock(double idleTimeout)
+{
+  if (mLocker == "")
+  {
+    boost::chrono::duration<double> seconds;
+    seconds = boost::chrono::system_clock::now() - mLockStart;
+    bool lockIsIdle = seconds.count() >= idleTimeout;
+    bool lockTimedOut = seconds.count() > FILE_LOCK_DURATION;
+
+    if (lockIsIdle && !lockTimedOut && mLockMutex.try_lock())
+    {
+      if (mLocker == "")
+      {
+        radosfs_debug("Unlocked idle lock.");
+
+        unlockShared();
+        unlockExclusive();
+        // Set the lock start to look as if it expired so it does not try to
+        // unlock it anymore.
+        mLockStart = boost::chrono::system_clock::now() -
+                     boost::chrono::seconds(FILE_LOCK_DURATION + 1);
+      }
+
+      mLockMutex.unlock();
+    }
+  }
+}
+
+void
+RadosFsIO::syncAndResetLocker(const std::string &opId)
+{
+  boost::unique_lock<boost::mutex> lock(mLockMutex);
+  mOpManager.sync(opId);
+  mLocker = "";
+}
 
 void
 OpsManager::sync(void)

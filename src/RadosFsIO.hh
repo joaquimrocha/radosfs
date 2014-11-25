@@ -84,6 +84,16 @@ public:
 
   int truncate(size_t newSize, bool sync);
 
+  void lockShared(const std::string &uuid);
+
+  void lockExclusive(const std::string &uuid);
+
+  void unlockShared(void);
+
+  void unlockExclusive(void);
+
+  void manageIdleLock(double idleTimeout);
+
 private:
   RadosFs *mRadosFs;
   const RadosFsPoolSP mPool;
@@ -91,11 +101,17 @@ private:
   size_t mStripeSize;
   bool mLazyRemoval;
   std::vector<rados_completion_t> mCompletionList;
+  boost::chrono::system_clock::time_point mLockStart;
+  boost::mutex mLockMutex;
+  std::string mLocker;
   OpsManager mOpManager;
 
   int write(const char *buff, off_t offset, size_t blen, bool sync);
   int setSizeIfBigger(size_t size);
   int setSize(size_t size);
+  void setCompletionDebugMsg(librados::AioCompletion *completion,
+                             const std::string &message);
+  void syncAndResetLocker(const std::string &opId);
 };
 
 typedef std::tr1::shared_ptr<RadosFsIO> RadosFsIOSP;
