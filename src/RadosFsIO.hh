@@ -20,8 +20,10 @@
 #ifndef RADOS_FS_OP_HH
 #define RADOS_FS_OP_HH
 
+#include <boost/chrono.hpp>
+#include <boost/thread/mutex.hpp>
 #include <cstdlib>
-#include <rados/librados.h>
+#include <rados/librados.hpp>
 #include <string>
 #include <vector>
 #include <tr1/memory>
@@ -33,8 +35,22 @@
 #define FILE_STRIPE_LOCKER_COOKIE_WRITE "file-stripe-locker-cookie-write"
 #define FILE_STRIPE_LOCKER_COOKIE_OTHER "file-stripe-locker-cookie-other"
 #define FILE_STRIPE_LOCKER_TAG "file-stripe-locker-tag"
+#define FILE_LOCK_DURATION 120 // seconds
 
 RADOS_FS_BEGIN_NAMESPACE
+
+typedef std::vector<librados::AioCompletion *> CompletionList;
+
+struct OpsManager
+{
+  boost::mutex opsMutex;
+  std::map<std::string, CompletionList> mOperations;
+
+  void sync(void);
+  void sync(const std::string &opId, bool lock=true);
+
+  void addCompletion(const std::string &opId, librados::AioCompletion *comp);
+};
 
 class RadosFsIO
 {
@@ -75,6 +91,8 @@ private:
   size_t mStripeSize;
   bool mLazyRemoval;
   std::vector<rados_completion_t> mCompletionList;
+  OpsManager mOpManager;
+
   int write(const char *buff, off_t offset, size_t blen, bool sync);
   int setSizeIfBigger(size_t size);
   int setSize(size_t size);

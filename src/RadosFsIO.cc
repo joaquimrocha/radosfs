@@ -44,6 +44,8 @@ RadosFsIO::RadosFsIO(RadosFs *radosFs,
 
 RadosFsIO::~RadosFsIO()
 {
+  mOpManager.sync();
+
   if (mLazyRemoval)
     remove(false);
 }
@@ -140,10 +142,7 @@ RadosFsIO::write(const char *buff, off_t offset, size_t blen, bool sync)
   size_t firstStripe = offset / mStripeSize;
   size_t lastStripe = (offset + blen - 1) / mStripeSize;
   size_t totalStripes = lastStripe - firstStripe + 1;
-  librados::AioCompletion **compList = 0;
-
-  if (sync)
-    compList = new librados::AioCompletion*[totalStripes];
+  const std::string &opId = generateUuid();
 
   setSizeIfBigger(totalSize);
 
@@ -167,12 +166,9 @@ RadosFsIO::write(const char *buff, off_t offset, size_t blen, bool sync)
     contents.append(contentsStr);
     op.write(currentOffset, contents);
     completion = librados::Rados::aio_create_completion();
-    ctx.aio_operate(fileStripe, completion, &op);
 
-    if (sync)
-      compList[i] = completion;
-    else
-      completion->release();
+    mOpManager.addCompletion(opId, completion);
+    ctx.aio_operate(fileStripe, completion, &op);
 
     currentOffset = 0;
     bytesToWrite -= length;
@@ -180,14 +176,8 @@ RadosFsIO::write(const char *buff, off_t offset, size_t blen, bool sync)
 
   if (sync)
   {
-    for (size_t i = 0; i < totalStripes; i++)
-    {
-      compList[i]->wait_for_complete();
-      compList[i]->release();
-    }
+    mOpManager.sync();
   }
-
-  delete[] compList;
 
   if (lockFiles)
   {
@@ -222,10 +212,7 @@ RadosFsIO::remove(bool sync)
   librados::IoCtx ctx;
   librados::IoCtx::from_rados_ioctx_t(mPool->ioctx, ctx);
   size_t lastStripe = getLastStripeIndex();
-  librados::AioCompletion **compList = 0;
-
-  if (sync)
-    compList = new librados::AioCompletion*[lastStripe + 1];
+  const std::string &opId = generateUuid();
 
   // We start deleting from the base stripe onward because this will result
   // in other calls to the object eventually seeing the removal sooner
@@ -237,24 +224,15 @@ RadosFsIO::remove(bool sync)
 
     op.remove();
     completion = librados::Rados::aio_create_completion();
-    ctx.aio_operate(fileStripe, completion, &op);
 
-    if (sync)
-      compList[i] = completion;
-    else
-      completion->release();
+    mOpManager.addCompletion(opId, completion);
+    ctx.aio_operate(fileStripe, completion, &op);
   }
 
   if (sync)
   {
-    for (size_t i = 0; i <= lastStripe; i++)
-    {
-      compList[i]->wait_for_complete();
-      compList[i]->release();
-    }
+    mOpManager.sync();
   }
-
-  delete[] compList;
 
   if (lockFiles)
   {
@@ -277,6 +255,7 @@ RadosFsIO::truncate(size_t newSize, bool sync)
   }
 
   const bool lockFiles =  mRadosFs->fileLocking();
+  mOpManager.sync();
 
   if (lockFiles)
   {
@@ -295,20 +274,17 @@ RadosFsIO::truncate(size_t newSize, bool sync)
   size_t currentSize;
   size_t lastStripe = getLastStripeIndexAndSize(&currentSize);
   size_t newLastStripe = (newSize == 0) ? 0 : (newSize - 1) / stripeSize();
-  librados::AioCompletion **compList = 0;
   bool truncateDown = currentSize > newSize;
   size_t totalStripes = 1;
   size_t newLastStripeSize = newSize % stripeSize();
   bool hasAlignment = mPool->hasAlignment();
+  const std::string &opId = generateUuid();
 
   if (newLastStripe == 0 && newSize > stripeSize())
     newLastStripe = stripeSize();
 
   if (truncateDown)
     totalStripes = lastStripe - newLastStripe + 1;
-
-  if (sync)
-    compList = new librados::AioCompletion*[totalStripes];
 
   setSize(newSize);
 
@@ -345,22 +321,13 @@ RadosFsIO::truncate(size_t newSize, bool sync)
     completion = librados::Rados::aio_create_completion();
     ctx.aio_operate(fileStripe, completion, &op);
 
-    if (sync)
-      compList[i] = completion;
-    else
-      completion->release();
+    mOpManager.addCompletion(opId, completion);
   }
 
   if (sync)
   {
-    for (size_t i = 0; i < totalStripes; i++)
-    {
-      compList[i]->wait_for_complete();
-      compList[i]->release();
-    }
+    mOpManager.sync();
   }
-
-  delete[] compList;
 
   if (lockFiles)
   {
@@ -488,6 +455,55 @@ RadosFsIO::setSize(size_t size)
   writeOp.setxattr(XATTR_FILE_SIZE, xattrValue);
 
   return ctx.operate(inode(), &writeOp);
+}
+
+
+void
+OpsManager::sync(void)
+{
+  std::map<std::string, CompletionList>::iterator it, oldIt;
+  boost::unique_lock<boost::mutex> lock(opsMutex);
+
+  it = mOperations.begin();
+  while (it != mOperations.end())
+  {
+    oldIt = it;
+    oldIt++;
+
+    sync((*it).first, false);
+
+    it = oldIt;
+  }
+}
+
+void
+OpsManager::sync(const std::string &opId, bool lock)
+{
+  boost::unique_lock<boost::mutex> uniqueLock;
+
+  if (lock)
+    uniqueLock = boost::unique_lock<boost::mutex>(opsMutex);
+
+  if (mOperations.count(opId) == 0)
+    return;
+
+  const CompletionList &compList = mOperations[opId];
+  for (size_t i = 0; i < compList.size(); i++)
+  {
+    compList[i]->wait_for_complete();
+    compList[i]->release();
+  }
+
+  mOperations.erase(opId);
+}
+
+void
+OpsManager::addCompletion(const std::string &opId,
+                          librados::AioCompletion *comp)
+{
+  boost::unique_lock<boost::mutex> lock(opsMutex);
+
+  mOperations[opId].push_back(comp);
 }
 
 RADOS_FS_END_NAMESPACE
