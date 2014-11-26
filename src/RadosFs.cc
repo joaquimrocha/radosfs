@@ -448,6 +448,13 @@ RadosFsPriv::launchThreads(void)
   }
 }
 
+boost::shared_ptr<boost::asio::io_service>
+RadosFsPriv::getIoService()
+{
+  launchThreads();
+  return ioService;
+}
+
 void
 RadosFsPriv::statXAttrInThread(std::string path, std::string xattr,
                                RadosFsStat *stat, int *ret, boost::mutex *mutex,

@@ -210,6 +210,8 @@ public:
 
   void checkFileLocks(void);
 
+  boost::shared_ptr<boost::asio::io_service> getIoService();
+
   RadosFs *radosFs;
   rados_t radosCluster;
   static __thread uid_t uid;
