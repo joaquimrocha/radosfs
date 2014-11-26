@@ -619,8 +619,6 @@ RadosFsPriv::parallelStat(
     const std::map<std::string, std::vector<std::string> > &paths,
     std::map<std::string, std::pair<int, struct stat> > *stats)
 {
-  launchThreads();
-
   StatAsyncInfo *statInfoList = new StatAsyncInfo[paths.size()];
   boost::mutex mutex;
   boost::condition_variable cond;
@@ -634,8 +632,8 @@ RadosFsPriv::parallelStat(
     StatAsyncInfo *info = &statInfoList[i];
     info->entries = &(*it).second;
 
-    ioService->post(boost::bind(&RadosFsPriv::statAsyncInfoInThread, this, dir,
-                                info, &mutex, &cond, &numJobs));
+    getIoService()->post(boost::bind(&RadosFsPriv::statAsyncInfoInThread, this,
+                                     dir, info, &mutex, &cond, &numJobs));
   }
 
   boost::unique_lock<boost::mutex> lock(mutex);
