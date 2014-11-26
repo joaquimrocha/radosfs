@@ -1380,6 +1380,33 @@ runInThread(void *contents)
   pthread_exit(0);
 }
 
+bool
+checkStripesExistence(rados_ioctx_t ioctx, const std::string &baseName,
+                      size_t firstStripe, size_t lastStripe, bool shouldExist)
+{
+  bool checkResult = true;
+  for (size_t i = firstStripe; i <= lastStripe; i++)
+  {
+    std::string stripe = makeFileStripeName(baseName, i);
+
+    if (rados_stat(ioctx, stripe.c_str(), 0, 0) != 0)
+    {
+      if (shouldExist)
+      {
+        fprintf(stderr, "Error: Stripe %s does not exist!\n", stripe.c_str());
+        checkResult = false;
+      }
+    }
+    else if (!shouldExist)
+    {
+      fprintf(stderr, "Error: Stripe %s exist!\n", stripe.c_str());
+      checkResult = false;
+    }
+  }
+
+  return checkResult;
+}
+
 TEST_F(RadosFsTest, FileOpsMultipleClients)
 {
   radosFs.addDataPool(TEST_POOL, "/", 50 * 1024);
@@ -1393,7 +1420,8 @@ TEST_F(RadosFsTest, FileOpsMultipleClients)
 
   const size_t size = pow(1024, 3);
 
-  const size_t stripeSize = size / 30;
+  const size_t numStripes = 30;
+  const size_t stripeSize = size / numStripes;
   radosFs.setFileStripeSize(stripeSize);
   otherClient.setFileStripeSize(stripeSize);
 
@@ -1436,6 +1464,13 @@ TEST_F(RadosFsTest, FileOpsMultipleClients)
   pthread_join(t1, &status);
   pthread_join(t2, &status);
 
+  std::string inode = radosFsFilePriv(file)->radosFsIO->inode();
+  rados_ioctx_t ioctx = radosFsFilePriv(file)->dataPool->ioctx;
+
+  EXPECT_TRUE(checkStripesExistence(ioctx, inode, 0, 0, true));
+
+  EXPECT_TRUE(checkStripesExistence(ioctx, inode, 1, numStripes, false));
+
   // Verify that the object has been correctly truncated
 
   struct stat buff;
@@ -1466,6 +1501,8 @@ TEST_F(RadosFsTest, FileOpsMultipleClients)
   pthread_join(t1, &status);
   pthread_join(t2, &status);
 
+  EXPECT_TRUE(checkStripesExistence(ioctx, inode, 0, numStripes, false));
+
   // Verify the file has been removed
 
   EXPECT_EQ(-ENOENT, file.stat(&buff));
@@ -1474,6 +1511,8 @@ TEST_F(RadosFsTest, FileOpsMultipleClients)
   // mistakenly left over)
 
   EXPECT_EQ(0, file.create());
+
+  inode = radosFsFilePriv(file)->radosFsIO->inode();
 
   buff.st_size = 1;
 
@@ -1500,6 +1539,8 @@ TEST_F(RadosFsTest, FileOpsMultipleClients)
 
   pthread_join(t1, &status);
   pthread_join(t2, &status);
+
+  EXPECT_TRUE(checkStripesExistence(ioctx, inode, 0, numStripes, false));
 
   // Verify the file has been removed
 
