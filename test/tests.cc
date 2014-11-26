@@ -1443,6 +1443,8 @@ TEST_F(RadosFsTest, FileOpsMultipleClients)
   // Call truncate on a file from a different thread
   // when a write is taking place
 
+  fprintf(stderr, "\n\n------- Beggining writing and truncation ------- \n");
+
   FsActionInfo c1(&radosFs, FS_ACTION_TYPE_FILE, file.path(), "write",
                   contents, size, &mutex, &cond);
 
@@ -1470,6 +1472,8 @@ TEST_F(RadosFsTest, FileOpsMultipleClients)
   EXPECT_TRUE(checkStripesExistence(ioctx, inode, 0, 0, true));
 
   EXPECT_TRUE(checkStripesExistence(ioctx, inode, 1, numStripes, false));
+
+  fprintf(stderr, "\n\n------- Beggining writing and removal ------- \n");
 
   // Verify that the object has been correctly truncated
 
@@ -1502,6 +1506,8 @@ TEST_F(RadosFsTest, FileOpsMultipleClients)
   pthread_join(t2, &status);
 
   EXPECT_TRUE(checkStripesExistence(ioctx, inode, 0, numStripes, false));
+
+  fprintf(stderr, "\n\n------- Beggining truncating and removal ------- \n");
 
   // Verify the file has been removed
 
