@@ -50,6 +50,7 @@ add_library( radosfs SHARED
              RadosFsIO.cc RadosFsIO.hh
              RadosFsLogger.cc RadosFsLogger.hh
              RadosFsFinder.cc RadosFsFinder.hh
+             RadosFsAsyncOp.cc RadosFsAsyncOp.cc RadosFsAsyncOpPriv.hh
 )
 
 include_directories( ${RADOS_INCLUDE_DIR} )

@@ -17,6 +17,7 @@
  * for more details.
  */
 
+#include <boost/bind.hpp>
 #include <cassert>
 #include <climits>
 #include <cstdio>
@@ -24,8 +25,10 @@
 #include <rados/librados.hpp>
 
 #include "radosfsdefines.h"
+#include "RadosFsAsyncOpPriv.hh"
 #include "RadosFsIO.hh"
 #include "RadosFsLogger.hh"
+#include "RadosFsPriv.hh"
 
 RADOS_FS_BEGIN_NAMESPACE
 
@@ -103,13 +106,22 @@ RadosFsIO::read(char *buff, off_t offset, size_t blen)
 int
 RadosFsIO::writeSync(const char *buff, off_t offset, size_t blen)
 {
-  return write(buff, offset, blen, true);
+  RadosFsAsyncOpSP asyncOp(new RadosFsAsyncOp(generateUuid()));
+  mOpManager.addOperation(asyncOp);
+
+  return write(buff, offset, blen, asyncOp);
 }
 
 int
 RadosFsIO::write(const char *buff, off_t offset, size_t blen)
 {
-  return write(buff, offset, blen, false);
+  RadosFsAsyncOpSP asyncOp(new RadosFsAsyncOp(generateUuid()));
+  mOpManager.addOperation(asyncOp);
+
+  mRadosFs->mPriv->getIoService()->post(boost::bind(&RadosFsIO::write, this,
+                                                    buff, offset, blen,
+                                                    asyncOp));
+  return 0;
 }
 
 void
@@ -229,7 +241,8 @@ RadosFsIO::unlockExclusive()
 }
 
 int
-RadosFsIO::write(const char *buff, off_t offset, size_t blen, bool sync)
+RadosFsIO::write(const char *buff, off_t offset, size_t blen,
+                 RadosFsAsyncOpSP asyncOp)
 {
   int ret = 0;
 
@@ -251,8 +264,7 @@ RadosFsIO::write(const char *buff, off_t offset, size_t blen, bool sync)
   size_t firstStripe = offset / mStripeSize;
   size_t lastStripe = (offset + blen - 1) / mStripeSize;
   size_t totalStripes = lastStripe - firstStripe + 1;
-
-  std::string opId = generateUuid();
+  const std::string &opId = asyncOp->id();
 
   if (totalStripes > 1)
     lockExclusive(opId);
@@ -297,8 +309,7 @@ RadosFsIO::write(const char *buff, off_t offset, size_t blen, bool sync)
     setCompletionDebugMsg(completion, stream.str());
 
     ctx.aio_operate(fileStripe, completion, &op);
-
-    mOpManager.addCompletion(opId, completion);
+    asyncOp->mPriv->addCompletion(completion);
 
     currentOffset = 0;
     bytesToWrite -= length;
@@ -307,10 +318,8 @@ RadosFsIO::write(const char *buff, off_t offset, size_t blen, bool sync)
                   fileStripe.c_str(), opId.c_str());
   }
 
-  if (sync)
-  {
-    syncAndResetLocker(opId);
-  }
+  asyncOp->mPriv->setReady();
+  syncAndResetLocker(opId);
 
   return ret;
 }
@@ -336,6 +345,9 @@ RadosFsIO::remove(bool sync)
   radosfs_debug("Remove (op id='%s') inode '%s' affecting stripes 0-%lu",
                 opId.c_str(), inode().c_str(), 0, lastStripe);
 
+  RadosFsAsyncOpSP asyncOp(new RadosFsAsyncOp(opId));
+  mOpManager.addOperation(asyncOp);
+
   // We start deleting from the base stripe onward because this will result
   // in other calls to the object eventually seeing the removal sooner
   for (size_t i = 0; i <= lastStripe; i++)
@@ -357,8 +369,10 @@ RadosFsIO::remove(bool sync)
     setCompletionDebugMsg(completion, stream.str());
 
     ctx.aio_operate(fileStripe, completion, &op);
-    mOpManager.addCompletion(opId, completion);
+    asyncOp->mPriv->addCompletion(completion);
   }
+
+  asyncOp->mPriv->setReady();
 
   if (sync)
   {
@@ -408,6 +422,9 @@ RadosFsIO::truncate(size_t newSize, bool sync)
   radosfs_debug("Truncating stripe '%s' (op id='%s').", inode().c_str(),
                 opId.c_str());
 
+  RadosFsAsyncOpSP asyncOp(new RadosFsAsyncOp(opId));
+  mOpManager.addOperation(asyncOp);
+
   for (ssize_t i = totalStripes - 1; i >= 0; i--)
   {
     lockExclusive(opId);
@@ -453,8 +470,10 @@ RadosFsIO::truncate(size_t newSize, bool sync)
     setCompletionDebugMsg(completion, stream.str());
 
     ctx.aio_operate(fileStripe, completion, &op);
-    mOpManager.addCompletion(opId, completion);
+    asyncOp->mPriv->addCompletion(completion);
   }
+
+  asyncOp->mPriv->setReady();
 
   if (sync)
   {
@@ -628,7 +647,7 @@ RadosFsIO::syncAndResetLocker(const std::string &opId)
 void
 OpsManager::sync(void)
 {
-  std::map<std::string, CompletionList>::iterator it, oldIt;
+  std::map<std::string, RadosFsAsyncOpSP>::iterator it, oldIt;
   boost::unique_lock<boost::mutex> lock(opsMutex);
 
   it = mOperations.begin();
@@ -647,6 +666,7 @@ void
 OpsManager::sync(const std::string &opId, bool lock)
 {
   boost::unique_lock<boost::mutex> uniqueLock;
+  RadosFsAsyncOpSP asyncOp;
 
   if (lock)
     uniqueLock = boost::unique_lock<boost::mutex>(opsMutex);
@@ -654,23 +674,16 @@ OpsManager::sync(const std::string &opId, bool lock)
   if (mOperations.count(opId) == 0)
     return;
 
-  const CompletionList &compList = mOperations[opId];
-  for (size_t i = 0; i < compList.size(); i++)
-  {
-    compList[i]->wait_for_complete();
-    compList[i]->release();
-  }
-
+  mOperations[opId]->waitForCompletion();
   mOperations.erase(opId);
 }
 
 void
-OpsManager::addCompletion(const std::string &opId,
-                          librados::AioCompletion *comp)
+OpsManager::addOperation(RadosFsAsyncOpSP op)
 {
   boost::unique_lock<boost::mutex> lock(opsMutex);
 
-  mOperations[opId].push_back(comp);
+  mOperations[op->id()] = op;
 }
 
 RADOS_FS_END_NAMESPACE

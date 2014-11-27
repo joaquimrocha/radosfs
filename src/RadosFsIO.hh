@@ -29,6 +29,7 @@
 #include <tr1/memory>
 
 #include "RadosFs.hh"
+#include "RadosFsAsyncOp.hh"
 #include "radosfscommon.h"
 
 #define FILE_STRIPE_LOCKER "file-stripe-locker"
@@ -39,17 +40,17 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
-typedef std::vector<librados::AioCompletion *> CompletionList;
+typedef std::tr1::shared_ptr<RadosFsAsyncOp> RadosFsAsyncOpSP;
 
 struct OpsManager
 {
   boost::mutex opsMutex;
-  std::map<std::string, CompletionList> mOperations;
+  std::map<std::string, RadosFsAsyncOpSP> mOperations;
 
   void sync(void);
   void sync(const std::string &opId, bool lock=true);
 
-  void addCompletion(const std::string &opId, librados::AioCompletion *comp);
+  void addOperation(RadosFsAsyncOpSP op);
 };
 
 class RadosFsIO
@@ -106,7 +107,8 @@ private:
   std::string mLocker;
   OpsManager mOpManager;
 
-  int write(const char *buff, off_t offset, size_t blen, bool sync);
+  int write(const char *buff, off_t offset, size_t blen,
+            RadosFsAsyncOpSP asyncOp);
   int setSizeIfBigger(size_t size);
   int setSize(size_t size);
   void setCompletionDebugMsg(librados::AioCompletion *completion,

@@ -138,6 +138,7 @@ friend class ::RadosFsChecker;
 friend class RadosFsInfoPriv;
 friend class RadosFsFilePriv;
 friend class RadosFsDirPriv;
+friend class RadosFsIO;
 };
 
 RADOS_FS_END_NAMESPACE
