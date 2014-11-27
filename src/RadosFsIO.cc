@@ -64,6 +64,8 @@ RadosFsIO::~RadosFsIO()
 ssize_t
 RadosFsIO::read(char *buff, off_t offset, size_t blen)
 {
+  mOpManager.sync();
+
   if (blen == 0)
   {
     radosfs_debug("Invalid length for reading. Cannot read 0 bytes.");
