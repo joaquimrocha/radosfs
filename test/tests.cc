@@ -1099,7 +1099,7 @@ TEST_F(RadosFsTest, FileReadWrite)
 
   char *buff = new char[contents.length() + 1];
 
-  EXPECT_EQ(0, file.read(buff, 0, contents.length()));
+  EXPECT_EQ(-EOVERFLOW, file.read(buff, 0, contents.length()));
 
   delete[] buff;
 
@@ -1161,7 +1161,30 @@ TEST_F(RadosFsTest, FileReadWrite)
 
   EXPECT_EQ(contents2.length(), statBuff.st_size);
 
+  // Read outside of the file's size (from the file size to 2x file size)
+
+  ASSERT_EQ(-EOVERFLOW, file.read(buff, statBuff.st_size, statBuff.st_size * 2));
+
+  // Increase the file size and read a region that doesn't have corresponding
+  // stripes
+
+  const size_t fileOldSize = statBuff.st_size;
+
+  ASSERT_EQ(0, file.truncate(fileOldSize * 2));
+
+  // Read in a region of the file without existing stripes
+  // (read the second half of the file)
+
+  ASSERT_EQ(fileOldSize, file.read(buff, fileOldSize,
+                                   (fileOldSize * 2) - fileOldSize));
+
+  char *blankContents = new char[contents2.length() + 1];
+  memset(blankContents, '\0', contents2.length());
+
+  EXPECT_EQ(0, strcmp(buff, blankContents));
+
   delete[] buff;
+  delete[] blankContents;
 }
 
 TEST_F(RadosFsTest, RenameFile)
