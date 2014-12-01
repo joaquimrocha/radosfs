@@ -181,7 +181,7 @@ RadosFsFilePriv::removeFile()
   if (radosFsIO.use_count() > 1)
     radosFsIO->setLazyRemoval(true);
   else
-    return radosFsIO->remove(true);
+    return radosFsIO->remove();
 
   return 0;
 }
@@ -560,7 +560,7 @@ RadosFsFile::truncate(unsigned long long size)
   {
     updateTimeAsync(mPriv->fsStat(), XATTR_MTIME);
 
-    return mPriv->radosFsIO->truncate(size, true);
+    return mPriv->radosFsIO->truncate(size);
   }
 
   return -ENODEV;

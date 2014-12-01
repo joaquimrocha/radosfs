@@ -81,9 +81,9 @@ public:
 
   size_t getSize(void) const;
 
-  int remove(bool sync);
+  int remove(void);
 
-  int truncate(size_t newSize, bool sync);
+  int truncate(size_t newSize);
 
   void lockShared(const std::string &uuid);
 

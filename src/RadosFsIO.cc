@@ -52,7 +52,7 @@ RadosFsIO::~RadosFsIO()
 
   if (mLazyRemoval)
   {
-    remove(false);
+    remove();
     return;
   }
 
@@ -327,7 +327,7 @@ RadosFsIO::write(const char *buff, off_t offset, size_t blen,
 }
 
 int
-RadosFsIO::remove(bool sync)
+RadosFsIO::remove()
 {
   const std::string &opId = generateUuid();
   mOpManager.sync();
@@ -375,17 +375,13 @@ RadosFsIO::remove(bool sync)
   }
 
   asyncOp->mPriv->setReady();
-
-  if (sync)
-  {
-    syncAndResetLocker(opId);
-  }
+  syncAndResetLocker(opId);
 
   return ret;
 }
 
 int
-RadosFsIO::truncate(size_t newSize, bool sync)
+RadosFsIO::truncate(size_t newSize)
 {
   if (newSize > mPool->size)
   {
@@ -476,11 +472,7 @@ RadosFsIO::truncate(size_t newSize, bool sync)
   }
 
   asyncOp->mPriv->setReady();
-
-  if (sync)
-  {
-    syncAndResetLocker(opId);
-  }
+  syncAndResetLocker(opId);
 
   return 0;
 }
