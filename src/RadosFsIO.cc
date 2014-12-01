@@ -96,12 +96,25 @@ RadosFsIO::read(char *buff, off_t offset, size_t blen)
                          length,
                          currentOffset);
 
+    radosfs_debug("Read %lu bytes starting from %lu in stripe %s: "
+                  "retcode=%d (%s)", length, currentOffset, fileStripe.c_str(),
+                  ret, strerror(abs(ret)));
+
     currentOffset = 0;
 
-    if (ret < 0)
-      return ret;
+    // If the bytes read were less than expected or the stripe didn't exist,
+    // it should assign null characters to the nonexistent length.
+    if ((size_t) ret < length || ret == -ENOENT)
+    {
+      memset(buff + ret, '\0', length - ret);
 
-    bytesRead += ret;
+    }
+    else if (ret < 0)
+    {
+      return ret;
+    }
+
+    bytesRead += length;
 
     if (bytesToRead < mStripeSize)
       break;

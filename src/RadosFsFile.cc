@@ -341,12 +341,6 @@ RadosFsFile::read(char *buff, off_t offset, size_t blen)
     ret = mPriv->radosFsIO->read(buff, offset, blen);
   }
 
-  // Since it only creates the inode object when a write (or setXAttr) operation
-  // is needed, if the file exists but reading it returns -ENOENT, it should
-  // rather return 0 (it should act as if the file was empty).
-  if (ret == -ENOENT && exists())
-    ret = 0;
-
   return ret;
 }
 
