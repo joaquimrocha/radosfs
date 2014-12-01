@@ -72,6 +72,15 @@ RadosFsIO::read(char *buff, off_t offset, size_t blen)
     return -EINVAL;
   }
 
+  const size_t fileSize = getSize();
+
+  if ((offset + blen) > fileSize)
+  {
+    radosfs_debug("Length for reading is greater than the file's current size: "
+                  "%lu > %lu", (blen + offset), fileSize);
+    return -EOVERFLOW;
+  }
+
   off_t currentOffset =  offset % mStripeSize;
   size_t bytesToRead = blen;
   size_t bytesRead = 0;
