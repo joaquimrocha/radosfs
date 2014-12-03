@@ -2658,7 +2658,7 @@ TEST_F(RadosFsTest, LinkPermissions)
 
   fileLink.update();
 
-  EXPECT_EQ(0, fileLink.read(buff, 0, 1));
+  EXPECT_NE(-EACCES, fileLink.read(buff, 0, 1));
 
   // Write in the file through the link as root
 
