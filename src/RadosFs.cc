@@ -53,7 +53,6 @@ RadosFsPriv::RadosFsPriv(RadosFs *radosFs)
   pthread_mutex_init(&poolMutex, 0);
   pthread_mutex_init(&mtdPoolMutex, 0);
   pthread_mutex_init(&dirCacheMutex, 0);
-  pthread_mutex_init(&operationsMutex, 0);
   pthread_mutex_init(&dirPathInodeMutex, 0);
 }
 
@@ -75,7 +74,6 @@ RadosFsPriv::~RadosFsPriv()
 
   pthread_mutex_destroy(&poolMutex);
   pthread_mutex_destroy(&dirCacheMutex);
-  pthread_mutex_destroy(&operationsMutex);
 }
 
 PriorityCache::PriorityCache()
@@ -1131,13 +1129,10 @@ RadosFsIOSP
 RadosFsPriv::getRadosFsIO(const std::string &path)
 {
   RadosFsIOSP fsIO;
-
-  pthread_mutex_lock(&operationsMutex);
+  boost::unique_lock<boost::mutex> lock(operationsMutex);
 
   if (operations.count(path) != 0)
     fsIO = operations[path].lock();
-
-  pthread_mutex_unlock(&operationsMutex);
 
   return fsIO;
 }
@@ -1172,22 +1167,18 @@ RadosFsPriv::getOrCreateFsIO(const std::string &path, const RadosFsStat *stat)
 void
 RadosFsPriv::setRadosFsIO(RadosFsIOSP sharedFsIO)
 {
-  pthread_mutex_lock(&operationsMutex);
+  boost::unique_lock<boost::mutex> lock(operationsMutex);
 
   operations[sharedFsIO->inode()] = sharedFsIO;
-
-  pthread_mutex_unlock(&operationsMutex);
 }
 
 void
 RadosFsPriv::removeRadosFsIO(RadosFsIOSP sharedFsIO)
 {
-  pthread_mutex_lock(&operationsMutex);
+  boost::unique_lock<boost::mutex> lock(operationsMutex);
 
   if (operations.count(sharedFsIO->inode()))
     operations.erase(sharedFsIO->inode());
-
-  pthread_mutex_unlock(&operationsMutex);
 }
 
 std::vector<RadosFsStat>
@@ -1262,7 +1253,7 @@ RadosFsPriv::checkFileLocks(void)
 
   while (true)
   {
-    pthread_mutex_lock(&operationsMutex);
+    boost::unique_lock<boost::mutex> lock(operationsMutex);
     for (it = operations.begin(); it != operations.end(); it++)
     {
       boost::this_thread::interruption_point();
@@ -1272,7 +1263,7 @@ RadosFsPriv::checkFileLocks(void)
         fsIO->manageIdleLock(FILE_IDLE_LOCK_TIMEOUT);
       }
     }
-    pthread_mutex_unlock(&operationsMutex);
+    lock.unlock();
     boost::this_thread::sleep_for(sleepTime);
   }
 }
