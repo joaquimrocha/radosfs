@@ -223,7 +223,7 @@ public:
   pthread_mutex_t mtdPoolMutex;
   PriorityCache dirCache;
   pthread_mutex_t dirCacheMutex;
-  std::map<std::string, std::tr1::weak_ptr<RadosFsIO> > operations;
+  std::map<std::string, std::tr1::shared_ptr<RadosFsIO> > operations;
   boost::mutex operationsMutex;
   std::map<std::string, RadosFsInode> dirPathInodeMap;
   pthread_mutex_t dirPathInodeMutex;

@@ -1136,7 +1136,7 @@ RadosFsPriv::getRadosFsIO(const std::string &path)
   boost::unique_lock<boost::mutex> lock(operationsMutex);
 
   if (operations.count(path) != 0)
-    fsIO = operations[path].lock();
+    fsIO = operations[path];
 
   return fsIO;
 }
@@ -1253,19 +1253,32 @@ void
 RadosFsPriv::checkFileLocks(void)
 {
   const boost::chrono::milliseconds sleepTime(FILE_OPS_IDLE_CHECKER_SLEEP);
-  std::map<std::string, std::tr1::weak_ptr<RadosFsIO> >::iterator it;
+  std::map<std::string, std::tr1::shared_ptr<RadosFsIO> >::iterator it, oldIt;
 
   while (true)
   {
     boost::unique_lock<boost::mutex> lock(operationsMutex);
-    for (it = operations.begin(); it != operations.end(); it++)
+    it = operations.begin();
+    while (it != operations.end())
     {
       boost::this_thread::interruption_point();
-      RadosFsIOSP fsIO = (*it).second.lock();
+      RadosFsIOSP fsIO = (*it).second;
       if (fsIO)
       {
-        fsIO->manageIdleLock(FILE_IDLE_LOCK_TIMEOUT);
+        // use count of 2 means this scope's shared pointer + the one hold
+        // by the operations map
+        if (fsIO.use_count() == 2)
+        {
+          oldIt = it;
+          it++;
+          operations.erase(oldIt);
+          continue;
+        }
+        else
+          fsIO->manageIdleLock(FILE_IDLE_LOCK_TIMEOUT);
       }
+
+      it++;
     }
     lock.unlock();
     boost::this_thread::sleep_for(sleepTime);

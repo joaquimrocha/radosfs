@@ -42,12 +42,6 @@ RadosFsFilePriv::~RadosFsFilePriv()
 {
   if (target)
     delete target;
-
-  if (radosFsIO.get() && radosFsIO.use_count() == 1)
-  {
-    fsFile->filesystem()->mPriv->removeRadosFsIO(radosFsIO);
-    radosFsIO.reset();
-  }
 }
 
 void
