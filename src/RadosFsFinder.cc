@@ -32,77 +32,11 @@
 RADOS_FS_BEGIN_NAMESPACE
 
 RadosFsFinder::RadosFsFinder(RadosFs *fs)
-  : radosFs(fs),
-    numThreads(0),
-    availableThreads(0),
-    maxNumThreads(DEFAULT_NUM_FINDER_THREADS)
-{
-  pthread_mutex_init(&dirsMutex, 0);
-  pthread_mutex_init(&threadCountMutex, 0);
-}
+  : radosFs(fs)
+{}
 
 RadosFsFinder::~RadosFsFinder()
-{
-  pthread_mutex_destroy(&dirsMutex);
-  pthread_mutex_destroy(&threadCountMutex);
-}
-
-void *
-findInThread(void *finder)
-{
-  RadosFsFinder *finderObj = static_cast<RadosFsFinder *>(finder);
-  FinderData *data;
-
-  struct timespec lastFind, currentTime;
-
-  clock_gettime(CLOCK_REALTIME, &lastFind);
-
-  while (true)
-  {
-    pthread_mutex_lock(&finderObj->dirsMutex);
-
-    bool empty = finderObj->findQueue.empty();
-    if (!empty)
-    {
-      data = finderObj->findQueue.front();
-      finderObj->findQueue.pop();
-    }
-
-    pthread_mutex_unlock(&finderObj->dirsMutex);
-
-    if (empty)
-    {
-      clock_gettime(CLOCK_REALTIME, &currentTime);
-
-      if (currentTime.tv_sec - lastFind.tv_sec > MAX_INACTIVE_THREAD_TIME)
-      {
-        finderObj->updateNumThreads(-1);
-        pthread_exit(0);
-      }
-      continue;
-    }
-
-    finderObj->updateAvailThreads(-1);
-
-    pthread_mutex_lock(data->mutex);
-
-    *data->numberRelatedJobs = *data->numberRelatedJobs - 1;
-
-    if (data->retCode >= 0)
-      *data->retCode = finderObj->realFind(data);
-
-    if (*data->numberRelatedJobs == 0)
-    {
-      pthread_cond_signal(data->cond);
-    }
-
-    pthread_mutex_unlock(data->mutex);
-
-    finderObj->updateAvailThreads(1);
-
-    clock_gettime(CLOCK_REALTIME, &lastFind);
-  }
-}
+{}
 
 int
 makeRegexFromExp(const std::string &expression,
@@ -214,7 +148,7 @@ RadosFsFinder::checkEntrySize(FinderData *data,
 }
 
 int
-RadosFsFinder::realFind(FinderData *data)
+RadosFsFinder::find(FinderData *data)
 {
   int ret;
   std::string nameExpEQ = "", nameExpNE = "";
@@ -299,54 +233,6 @@ bailout:
     regfree(&nameRegexNE);
 
   return ret;
-}
-
-void
-RadosFsFinder::updateNumThreads(int diff)
-{
-  pthread_mutex_lock(&threadCountMutex);
-
-  numThreads += diff;
-  availableThreads += diff;
-
-  pthread_mutex_unlock(&threadCountMutex);
-}
-
-void
-RadosFsFinder::updateAvailThreads(int diff)
-{
-  pthread_mutex_lock(&threadCountMutex);
-
-  availableThreads += diff;
-
-  pthread_mutex_unlock(&threadCountMutex);
-}
-
-void
-RadosFsFinder::find(FinderData *data)
-{
-  pthread_mutex_lock(&dirsMutex);
-
-  findQueue.push(data);
-
-  pthread_mutex_unlock(&dirsMutex);
-
-  pthread_mutex_lock(&threadCountMutex);
-
-  bool createNewThread = numThreads < maxNumThreads && availableThreads == 0;
-
-  pthread_mutex_unlock(&threadCountMutex);
-
-  if (createNewThread)
-  {
-    updateNumThreads(1);
-
-    pthread_t thread;
-    pthread_attr_t attr;
-    pthread_attr_init(&attr);
-    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-    pthread_create(&thread, &attr, findInThread, this);
-  }
 }
 
 RADOS_FS_END_NAMESPACE

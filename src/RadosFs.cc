@@ -39,7 +39,6 @@ RadosFsPriv::RadosFsPriv(RadosFs *radosFs)
   : radosFs(radosFs),
     radosCluster(0),
     dirCompactRatio(DEFAULT_DIR_COMPACT_RATIO),
-    finder(radosFs),
     fileStripeSize(FILE_STRIPE_SIZE),
     lockFiles(true),
     ioService(new boost::asio::io_service),

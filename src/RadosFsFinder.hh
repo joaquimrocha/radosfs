@@ -2,6 +2,8 @@
 #define __RADOS_FS_FINDER_HH__
 
 #include <pthread.h>
+#include <boost/thread/mutex.hpp>
+#include <boost/thread/condition_variable.hpp>
 #include <list>
 #include <map>
 #include <queue>
@@ -40,13 +42,7 @@ public:
     FIND_SIZE_LE
   };
 
-  int realFind(FinderData *data);
-
-  void find(FinderData *data);
-
-  void updateNumThreads(int diff);
-
-  void updateAvailThreads(int diff);
+  int find(FinderData *data);
 
   int checkEntrySize(FinderData *data,
                      const std::string &entry,
@@ -54,18 +50,12 @@ public:
                      struct stat &buff);
 
   RadosFs *radosFs;
-  size_t numThreads;
-  size_t availableThreads;
-  size_t maxNumThreads;
-  pthread_mutex_t dirsMutex;
-  std::queue<FinderData *> findQueue;
-  pthread_mutex_t threadCountMutex;
 };
 
 struct _FinderData {
   std::string dir;
-  pthread_mutex_t *mutex;
-  pthread_cond_t *cond;
+  boost::mutex *mutex;
+  boost::condition_variable *cond;
   std::string term;
   const std::map<RadosFsFinder::FindOptions, FinderArg> *args;
   std::set<std::string> dirEntries;

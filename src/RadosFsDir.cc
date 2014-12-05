@@ -165,20 +165,41 @@ RadosFsDirPriv::makeDirsRecursively(RadosFsStat *stat,
   return ret;
 }
 
+void
+findInThread(RadosFsFinder *finder, FinderData *data, boost::mutex &mutex,
+             boost::condition_variable &cond)
+{
+  int ret = finder->find(data);
+  bool lastJob = false;
+
+  {
+    boost::unique_lock<boost::mutex> lock(mutex);
+    if (data->retCode == 0 && ret != 0)
+    {
+      *data->retCode = ret;
+    }
+
+    lastJob = (--*data->numberRelatedJobs) == 0;
+  }
+
+  if (lastJob)
+  {
+    cond.notify_all();
+  }
+}
+
 int
 RadosFsDirPriv::find(std::set<std::string> &entries,
                      std::set<std::string> &results,
                      const std::map<RadosFsFinder::FindOptions, FinderArg> &args)
 {
   int ret = 0;
-  pthread_mutex_t mutex;
-  pthread_cond_t cond;
-
-  pthread_mutex_init(&mutex, 0);
-  pthread_cond_init(&cond, 0);
+  boost::mutex mutex;
+  boost::condition_variable cond;
 
   int numRelatedJobs = 0;
   std::set<std::string>::iterator it;
+  RadosFsFinder finder(dir->filesystem());
   std::vector<FinderData *> jobs;
 
   for (it = entries.begin(); it != entries.end(); it++)
@@ -190,21 +211,20 @@ RadosFsDirPriv::find(std::set<std::string> &entries,
 
     FinderData *data = new FinderData;
 
-    pthread_mutex_lock(&mutex);
+    mutex.lock();
 
     data->dir = entry;
-    data->mutex = &mutex;
-    data->cond = &cond;
     data->args = &args;
     data->retCode = &ret;
     numRelatedJobs++;
     data->numberRelatedJobs = &numRelatedJobs;
 
-    pthread_mutex_unlock(&mutex);
+    mutex.unlock();
 
     jobs.push_back(data);
-
-    dir->filesystem()->mPriv->finder.find(data);
+    radosFsPriv()->getIoService()->post(boost::bind(&findInThread, &finder,
+                                                    data, boost::ref(mutex),
+                                                    boost::ref(cond)));
   }
 
   entries.clear();
@@ -212,12 +232,12 @@ RadosFsDirPriv::find(std::set<std::string> &entries,
   if (jobs.size() == 0)
     return 0;
 
-  pthread_mutex_lock(&mutex);
+  boost::unique_lock<boost::mutex> lock(mutex);
 
-  if (numRelatedJobs > 0)
-    pthread_cond_wait(&cond, &mutex);
-
-  pthread_mutex_unlock(&mutex);
+  while (numRelatedJobs > 0)
+  {
+    cond.wait(lock);
+  }
 
   std::vector<FinderData *>::iterator vit;
   for (vit = jobs.begin(); vit != jobs.end(); vit++)
@@ -228,9 +248,6 @@ RadosFsDirPriv::find(std::set<std::string> &entries,
 
     delete data;
   }
-
-  pthread_mutex_destroy(&mutex);
-  pthread_cond_destroy(&cond);
 
   return ret;
 }

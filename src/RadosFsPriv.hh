@@ -229,7 +229,6 @@ public:
   pthread_mutex_t dirPathInodeMutex;
   float dirCompactRatio;
   RadosFsLogger logger;
-  RadosFsFinder finder;
   size_t fileStripeSize;
   bool lockFiles;
   boost::shared_ptr<boost::asio::io_service> ioService;
