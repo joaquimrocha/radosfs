@@ -343,7 +343,7 @@ RadosFsIO::write(const char *buff, off_t offset, size_t blen,
   }
 
   asyncOp->mPriv->setReady();
-  syncAndResetLocker(opId);
+  syncAndResetLocker(asyncOp);
 
   return ret;
 }
@@ -397,7 +397,7 @@ RadosFsIO::remove()
   }
 
   asyncOp->mPriv->setReady();
-  syncAndResetLocker(opId);
+  syncAndResetLocker(asyncOp);
 
   return ret;
 }
@@ -494,7 +494,7 @@ RadosFsIO::truncate(size_t newSize)
   }
 
   asyncOp->mPriv->setReady();
-  syncAndResetLocker(opId);
+  syncAndResetLocker(asyncOp);
 
   return 0;
 }
@@ -653,10 +653,10 @@ RadosFsIO::manageIdleLock(double idleTimeout)
 }
 
 void
-RadosFsIO::syncAndResetLocker(const std::string &opId)
+RadosFsIO::syncAndResetLocker(RadosFsAsyncOpSP op)
 {
   boost::unique_lock<boost::mutex> lock(mLockMutex);
-  mOpManager.sync(opId);
+  op->waitForCompletion();
   mLocker = "";
 }
 

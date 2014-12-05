@@ -113,7 +113,7 @@ private:
   int setSize(size_t size);
   void setCompletionDebugMsg(librados::AioCompletion *completion,
                              const std::string &message);
-  void syncAndResetLocker(const std::string &opId);
+  void syncAndResetLocker(RadosFsAsyncOpSP op);
 };
 
 typedef std::tr1::shared_ptr<RadosFsIO> RadosFsIOSP;
