@@ -59,6 +59,10 @@ RadosFsPriv::RadosFsPriv(RadosFs *radosFs)
 RadosFsPriv::~RadosFsPriv()
 {
   fileOpsIdleChecker.interrupt();
+  operationsMutex.lock();
+  operations.clear();
+  operationsMutex.unlock();
+
   poolMap.clear();
   mtdPoolMap.clear();
   dirPathInodeMap.clear();
