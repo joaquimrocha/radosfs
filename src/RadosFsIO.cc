@@ -634,23 +634,26 @@ RadosFsIO::setSize(size_t size)
 void
 RadosFsIO::manageIdleLock(double idleTimeout)
 {
-  if (mLockMutex.try_lock() && mLocker == "")
+  if (mLockMutex.try_lock())
   {
-    boost::chrono::duration<double> seconds;
-    seconds = boost::chrono::system_clock::now() - mLockStart;
-    bool lockIsIdle = seconds.count() >= idleTimeout;
-    bool lockTimedOut = seconds.count() > FILE_LOCK_DURATION;
-
-    if (lockIsIdle && !lockTimedOut)
+    if (mLocker == "")
     {
-      radosfs_debug("Unlocked idle lock.");
+      boost::chrono::duration<double> seconds;
+      seconds = boost::chrono::system_clock::now() - mLockStart;
+      bool lockIsIdle = seconds.count() >= idleTimeout;
+      bool lockTimedOut = seconds.count() > FILE_LOCK_DURATION;
 
-      unlockShared();
-      unlockExclusive();
-      // Set the lock start to look as if it expired so it does not try to
-      // unlock it anymore.
-      mLockStart = boost::chrono::system_clock::now() -
-                   boost::chrono::seconds(FILE_LOCK_DURATION + 1);
+      if (lockIsIdle && !lockTimedOut)
+      {
+        radosfs_debug("Unlocked idle lock.");
+
+        unlockShared();
+        unlockExclusive();
+        // Set the lock start to look as if it expired so it does not try to
+        // unlock it anymore.
+        mLockStart = boost::chrono::system_clock::now() -
+                     boost::chrono::seconds(FILE_LOCK_DURATION + 1);
+      }
     }
 
     mLockMutex.unlock();
