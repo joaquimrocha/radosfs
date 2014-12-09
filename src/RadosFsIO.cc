@@ -177,17 +177,19 @@ RadosFsIO::lockShared(const std::string &uuid)
   librados::IoCtx ctx;
   librados::IoCtx::from_rados_ioctx_t(mPool->ioctx, ctx);
 
-  boost::chrono::duration<double> seconds;
-  seconds = boost::chrono::system_clock::now() - mLockStart;
-  if (seconds.count() < FILE_LOCK_DURATION - 1)
   {
     boost::unique_lock<boost::mutex> lock(mLockMutex);
-    radosfs_debug("Keep shared lock: %s %s", mLocker.c_str(), uuid.c_str());
-    if (mLocker == "")
-      mLocker = uuid;
+    boost::chrono::duration<double> seconds;
+    seconds = boost::chrono::system_clock::now() - mLockStart;
+    if (seconds.count() < FILE_LOCK_DURATION - 1)
+    {
+      radosfs_debug("Keep shared lock: %s %s", mLocker.c_str(), uuid.c_str());
+      if (mLocker == "")
+        mLocker = uuid;
 
-    if (mLocker == uuid)
-      return;
+      if (mLocker == uuid)
+        return;
+    }
   }
 
   timeval tm;
@@ -212,19 +214,22 @@ RadosFsIO::lockExclusive(const std::string &uuid)
   librados::IoCtx ctx;
   librados::IoCtx::from_rados_ioctx_t(mPool->ioctx, ctx);
 
-  boost::chrono::duration<double> seconds;
-  seconds = boost::chrono::system_clock::now() - mLockStart;
-  if (seconds.count() < FILE_LOCK_DURATION - 1)
   {
     boost::unique_lock<boost::mutex> lock(mLockMutex);
-    radosfs_debug("Keep exclusive lock: %s %s", mLocker.c_str(), uuid.c_str());
-    if (mLocker == "")
-    {
-      mLocker = uuid;
-    }
+    boost::chrono::duration<double> seconds;
 
-    if (mLocker == uuid)
-      return;
+    seconds = boost::chrono::system_clock::now() - mLockStart;
+    if (seconds.count() < FILE_LOCK_DURATION - 1)
+    {
+      radosfs_debug("Keep exclusive lock: %s %s", mLocker.c_str(), uuid.c_str());
+      if (mLocker == "")
+      {
+        mLocker = uuid;
+      }
+
+      if (mLocker == uuid)
+        return;
+    }
   }
 
   timeval tm;
