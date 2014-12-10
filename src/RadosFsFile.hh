@@ -82,6 +82,8 @@ public:
 
   int rename(const std::string &newPath);
 
+  int sync(void);
+
 private:
   std::auto_ptr<RadosFsFilePriv> mPriv;
 

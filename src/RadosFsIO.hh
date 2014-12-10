@@ -100,6 +100,8 @@ public:
 
   static bool hasSingleClient(const RadosFsIOSP &io);
 
+  int sync(const std::string &opId) { return mOpManager.sync(opId); }
+
 private:
   RadosFs *mRadosFs;
   const RadosFsPoolSP mPool;

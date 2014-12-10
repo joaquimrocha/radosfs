@@ -675,4 +675,21 @@ RadosFsFile::rename(const std::string &newPath)
   return mPriv->rename(dest);
 }
 
+int
+RadosFsFile::sync()
+{
+  int ret = 0;
+  boost::unique_lock<boost::mutex> lock(mPriv->asyncOpsMutex);
+
+  std::vector<std::string>::iterator it;
+  for (it = mPriv->asyncOps.begin(); it != mPriv->asyncOps.end(); it++)
+  {
+    ret = mPriv->radosFsIO->sync(*it);
+  }
+
+  mPriv->asyncOps.clear();
+
+  return ret;
+}
+
 RADOS_FS_END_NAMESPACE
