@@ -40,7 +40,10 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
+class RadosFsIO;
+
 typedef std::tr1::shared_ptr<RadosFsAsyncOp> RadosFsAsyncOpSP;
+typedef std::tr1::shared_ptr<RadosFsIO> RadosFsIOSP;
 
 struct OpsManager
 {
@@ -95,6 +98,8 @@ public:
 
   void manageIdleLock(double idleTimeout);
 
+  static bool hasSingleClient(const RadosFsIOSP &io);
+
 private:
   RadosFs *mRadosFs;
   const RadosFsPoolSP mPool;
@@ -115,8 +120,6 @@ private:
                              const std::string &message);
   void syncAndResetLocker(RadosFsAsyncOpSP op);
 };
-
-typedef std::tr1::shared_ptr<RadosFsIO> RadosFsIOSP;
 
 RADOS_FS_END_NAMESPACE
 

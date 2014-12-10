@@ -668,6 +668,14 @@ RadosFsIO::syncAndResetLocker(RadosFsAsyncOpSP op)
   mLocker = "";
 }
 
+bool
+RadosFsIO::hasSingleClient(const RadosFsIOSP &io)
+{
+  // If there is only one client using an instance of the given RadosFsIO, then
+  // the use count is 2 because there is a reference hold in RadosFsPriv's map.
+  return io.use_count() == 2;
+}
+
 void
 OpsManager::sync(void)
 {
