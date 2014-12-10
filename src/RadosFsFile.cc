@@ -352,7 +352,15 @@ RadosFsFile::write(const char *buff, off_t offset, size_t blen)
 
     updateTimeAsync(mPriv->fsStat(), XATTR_MTIME);
 
-    return mPriv->radosFsIO->write(buff, offset, blen);
+    std::string opId;
+    ret = mPriv->radosFsIO->write(buff, offset, blen, &opId);
+
+    {
+      boost::unique_lock<boost::mutex> lock(mPriv->asyncOpsMutex);
+      mPriv->asyncOps.push_back(opId);
+    }
+
+    return ret;
   }
 
   return -EACCES;

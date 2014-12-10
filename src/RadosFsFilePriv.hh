@@ -62,6 +62,8 @@ public:
   RadosFsFile::OpenMode permissions;
   RadosFsFile::OpenMode mode;
   std::tr1::shared_ptr<RadosFsIO> radosFsIO;
+  std::vector<std::string> asyncOps;
+  boost::mutex asyncOpsMutex;
 };
 
 RADOS_FS_END_NAMESPACE
