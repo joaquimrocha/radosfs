@@ -1264,9 +1264,7 @@ RadosFsPriv::checkFileLocks(void)
       RadosFsIOSP fsIO = (*it).second;
       if (fsIO)
       {
-        // use count of 2 means this scope's shared pointer + the one hold
-        // by the operations map
-        if (fsIO.use_count() == 2)
+        if (RadosFsIO::hasSingleClient(fsIO))
         {
           oldIt = it;
           it++;
