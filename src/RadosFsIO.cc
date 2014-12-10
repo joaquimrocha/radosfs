@@ -133,16 +133,19 @@ RadosFsIO::writeSync(const char *buff, off_t offset, size_t blen)
   RadosFsAsyncOpSP asyncOp(new RadosFsAsyncOp(generateUuid()));
   mOpManager.addOperation(asyncOp);
 
-  return write(buff, offset, blen, asyncOp);
+  return realWrite(buff, offset, blen, asyncOp);
 }
 
 int
-RadosFsIO::write(const char *buff, off_t offset, size_t blen)
+RadosFsIO::write(const char *buff, off_t offset, size_t blen, std::string *opId)
 {
   RadosFsAsyncOpSP asyncOp(new RadosFsAsyncOp(generateUuid()));
   mOpManager.addOperation(asyncOp);
 
-  mRadosFs->mPriv->getIoService()->post(boost::bind(&RadosFsIO::write, this,
+  if (opId)
+    opId->assign(asyncOp->id());
+
+  mRadosFs->mPriv->getIoService()->post(boost::bind(&RadosFsIO::realWrite, this,
                                                     buff, offset, blen,
                                                     asyncOp));
   return 0;
@@ -270,8 +273,8 @@ RadosFsIO::unlockExclusive()
 }
 
 int
-RadosFsIO::write(const char *buff, off_t offset, size_t blen,
-                 RadosFsAsyncOpSP asyncOp)
+RadosFsIO::realWrite(const char *buff, off_t offset, size_t blen,
+                     RadosFsAsyncOpSP asyncOp)
 {
   int ret = 0;
 
