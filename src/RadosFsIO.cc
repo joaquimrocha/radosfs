@@ -679,9 +679,10 @@ RadosFsIO::hasSingleClient(const RadosFsIOSP &io)
   return io.use_count() == 2;
 }
 
-void
+int
 OpsManager::sync(void)
 {
+  int ret = 0;
   std::map<std::string, RadosFsAsyncOpSP>::iterator it, oldIt;
   boost::unique_lock<boost::mutex> lock(opsMutex);
 
@@ -691,15 +692,22 @@ OpsManager::sync(void)
     oldIt = it;
     oldIt++;
 
-    sync((*it).first, false);
+    int syncResult = sync((*it).first, false);
+
+    // Assign the first error we eventually find
+    if (ret == 0)
+      ret = syncResult;
 
     it = oldIt;
   }
+
+  return ret;
 }
 
-void
+int
 OpsManager::sync(const std::string &opId, bool lock)
 {
+  int ret = -ENOENT;
   boost::unique_lock<boost::mutex> uniqueLock;
   RadosFsAsyncOpSP asyncOp;
 
@@ -707,10 +715,12 @@ OpsManager::sync(const std::string &opId, bool lock)
     uniqueLock = boost::unique_lock<boost::mutex>(opsMutex);
 
   if (mOperations.count(opId) == 0)
-    return;
+    return ret;
 
-  mOperations[opId]->waitForCompletion();
+  ret = mOperations[opId]->waitForCompletion();
   mOperations.erase(opId);
+
+  return ret;
 }
 
 void

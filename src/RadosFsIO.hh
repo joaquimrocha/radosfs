@@ -50,8 +50,8 @@ struct OpsManager
   boost::mutex opsMutex;
   std::map<std::string, RadosFsAsyncOpSP> mOperations;
 
-  void sync(void);
-  void sync(const std::string &opId, bool lock=true);
+  int sync(void);
+  int sync(const std::string &opId, bool lock=true);
 
   void addOperation(RadosFsAsyncOpSP op);
 };
