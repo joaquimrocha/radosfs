@@ -23,6 +23,7 @@
 #include <map>
 #include <string>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <stdint.h>
 #include <vector>
 
