@@ -411,9 +411,6 @@ RadosFsFile::create(int mode, const std::string pool, size_t stripe)
       (filePath != "" && isDirPath(filePath)))
     return -EISDIR;
 
-  // if the file exists and is not scheduled for deletion
-  // we do not return an error;
-  // we should check if this is desired behavior
   if (exists())
   {
     if (mPriv->radosFsIO && mPriv->radosFsIO->lazyRemoval())
@@ -422,7 +419,7 @@ RadosFsFile::create(int mode, const std::string pool, size_t stripe)
     }
     else
     {
-      return 0;
+      return -EEXIST;
     }
   }
 
