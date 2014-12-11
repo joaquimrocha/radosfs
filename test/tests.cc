@@ -1162,12 +1162,25 @@ TEST_F(RadosFsTest, FileReadWrite)
 
   // Change the contents of the file and verify them
 
-  const int charToChange = stripeSize * 1.3;
+  int charToChange = stripeSize * 1.3;
   EXPECT_EQ(0, file.writeSync("d", charToChange, 1));
 
   contents2[charToChange] = 'd';
 
   EXPECT_EQ(contents2.length(), file.read(buff, 0, contents2.length()));
+
+  EXPECT_EQ(0, strcmp(buff, contents2.c_str()));
+
+  charToChange = stripeSize * 1.9;
+  EXPECT_EQ(0, file.write("x", charToChange, 1, true));
+
+  contents2[charToChange] = 'x';
+
+  EXPECT_EQ(0, file.sync());
+
+  EXPECT_EQ(contents2.length(), file.read(buff, 0, contents2.length()));
+
+  buff[contents2.length()] = '\0';
 
   EXPECT_EQ(0, strcmp(buff, contents2.c_str()));
 
