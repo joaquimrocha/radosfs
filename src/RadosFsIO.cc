@@ -130,24 +130,43 @@ RadosFsIO::read(char *buff, off_t offset, size_t blen)
 int
 RadosFsIO::writeSync(const char *buff, off_t offset, size_t blen)
 {
+  int ret;
+
   RadosFsAsyncOpSP asyncOp(new RadosFsAsyncOp(generateUuid()));
   mOpManager.addOperation(asyncOp);
 
-  return realWrite(buff, offset, blen, asyncOp);
+  if ((ret = verifyWriteParams(offset, blen)) != 0)
+    return ret;
+
+  return realWrite(const_cast<char *>(buff), offset, blen, false, asyncOp);
 }
 
 int
-RadosFsIO::write(const char *buff, off_t offset, size_t blen, std::string *opId)
+RadosFsIO::write(const char *buff, off_t offset, size_t blen, std::string *opId,
+                 bool copyBuffer)
 {
+  int ret = 0;
+
+  if ((ret = verifyWriteParams(offset, blen)) != 0)
+    return ret;
+
   RadosFsAsyncOpSP asyncOp(new RadosFsAsyncOp(generateUuid()));
   mOpManager.addOperation(asyncOp);
 
   if (opId)
     opId->assign(asyncOp->id());
 
+  char *bufferToWrite = const_cast<char *>(buff);
+
+  if (copyBuffer)
+  {
+    bufferToWrite = new char[blen];
+    memcpy(bufferToWrite, buff, blen);
+  }
+
   mRadosFs->mPriv->getIoService()->post(boost::bind(&RadosFsIO::realWrite, this,
-                                                    buff, offset, blen,
-                                                    asyncOp));
+                                                    bufferToWrite, offset, blen,
+                                                    copyBuffer, asyncOp));
   return 0;
 }
 
@@ -273,21 +292,27 @@ RadosFsIO::unlockExclusive()
 }
 
 int
-RadosFsIO::realWrite(const char *buff, off_t offset, size_t blen,
-                     RadosFsAsyncOpSP asyncOp)
+RadosFsIO::verifyWriteParams(off_t offset, size_t length)
 {
   int ret = 0;
 
-  if (blen == 0)
+  if (length == 0)
   {
     radosfs_debug("Invalid length for writing. Cannot write 0 bytes.");
-    return -EINVAL;
+    ret = -EINVAL;
   }
 
-  const size_t totalSize = offset + blen;
+  if (offset + length > mPool->size)
+    ret = -EFBIG;
 
-  if (totalSize > mPool->size)
-    return -EFBIG;
+  return ret;
+}
+
+int
+RadosFsIO::realWrite(char *buff, off_t offset, size_t blen, bool deleteBuffer,
+                     RadosFsAsyncOpSP asyncOp)
+{
+  int ret = 0;
 
   librados::IoCtx ctx;
   librados::IoCtx::from_rados_ioctx_t(mPool->ioctx, ctx);
@@ -297,6 +322,7 @@ RadosFsIO::realWrite(const char *buff, off_t offset, size_t blen,
   size_t lastStripe = (offset + blen - 1) / mStripeSize;
   size_t totalStripes = lastStripe - firstStripe + 1;
   const std::string &opId = asyncOp->id();
+  const size_t totalSize = offset + blen;
 
   if (totalStripes > 1)
     lockExclusive(opId);
@@ -353,6 +379,9 @@ RadosFsIO::realWrite(const char *buff, off_t offset, size_t blen,
 
   asyncOp->mPriv->setReady();
   syncAndResetLocker(asyncOp);
+
+  if (deleteBuffer)
+    delete buff;
 
   return ret;
 }

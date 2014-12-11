@@ -66,7 +66,8 @@ public:
   ~RadosFsIO();
 
   ssize_t read(char *buff, off_t offset, size_t blen);
-  int write(const char *buff, off_t offset, size_t blen, std::string *opId = 0);
+  int write(const char *buff, off_t offset, size_t blen, std::string *opId = 0,
+            bool copyBuffer=false);
   int writeSync(const char *buff, off_t offset, size_t blen);
 
   std::string inode(void) const { return mInode; }
@@ -114,7 +115,8 @@ private:
   std::string mLocker;
   OpsManager mOpManager;
 
-  int realWrite(const char *buff, off_t offset, size_t blen,
+  int verifyWriteParams(off_t offset, size_t length);
+  int realWrite(char *buff, off_t offset, size_t blen, bool deleteBuffer,
                 RadosFsAsyncOpSP asyncOp);
   int setSizeIfBigger(size_t size);
   int setSize(size_t size);

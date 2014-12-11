@@ -341,6 +341,12 @@ RadosFsFile::read(char *buff, off_t offset, size_t blen)
 int
 RadosFsFile::write(const char *buff, off_t offset, size_t blen)
 {
+  return write(buff, offset, blen, false);
+}
+
+int
+RadosFsFile::write(const char *buff, off_t offset, size_t blen, bool copyBuffer)
+{
   int ret;
   if ((ret = mPriv->verifyExistanceAndType()) != 0)
     return ret;
@@ -348,12 +354,12 @@ RadosFsFile::write(const char *buff, off_t offset, size_t blen)
   if (mPriv->permissions & RadosFsFile::MODE_WRITE)
   {
     if (isLink())
-      return mPriv->target->write(buff, offset, blen);
+      return mPriv->target->write(buff, offset, blen, copyBuffer);
 
     updateTimeAsync(mPriv->fsStat(), XATTR_MTIME);
 
     std::string opId;
-    ret = mPriv->radosFsIO->write(buff, offset, blen, &opId);
+    ret = mPriv->radosFsIO->write(buff, offset, blen, &opId, copyBuffer);
 
     {
       boost::unique_lock<boost::mutex> lock(mPriv->asyncOpsMutex);
