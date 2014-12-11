@@ -498,55 +498,6 @@ RadosFsFile::remove()
 }
 
 int
-createStripes(rados_ioctx_t ioctx,
-              const std::string &path,
-              size_t from,
-              size_t to,
-              size_t stripeSize)
-{
-  int ret = 0;
-
-  for (; from < to; from++)
-  {
-    const std::string &stripe = makeFileStripeName(path, from);
-    ret = rados_write(ioctx, stripe.c_str(), "", stripeSize, 0);
-
-    if (ret != 0)
-    {
-      radosfs_debug("Cannot create stripe %s: %s", stripe.c_str(), strerror(ret));
-      break;
-    }
-  }
-
-  return ret;
-}
-
-int
-removeStripes(rados_ioctx_t ioctx,
-              const std::string &path,
-              size_t from,
-              size_t to)
-{
-  int ret = 0;
-
-  for (; from > to; from--)
-  {
-    const std::string &stripe = makeFileStripeName(path, from);
-    ret = rados_remove(ioctx, stripe.c_str());
-
-    if (ret != 0)
-    {
-      radosfs_debug("Cannot remove stripe %s: %s",
-                    stripe.c_str(),
-                    strerror(ret));
-      break;
-    }
-  }
-
-  return ret;
-}
-
-int
 RadosFsFile::truncate(unsigned long long size)
 {
   if (isLink())
