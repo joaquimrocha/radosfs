@@ -492,6 +492,18 @@ TEST_F(RadosFsTest, CreateFile)
   EXPECT_EQ(0, newFile.create());
 
   EXPECT_EQ(-EEXIST, sameFile.create());
+
+  // Check creating a file with a custom stripe size
+
+  newFile.setPath("/file-with-custom-stripe-size");
+
+  const size_t stripeSize(radosFs.fileStripeSize() / 2);
+
+  ASSERT_EQ(0, newFile.create(-1, "", stripeSize));
+
+  sameFile.setPath(newFile.path());
+
+  ASSERT_EQ(stripeSize, radosFsFilePriv(sameFile)->radosFsIO->stripeSize());
 }
 
 TEST_F(RadosFsTest, RemoveFile)
