@@ -459,11 +459,13 @@ TEST_F(RadosFsTest, CreateFile)
 
   // Check the shared pointer use
 
-  EXPECT_EQ(1, radosFsFilePriv(otherFile)->radosFsIO.use_count());
+  radosfs::RadosFsFilePriv *filePriv = radosFsFilePriv(otherFile);
+
+  EXPECT_TRUE(radosfs::RadosFsIO::hasSingleClient(filePriv->radosFsIO));
 
   file.setPath(otherFile.path());
 
-  EXPECT_EQ(2, radosFsFilePriv(otherFile)->radosFsIO.use_count());
+  EXPECT_FALSE(radosfs::RadosFsIO::hasSingleClient(filePriv->radosFsIO));
 
   otherFile.setPath("/file-in-different-pool");
 
