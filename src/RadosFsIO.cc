@@ -323,6 +323,8 @@ RadosFsIO::realWrite(const char *buff, off_t offset, size_t blen,
     size_t length = std::min(mStripeSize - currentOffset, bytesToWrite);
     std::string contentsStr(buff + (blen - bytesToWrite), length);
 
+    contents.append(contentsStr);
+
     if (mPool->hasAlignment())
     {
       size_t stripeRemaining = stripeSize() - length;
@@ -331,7 +333,6 @@ RadosFsIO::realWrite(const char *buff, off_t offset, size_t blen,
         contents.append_zero(stripeRemaining);
     }
 
-    contents.append(contentsStr);
     op.write(currentOffset, contents);
 
     completion = librados::Rados::aio_create_completion();
