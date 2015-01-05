@@ -132,7 +132,8 @@ RadosFsTest::createNFiles(size_t numFiles)
     s << i;
     radosfs::RadosFsFile file(&radosFs, dirPath + "file" + s.str(),
                               radosfs::RadosFsFile::MODE_WRITE);
-    EXPECT_EQ(0, file.create());
+    int ret = file.create();
+    EXPECT_TRUE(ret == 0 || ret == -EEXIST);
   }
 }
 

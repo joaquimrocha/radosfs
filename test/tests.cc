@@ -849,7 +849,7 @@ TEST_F(RadosFsTest, DirContents)
 
   radosfs::RadosFsFile sameFile(file);
 
-  EXPECT_EQ(0, sameFile.create());
+  EXPECT_EQ(-EEXIST, sameFile.create());
 
   dir.update();
 
