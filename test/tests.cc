@@ -1523,6 +1523,10 @@ TEST_F(RadosFsTest, FileOpsMultipleClients)
 
   EXPECT_TRUE(checkStripesExistence(ioctx, inode, 1, numStripes, false));
 
+  // Sleep to make sure that the lock on the previous operations has been
+  // removed (because it has been idle)
+  sleep(0.5);
+
   fprintf(stderr, "\n\n------- Beggining writing and removal ------- \n");
 
   // Verify that the object has been correctly truncated
@@ -1556,6 +1560,10 @@ TEST_F(RadosFsTest, FileOpsMultipleClients)
   pthread_join(t2, &status);
 
   EXPECT_TRUE(checkStripesExistence(ioctx, inode, 0, numStripes, false));
+
+  // Sleep to make sure that the lock on the previous operations has been
+  // removed (because it has been idle)
+  sleep(0.5);
 
   fprintf(stderr, "\n\n------- Beggining truncating and removal ------- \n");
 
