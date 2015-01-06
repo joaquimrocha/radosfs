@@ -18,7 +18,7 @@
  */
 
 #include <gtest/gtest.h>
-#include <rados/librados.h>
+#include <rados/librados.hpp>
 #include <set>
 #include <string>
 #include "RadosFs.hh"
@@ -71,7 +71,7 @@ protected:
   const char * conf(void) const { return mConf; }
 
 private:
-  rados_t mCluster;
+  librados::Rados mCluster;
   const char *mConf;
   std::set<std::string> mPoolsCreated;
 };

@@ -44,13 +44,13 @@ DirCache::~DirCache()
 int
 DirCache::getContentsSize(uint64_t *size) const
 {
-  return rados_stat(ioctx(), mInode.c_str(), size, 0);
+  return ioctx().stat(mInode, size, 0);
 }
 
 void
 DirCache::parseContents(char *buff, int length)
 {
-  std::istringstream iss(std::string(buff, length - 1));
+  std::istringstream iss(std::string(buff, length));
 
   for (std::string line; getline(iss, line, '\n');)
   {
@@ -152,15 +152,14 @@ DirCache::update()
     return 0;
 
   uint64_t buffLength = size - mLastCachedSize;
-  char buff[buffLength];
+  librados::bufferlist buff;
 
-  ret = rados_read(ioctx(), mInode.c_str(), buff, buffLength, mLastReadByte);
+  ret = ioctx().read(mInode, buff, buffLength, mLastReadByte);
 
   if (ret > 0)
   {
     mLastReadByte = ret;
-    buff[buffLength - 1] = '\0';
-    parseContents(buff, buffLength);
+    parseContents(buff.c_str(), buffLength);
   }
   else
   {
@@ -199,19 +198,14 @@ DirCache::compactDirOpLog(void)
 {
   update();
 
-  const char *keys[] = { DIR_LOG_UPDATED };
-  const char *values[] = { DIR_LOG_UPDATED_FALSE };
-  const size_t lengths[] = { strlen(values[0]) };
+  librados::ObjectWriteOperation omapWriteOp, writeOp;
+  std::map<std::string, librados::bufferlist> omap;
 
-  rados_write_op_t writeOp = rados_create_write_op();
+  omap[DIR_LOG_UPDATED].append(DIR_LOG_UPDATED_FALSE);
 
-  rados_write_op_omap_set(writeOp, keys, values, lengths, 1);
+  omapWriteOp.omap_set(omap);
 
-  rados_write_op_operate(writeOp, ioctx(), mInode.c_str(), NULL, 0);
-
-  rados_release_write_op(writeOp);
-
-  writeOp = rados_create_write_op();
+  ioctx().operate(mInode, &omapWriteOp);
 
   std::map<std::string, DirEntry>::iterator it;
   std::string compactContents;
@@ -231,22 +225,24 @@ DirCache::compactDirOpLog(void)
     compactContents += "\n";
   }
 
-  rados_write_op_truncate(writeOp, 0);
+  writeOp.truncate(0);
 
   if (compactContents != "")
-    rados_write_op_write_full(writeOp,
-                              compactContents.c_str(),
-                              compactContents.length());
+  {
+    librados::bufferlist buff;
+    buff.append(compactContents);
+    writeOp.write_full(buff);
+  }
 
   int cmpRet;
-  rados_write_op_omap_cmp(writeOp,
-                          DIR_LOG_UPDATED,
-                          LIBRADOS_CMPXATTR_OP_EQ,
-                          DIR_LOG_UPDATED_FALSE,
-                          strlen(DIR_LOG_UPDATED_FALSE),
-                          &cmpRet);
+  std::map<std::string, std::pair<librados::bufferlist, int> > omapCmp;
+  librados::bufferlist cmpValue;
+  cmpValue.append(DIR_LOG_UPDATED_FALSE);
+  std::pair<librados::bufferlist, int> cmp(cmpValue, LIBRADOS_CMPXATTR_OP_EQ);
+  omapCmp[DIR_LOG_UPDATED] = cmp;
+  writeOp.omap_cmp(omapCmp, &cmpRet);
 
-  rados_write_op_operate(writeOp, ioctx(), mInode.c_str(), NULL, 0);
+  ioctx().operate(mInode, &writeOp);
 
   uint64_t size;
 
@@ -255,8 +251,6 @@ DirCache::compactDirOpLog(void)
   mLastCachedSize = mLastReadByte = size;
 
   mLogNrLines = mContents.size();
-
-  rados_release_write_op(writeOp);
 }
 
 float

@@ -42,7 +42,7 @@ public:
 
   int makeLink(std::string &path);
 
-  int makeRealPath(std::string &path, rados_ioctx_t *ioctxOut = 0);
+  int makeRealPath(std::string &path);
 
   RadosFsPriv * radosFsPriv(void) const { return radosFs->mPriv; }
 

@@ -982,18 +982,17 @@ TEST_F(RadosFsTest, FileInode)
 
   EXPECT_EQ(0, radosFsPriv()->stat(file.path(), &stat));
 
-  EXPECT_EQ(-ENOENT, rados_stat(stat.pool->ioctx, stat.translatedPath.c_str(),
-                                0, 0));
+  EXPECT_EQ(-ENOENT, stat.pool->ioctx.stat(stat.translatedPath, 0, 0));
 
   EXPECT_EQ(0, file.truncate(1));
 
-  EXPECT_EQ(0, rados_stat(stat.pool->ioctx, stat.translatedPath.c_str(), 0, 0));
+  EXPECT_EQ(0, stat.pool->ioctx.stat(stat.translatedPath, 0, 0));
 
-  EXPECT_EQ(0, rados_remove(stat.pool->ioctx, stat.translatedPath.c_str()));
+  EXPECT_EQ(0, stat.pool->ioctx.remove(stat.translatedPath));
 
   EXPECT_EQ(0, file.write("X", 0, 1));
 
-  EXPECT_EQ(0, rados_stat(stat.pool->ioctx, stat.translatedPath.c_str(), 0, 0));
+  EXPECT_EQ(0, stat.pool->ioctx.stat(stat.translatedPath, 0, 0));
 
   std::string inode, pool;
 
@@ -1431,7 +1430,7 @@ runInThread(void *contents)
 }
 
 bool
-checkStripesExistence(rados_ioctx_t ioctx, const std::string &baseName,
+checkStripesExistence(librados::IoCtx ioctx, const std::string &baseName,
                       size_t firstStripe, size_t lastStripe, bool shouldExist)
 {
   bool checkResult = true;
@@ -1439,7 +1438,7 @@ checkStripesExistence(rados_ioctx_t ioctx, const std::string &baseName,
   {
     std::string stripe = makeFileStripeName(baseName, i);
 
-    if (rados_stat(ioctx, stripe.c_str(), 0, 0) != 0)
+    if (ioctx.stat(stripe, 0, 0) != 0)
     {
       if (shouldExist)
       {
@@ -1517,7 +1516,7 @@ TEST_F(RadosFsTest, FileOpsMultipleClients)
   pthread_join(t2, &status);
 
   std::string inode = radosFsFilePriv(file)->radosFsIO->inode();
-  rados_ioctx_t ioctx = radosFsFilePriv(file)->dataPool->ioctx;
+  librados::IoCtx ioctx = radosFsFilePriv(file)->dataPool->ioctx;
 
   EXPECT_TRUE(checkStripesExistence(ioctx, inode, 0, 0, true));
 
@@ -2882,8 +2881,8 @@ TEST_F(RadosFsTest, PoolAlignment)
 
   // Get the size of the last stripe
 
-  EXPECT_EQ(0, rados_stat(stat.pool->ioctx,
-                    makeFileStripeName(stat.translatedPath, lastStripe).c_str(),
+  EXPECT_EQ(0, stat.pool->ioctx.stat(
+                    makeFileStripeName(stat.translatedPath, lastStripe),
                     &size,
                     0));
 
@@ -2909,7 +2908,7 @@ TEST_F(RadosFsTest, PoolAlignment)
 
   lastStripe = radosFsIO->getLastStripeIndex();
 
-  EXPECT_EQ(0, rados_stat(stat.pool->ioctx,
+  EXPECT_EQ(0, stat.pool->ioctx.stat(
                     makeFileStripeName(stat.translatedPath, lastStripe).c_str(),
                     &size,
                     0));

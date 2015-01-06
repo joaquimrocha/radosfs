@@ -42,7 +42,7 @@ RadosFsInfoPriv::~RadosFsInfoPriv()
 {}
 
 int
-RadosFsInfoPriv::makeRealPath(std::string &path, rados_ioctx_t *ioctxOut)
+RadosFsInfoPriv::makeRealPath(std::string &path)
 {
   std::string parent = getParentDir(path, 0);
   RadosFsStat stat;
@@ -63,11 +63,6 @@ RadosFsInfoPriv::makeRealPath(std::string &path, rados_ioctx_t *ioctxOut)
 
   if (parent == "")
     return -ENODEV;
-
-  rados_ioctx_t ioctx = stat.pool->ioctx;
-
-  if (ioctxOut != 0)
-    *ioctxOut = ioctx;
 
   if (S_ISLNK(stat.statBuff.st_mode))
   {
@@ -308,7 +303,7 @@ RadosFsInfo::setXAttr(const std::string &attrName,
 {
   // We don't call the similar methods from RadosFs for avoiding extra stat calls
 
-  const RadosFsPool *pool = mPriv->stat.pool.get();
+  RadosFsPool *pool = mPriv->stat.pool.get();
 
   if (!pool)
     return -ENOENT;
@@ -330,7 +325,7 @@ RadosFsInfo::getXAttr(const std::string &attrName,
 {
   // We don't call the similar methods from RadosFs for avoiding extra stat calls
 
-  const RadosFsPool *pool = mPriv->stat.pool.get();
+  RadosFsPool *pool = mPriv->stat.pool.get();
 
   if (!pool)
     return -ENOENT;
@@ -350,7 +345,7 @@ RadosFsInfo::removeXAttr(const std::string &attrName)
 {
   // We don't call the similar methods from RadosFs for avoiding extra stat calls
 
-  const RadosFsPool *pool = mPriv->stat.pool.get();
+  RadosFsPool *pool = mPriv->stat.pool.get();
 
   if (!pool)
     return -ENOENT;
@@ -370,7 +365,7 @@ RadosFsInfo::getXAttrsMap(std::map<std::string, std::string> &map)
 {
   // We don't call the similar methods from RadosFs for avoiding extra stat calls
 
-  const RadosFsPool *pool = mPriv->stat.pool.get();
+  RadosFsPool *pool = mPriv->stat.pool.get();
 
   if (!pool)
     return -ENOENT;

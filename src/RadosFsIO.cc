@@ -87,14 +87,16 @@ RadosFsIO::read(char *buff, off_t offset, size_t blen)
 
   while (bytesToRead  > 0)
   {
+    librados::bufferlist readBuff;
     const std::string &fileStripe = getStripePath(blen - bytesToRead  + offset);
     const size_t length = std::min(mStripeSize - currentOffset, bytesToRead );
 
-    int ret = rados_read(mPool->ioctx,
-                         fileStripe.c_str(),
-                         buff,
-                         length,
-                         currentOffset);
+    int ret = mPool->ioctx.read(fileStripe, readBuff, length, currentOffset);
+
+    if (ret > 0)
+    {
+      memcpy(buff, readBuff.c_str(), readBuff.length());
+    }
 
     radosfs_debug("Read %lu bytes starting from %lu in stripe %s: "
                   "retcode=%d (%s)", length, currentOffset, fileStripe.c_str(),
@@ -196,8 +198,6 @@ void
 RadosFsIO::lockShared(const std::string &uuid)
 {
   int ret;
-  librados::IoCtx ctx;
-  librados::IoCtx::from_rados_ioctx_t(mPool->ioctx, ctx);
 
   {
     boost::unique_lock<boost::mutex> lock(mLockMutex);
@@ -217,9 +217,10 @@ RadosFsIO::lockShared(const std::string &uuid)
   timeval tm;
   tm.tv_sec = FILE_LOCK_DURATION;
   tm.tv_usec = 0;
-  while ((ret = ctx.lock_shared(inode(), FILE_STRIPE_LOCKER,
-                                FILE_STRIPE_LOCKER_COOKIE_WRITE,
-                                FILE_STRIPE_LOCKER_TAG, "", &tm, 0)) == -EBUSY)
+  while ((ret = mPool->ioctx.lock_shared(inode(), FILE_STRIPE_LOCKER,
+                                         FILE_STRIPE_LOCKER_COOKIE_WRITE,
+                                         FILE_STRIPE_LOCKER_TAG, "", &tm,
+                                         0)) == -EBUSY)
   {}
 
   boost::unique_lock<boost::mutex> lock(mLockMutex);
@@ -233,8 +234,6 @@ void
 RadosFsIO::lockExclusive(const std::string &uuid)
 {
   int ret;
-  librados::IoCtx ctx;
-  librados::IoCtx::from_rados_ioctx_t(mPool->ioctx, ctx);
 
   {
     boost::unique_lock<boost::mutex> lock(mLockMutex);
@@ -257,9 +256,9 @@ RadosFsIO::lockExclusive(const std::string &uuid)
   timeval tm;
   tm.tv_sec = FILE_LOCK_DURATION;
   tm.tv_usec = 0;
-  while ((ret = ctx.lock_exclusive(inode(), FILE_STRIPE_LOCKER,
-                                   FILE_STRIPE_LOCKER_COOKIE_OTHER,
-                                   "", &tm, 0)) != 0)
+  while ((ret = mPool->ioctx.lock_exclusive(inode(), FILE_STRIPE_LOCKER,
+                                            FILE_STRIPE_LOCKER_COOKIE_OTHER,
+                                            "", &tm, 0)) != 0)
   {}
 
   boost::unique_lock<boost::mutex> lock(mLockMutex);
@@ -272,10 +271,8 @@ RadosFsIO::lockExclusive(const std::string &uuid)
 void
 RadosFsIO::unlockShared()
 {
-  librados::IoCtx ctx;
-  librados::IoCtx::from_rados_ioctx_t(mPool->ioctx, ctx);
-
-  ctx.unlock(inode(), FILE_STRIPE_LOCKER, FILE_STRIPE_LOCKER_COOKIE_WRITE);
+  mPool->ioctx.unlock(inode(), FILE_STRIPE_LOCKER,
+                      FILE_STRIPE_LOCKER_COOKIE_WRITE);
   mLocker = "";
   radosfs_debug("Unlocked shared lock.");
 }
@@ -283,10 +280,8 @@ RadosFsIO::unlockShared()
 void
 RadosFsIO::unlockExclusive()
 {
-  librados::IoCtx ctx;
-  librados::IoCtx::from_rados_ioctx_t(mPool->ioctx, ctx);
-
-  ctx.unlock(inode(), FILE_STRIPE_LOCKER, FILE_STRIPE_LOCKER_COOKIE_OTHER);
+  mPool->ioctx.unlock(inode(), FILE_STRIPE_LOCKER,
+                      FILE_STRIPE_LOCKER_COOKIE_OTHER);
   mLocker = "";
   radosfs_debug("Unlocked exclusive lock.");
 }
@@ -314,8 +309,6 @@ RadosFsIO::realWrite(char *buff, off_t offset, size_t blen, bool deleteBuffer,
 {
   int ret = 0;
 
-  librados::IoCtx ctx;
-  librados::IoCtx::from_rados_ioctx_t(mPool->ioctx, ctx);
   off_t currentOffset =  offset % mStripeSize;
   size_t bytesToWrite = blen;
   size_t firstStripe = offset / mStripeSize;
@@ -367,7 +360,7 @@ RadosFsIO::realWrite(char *buff, off_t offset, size_t blen, bool deleteBuffer,
     stream << "Wrote (od id='" << opId << "') stripe '" << fileStripe << "'";
     setCompletionDebugMsg(completion, stream.str());
 
-    ctx.aio_operate(fileStripe, completion, &op);
+    mPool->ioctx.aio_operate(fileStripe, completion, &op);
     asyncOp->mPriv->addCompletion(completion);
 
     currentOffset = 0;
@@ -399,9 +392,6 @@ RadosFsIO::remove()
   lockExclusive(opId);
 
   int ret = 0;
-
-  librados::IoCtx ctx;
-  librados::IoCtx::from_rados_ioctx_t(mPool->ioctx, ctx);
   size_t lastStripe = getLastStripeIndex();
 
   radosfs_debug("Remove (op id='%s') inode '%s' affecting stripes 0-%lu",
@@ -430,7 +420,7 @@ RadosFsIO::remove()
     stream << "Remove (op id='" << opId << "') stripe '" << fileStripe << "'";
     setCompletionDebugMsg(completion, stream.str());
 
-    ctx.aio_operate(fileStripe, completion, &op);
+    mPool->ioctx.aio_operate(fileStripe, completion, &op);
     asyncOp->mPriv->addCompletion(completion);
   }
 
@@ -459,8 +449,6 @@ RadosFsIO::truncate(size_t newSize)
 
   lockExclusive(opId);
 
-  librados::IoCtx ctx;
-  librados::IoCtx::from_rados_ioctx_t(mPool->ioctx, ctx);
   size_t currentSize;
   size_t lastStripe = getLastStripeIndexAndSize(&currentSize);
   size_t newLastStripe = (newSize == 0) ? 0 : (newSize - 1) / stripeSize();
@@ -527,7 +515,7 @@ RadosFsIO::truncate(size_t newSize)
     stream << "Truncate (op id='" << opId << "') stripe '" << fileStripe << "'";
     setCompletionDebugMsg(completion, stream.str());
 
-    ctx.aio_operate(fileStripe, completion, &op);
+    mPool->ioctx.aio_operate(fileStripe, completion, &op);
     asyncOp->mPriv->addCompletion(completion);
   }
 
@@ -578,15 +566,13 @@ getLastValid(int *retValues, size_t valuesSize)
 size_t
 RadosFsIO::getLastStripeIndexAndSize(uint64_t *size) const
 {
-  librados::IoCtx ctx;
-  librados::IoCtx::from_rados_ioctx_t(mPool->ioctx, ctx);
   librados::ObjectReadOperation op;
   librados::bufferlist sizeXAttr;
   size_t fileSize(0);
 
   op.getxattr(XATTR_FILE_SIZE, &sizeXAttr, 0);
   op.assert_exists();
-  ctx.operate(inode(), &op, 0);
+  mPool->ioctx.operate(inode(), &op, 0);
 
   if (sizeXAttr.length() > 0)
   {
@@ -621,8 +607,6 @@ RadosFsIO::getSize() const
 int
 RadosFsIO::setSizeIfBigger(size_t size)
 {
-  librados::IoCtx ctx;
-  librados::IoCtx::from_rados_ioctx_t(mPool->ioctx, ctx);
   librados::ObjectWriteOperation writeOp;
   librados::bufferlist xattrValue;
   std::stringstream stream;
@@ -634,7 +618,7 @@ RadosFsIO::setSizeIfBigger(size_t size)
   writeOp.setxattr(XATTR_FILE_SIZE, xattrValue);
   writeOp.cmpxattr(XATTR_FILE_SIZE, LIBRADOS_CMPXATTR_OP_GT, size);
 
-  int ret = ctx.operate(inode(), &writeOp);
+  int ret = mPool->ioctx.operate(inode(), &writeOp);
 
   radosfs_debug("Set size %d to '%s' if it's greater: retcode=%d (%s)",
                 size, inode().c_str(), ret, strerror(abs(ret)));
@@ -645,8 +629,6 @@ RadosFsIO::setSizeIfBigger(size_t size)
 int
 RadosFsIO::setSize(size_t size)
 {
-  librados::IoCtx ctx;
-  librados::IoCtx::from_rados_ioctx_t(mPool->ioctx, ctx);
   librados::ObjectWriteOperation writeOp;
   librados::bufferlist xattrValue;
   std::stringstream stream;
@@ -656,7 +638,7 @@ RadosFsIO::setSize(size_t size)
   writeOp.create(false);
   writeOp.setxattr(XATTR_FILE_SIZE, xattrValue);
 
-  int ret = ctx.operate(inode(), &writeOp);
+  int ret = mPool->ioctx.operate(inode(), &writeOp);
 
   radosfs_debug("Set size %d to '%s': retcode=%d (%s)", size,
                 inode().c_str(), ret, strerror(abs(ret)));

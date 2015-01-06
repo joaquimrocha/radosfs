@@ -24,7 +24,7 @@
 #include <set>
 #include <map>
 #include <string>
-#include <rados/librados.h>
+#include <rados/librados.hpp>
 
 #include "radosfscommon.h"
 #include "radosfsdefines.h"
@@ -45,7 +45,7 @@ public:
 
   int update(void);
   const std::string getEntry(int index);
-  rados_ioctx_t ioctx(void) const { return mPool->ioctx; }
+  librados::IoCtx ioctx(void) const { return mPool->ioctx; }
   std::set<std::string> contents(void) const { return mEntryNames; }
   std::string inode(void) const { return mInode; }
   void compactDirOpLog(void);

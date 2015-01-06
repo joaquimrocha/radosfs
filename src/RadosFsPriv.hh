@@ -213,7 +213,8 @@ public:
   boost::shared_ptr<boost::asio::io_service> getIoService();
 
   RadosFs *radosFs;
-  rados_t radosCluster;
+  librados::Rados radosCluster;
+  bool initialized;
   static __thread uid_t uid;
   static __thread gid_t gid;
   std::vector<rados_completion_t> completionList;

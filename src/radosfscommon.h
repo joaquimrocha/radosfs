@@ -23,7 +23,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <errno.h>
-#include <rados/librados.h>
 #include <rados/librados.hpp>
 #include <fcntl.h>
 #include <map>
@@ -38,10 +37,11 @@
 struct RadosFsPool {
   std::string name;
   size_t size;
-  rados_ioctx_t ioctx;
+  librados::IoCtx ioctx;
   u_int64_t alignment;
 
-  RadosFsPool(const std::string &poolName, size_t poolSize, rados_ioctx_t ioctx)
+  RadosFsPool(const std::string &poolName, size_t poolSize,
+              librados::IoCtx &ioctx)
     : name(poolName),
       size(poolSize),
       ioctx(ioctx),
@@ -49,10 +49,7 @@ struct RadosFsPool {
   {}
 
   ~RadosFsPool(void)
-  {
-    rados_ioctx_destroy(ioctx);
-    ioctx = 0;
-  }
+  {}
 
   void setAlignment(u_int64_t alignment) { this->alignment = alignment; }
 
@@ -89,7 +86,7 @@ typedef struct {
 
 ino_t hash(const char *path);
 
-int genericStat(rados_ioctx_t ioctx, const std::string &object,
+int genericStat(librados::IoCtx &ioctx, const std::string &object,
                 struct stat* buff);
 
 void genericStatFromAttrs(const std::string &object,
@@ -124,7 +121,7 @@ int indexObject(const RadosFsStat *parentStat, const RadosFsStat *stat, char op)
 
 std::string getObjectIndexLine(const std::string &obj, char op);
 
-int indexObjectMetadata(rados_ioctx_t ioctx,
+int indexObjectMetadata(librados::IoCtx &ioctx,
                         const std::string &dirName,
                         const std::string &baseName,
                         std::map<std::string, std::string> &metadata,
@@ -134,7 +131,7 @@ std::string getDirPath(const std::string &path);
 
 std::string getFilePath(const std::string &path);
 
-int setXAttrFromPath(rados_ioctx_t ioctx,
+int setXAttrFromPath(librados::IoCtx &ioctx,
                      const struct stat &statBuff,
                      uid_t uid,
                      gid_t gid,
@@ -142,7 +139,7 @@ int setXAttrFromPath(rados_ioctx_t ioctx,
                      const std::string &attrName,
                      const std::string &value);
 
-int getXAttrFromPath(rados_ioctx_t ioctx,
+int getXAttrFromPath(librados::IoCtx &ioctx,
                      const struct stat &statBuff,
                      uid_t uid,
                      gid_t gid,
@@ -151,14 +148,14 @@ int getXAttrFromPath(rados_ioctx_t ioctx,
                      std::string &value,
                      size_t length);
 
-int removeXAttrFromPath(rados_ioctx_t ioctx,
+int removeXAttrFromPath(librados::IoCtx &ioctx,
                         const struct stat &statBuff,
                         uid_t uid,
                         gid_t gid,
                         const std::string &path,
                         const std::string &attrName);
 
-int getMapOfXAttrFromPath(rados_ioctx_t ioctx,
+int getMapOfXAttrFromPath(librados::IoCtx &ioctx,
                           const struct stat &statBuff,
                           uid_t uid,
                           gid_t gid,
@@ -171,7 +168,7 @@ int splitToken(const std::string &line,
                std::string &value,
                std::string *op = 0);
 
-int writeContentsAtomically(rados_ioctx_t ioctx,
+int writeContentsAtomically(librados::IoCtx &ioctx,
                             const std::string &obj,
                             const std::string &contents,
                             const std::string &xattrKey = "",
@@ -200,7 +197,7 @@ int createDirAndInode(const RadosFsStat *stat);
 
 int createDirObject(const RadosFsStat *stat);
 
-int getInodeAndPool(rados_ioctx_t ioctx, const std::string &path,
+int getInodeAndPool(librados::IoCtx &ioctx, const std::string &path,
                     std::string &inode, std::string &pool);
 
 std::map<std::string, std::string> stringAttrsToMap(const std::string &attrs);
@@ -221,7 +218,7 @@ bool hasTMTimeEnabled(mode_t mode);
 
 size_t alignStripeSize(size_t stripeSize, size_t alignment);
 
-int statAndGetXAttrs(rados_ioctx_t ioctx, const std::string &obj,
+int statAndGetXAttrs(librados::IoCtx &ioctx, const std::string &obj,
                      u_int64_t *size, time_t *mtime,
                      std::map<std::string, std::string> &xattrs);
 

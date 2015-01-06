@@ -19,7 +19,7 @@
 
 #include <cstdio>
 #include <cstdlib>
-#include <rados/librados.h>
+#include <rados/librados.hpp>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -33,20 +33,15 @@ static int
 getObjectsFromCluster(RadosFsPool *pool, const std::string &prefix,
                       std::map<std::string, std::string> &entries)
 {
-  int ret;
-  rados_list_ctx_t list;
+  librados::ObjectIterator it;
 
-  if ((ret = rados_objects_list_open(pool->ioctx, &list)) != 0)
-    return ret;
-
-  const char *obj, *c;
-  while (rados_objects_list_next(list, &obj, &c) == 0 && obj != 0)
+  for (it = pool->ioctx.objects_begin(); it != pool->ioctx.objects_end(); it++)
   {
+    const std::string &obj = (*it).second;
+
     if (prefix != obj && !nameIsStripe(obj))
       entries[obj] = pool->name;
   }
-
-  rados_objects_list_close(list);
 
   return 0;
 }
@@ -247,8 +242,7 @@ RadosFsChecker::fixInodes()
     radosfs::RadosFsPoolListMap &poolMap = mRadosFs->mPriv->poolMap;
     radosfs::RadosFsPoolListMap::iterator poolIt;
     const std::string &inode = (*it).first;
-    char hardLink[XATTR_LINK_LENGTH + 1];
-    hardLink[0] = '\0';
+    librados::bufferlist hardLink;
 
     // retrieve the inode hard link from the correct pool
     for (poolIt = poolMap.begin(); poolIt != poolMap.end(); poolIt++)
@@ -260,23 +254,23 @@ RadosFsChecker::fixInodes()
            poolListIt != poolList.end();
            poolListIt++)
       {
-        int length = rados_getxattr((*poolListIt)->ioctx, inode.c_str(),
-                                    XATTR_INODE_HARD_LINK, hardLink,
-                                    XATTR_FILE_LENGTH);
+        int length = (*poolListIt)->ioctx.getxattr(inode, XATTR_INODE_HARD_LINK,
+                                                   hardLink);
         if (length >= 0)
         {
-          hardLink[length] = '\0';
           break;
         }
       }
 
-      if (hardLink[0] != '\0')
+      if (hardLink.length() > 0)
         break;
     }
 
     std::string action;
-    if (strlen(hardLink) > 0)
+    if (hardLink.length() > 0)
     {
+      std::string hardLinkStr(hardLink.c_str(), hardLink.length());
+
       if (mDry)
       {
         action = "Would create";
@@ -288,31 +282,31 @@ RadosFsChecker::fixInodes()
         RadosFsPoolSP pool;
         RadosFsStat stat, parentStat;
 
-        pool = mRadosFs->mPriv->getMetadataPoolFromPath(hardLink);
+        pool = mRadosFs->mPriv->getMetadataPoolFromPath(hardLinkStr);
 
         if (!pool.get())
         {
           fprintf(stderr, "Failed to get metadata pool for %s (to point to "
-                  "%s)\n", hardLink, inode.c_str());
+                  "%s)\n", hardLinkStr.c_str(), inode.c_str());
 
           return -ENODEV;
         }
 
-        stat.path = hardLink;
+        stat.path = hardLinkStr;
         stat.pool = pool;
         // We just need it to be a file. The permissions are already
         // set on the inode
         stat.statBuff.st_mode = S_IFREG;
         stat.translatedPath = inode;
 
-        std::string parentDir = getParentDir(hardLink, 0);
+        std::string parentDir = getParentDir(stat.path, 0);
         mRadosFs->mPriv->stat(parentDir, &parentStat);
 
         indexObject(&parentStat, &stat, '+');
       }
 
-      fprintf(stdout, "%s %s (pointing to %s)\n", action.c_str(), hardLink,
-              inode.c_str());
+      fprintf(stdout, "%s %s (pointing to %s)\n", action.c_str(),
+              hardLinkStr.c_str(), inode.c_str());
     }
     else
     {

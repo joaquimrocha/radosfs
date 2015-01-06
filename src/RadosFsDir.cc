@@ -301,8 +301,7 @@ RadosFsDirPriv::moveDirTreeObjects(const RadosFsStat *oldDir,
   if (ret == 0)
   {
     radosFsPriv()->updateDirInode(oldDir->path, newDir->path);
-
-    ret = rados_remove(oldDir->pool->ioctx, oldDir->path.c_str());
+    ret = oldDir->pool->ioctx.remove(oldDir->path);
   }
 
   return ret;
@@ -617,11 +616,11 @@ RadosFsDir::remove()
     if (info->getEntry(0) != "")
       return -ENOTEMPTY;
 
-    ret = rados_remove(statPtr->pool->ioctx, dirPath.c_str());
+    ret = statPtr->pool->ioctx.remove(dirPath);
 
     if (ret == 0)
     {
-     ret = rados_remove(info->ioctx(), statPtr->translatedPath.c_str());
+     ret = info->ioctx().remove(statPtr->translatedPath);
 
      mPriv->radosFsPriv()->removeDirInode(path());
     }
@@ -837,12 +836,12 @@ RadosFsDir::setMetadata(const std::string &entry,
   {
     if (mPriv->dirInfo->hasEntry(entry))
     {
+      librados::IoCtx ioctx = mPriv->dirInfo->ioctx();
       std::map<std::string, std::string> metadata;
       metadata[key] = value;
 
-      int ret = indexObjectMetadata(mPriv->dirInfo->ioctx(),
-                                    mPriv->dirInfo->inode(), entry, metadata,
-                                    '+');
+      int ret = indexObjectMetadata(ioctx, mPriv->dirInfo->inode(), entry,
+                                    metadata, '+');
 
       mPriv->radosFsPriv()->updateDirTimes(mPriv->fsStat());
 
@@ -912,10 +911,11 @@ RadosFsDir::removeMetadata(const std::string &entry, const std::string &key)
     if (mPriv->dirInfo->hasEntry(entry) &&
         mPriv->dirInfo->getMetadata(entry, key, value) == 0)
     {
+      librados::IoCtx ioctx = mPriv->dirInfo->ioctx();
       std::map<std::string, std::string> metadata;
       metadata[key] = "";
 
-      int ret = indexObjectMetadata(mPriv->dirInfo->ioctx(),
+      int ret = indexObjectMetadata(ioctx,
                                     mPriv->dirInfo->inode(), entry, metadata,
                                     '-');
 
@@ -1037,11 +1037,12 @@ RadosFsDir::chmod(long int permissions)
   {
     stat.statBuff.st_mode = mode;
     const std::string &baseName = path().substr(mPriv->parentDir.length());
-    const std::string &linkXAttr = getFileXAttrDirRecord(&stat);
+    librados::bufferlist linkXAttr;
+    linkXAttr.append(getFileXAttrDirRecord(&stat));
 
-    ret = rados_setxattr(stat.pool->ioctx, parentStat->translatedPath.c_str(),
-                         (XATTR_FILE_PREFIX + baseName).c_str(),
-                         linkXAttr.c_str(), linkXAttr.length());
+    ret = stat.pool->ioctx.setxattr(parentStat->translatedPath,
+                                    (XATTR_FILE_PREFIX + baseName).c_str(),
+                                    linkXAttr);
   }
   else
   {
@@ -1050,13 +1051,12 @@ RadosFsDir::chmod(long int permissions)
     if (uid != ROOT_UID && stat.statBuff.st_uid != uid)
       return -EPERM;
 
-    const std::string &permissionsXattr = makePermissionsXAttr(mode,
-                                                          stat.statBuff.st_uid,
-                                                          stat.statBuff.st_gid);
+    librados::bufferlist permissionsXAttr;
+    permissionsXAttr.append(makePermissionsXAttr(mode, stat.statBuff.st_uid,
+                                                 stat.statBuff.st_gid));
 
-    ret = rados_setxattr(stat.pool->ioctx, stat.translatedPath.c_str(),
-                         XATTR_PERMISSIONS, permissionsXattr.c_str(),
-                         permissionsXattr.length());
+    ret = stat.pool->ioctx.setxattr(stat.translatedPath, XATTR_PERMISSIONS,
+                                    permissionsXAttr);
   }
 
   return ret;
@@ -1090,6 +1090,7 @@ int
 RadosFsDir::useTMTime(bool useTMTime)
 {
   mode_t mode;
+  librados::bufferlist permissionsXattr;
   RadosFsStat stat = *reinterpret_cast<RadosFsStat *>(fsStat());
 
   if (useTMTime)
@@ -1097,13 +1098,11 @@ RadosFsDir::useTMTime(bool useTMTime)
   else
     mode = stat.statBuff.st_mode & ~TMTIME_MASK;
 
-  const std::string &permissionsXattr = makePermissionsXAttr(mode,
-                                                        stat.statBuff.st_uid,
-                                                        stat.statBuff.st_gid);
+  permissionsXattr.append(makePermissionsXAttr(mode, stat.statBuff.st_uid,
+                                               stat.statBuff.st_gid));
 
-  return rados_setxattr(stat.pool->ioctx, stat.translatedPath.c_str(),
-                        XATTR_PERMISSIONS, permissionsXattr.c_str(),
-                        permissionsXattr.length());
+  return stat.pool->ioctx.setxattr(stat.translatedPath, XATTR_PERMISSIONS,
+                                   permissionsXattr);
 }
 
 bool

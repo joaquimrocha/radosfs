@@ -101,7 +101,7 @@ statBuffHasPermission(const struct stat &buff,
 }
 
 int
-genericStat(rados_ioctx_t ioctx,
+genericStat(librados::IoCtx &ctx,
             const std::string &object,
             struct stat* buff)
 {
@@ -109,8 +109,6 @@ genericStat(rados_ioctx_t ioctx,
   time_t pmtime;
   int ret, statRet, permRet, ctimeRet, mtimeRet;
   std:: string ctime, mtime, permissions;
-  librados::IoCtx ctx;
-  librados::IoCtx::from_rados_ioctx_t(ioctx, ctx);
   librados::bufferlist permXAttr, ctimeXAttr, mtimeXAttr;
   librados::ObjectReadOperation op;
 
@@ -189,26 +187,24 @@ genericStatFromAttrs(const std::string &object,
 }
 
 int
-getInodeAndPool(rados_ioctx_t ioctx,
+getInodeAndPool(librados::IoCtx &ioctx,
                 const std::string &path,
                 std::string &inode,
                 std::string &pool)
 {
-  char inodeXAttr[XATTR_FILE_LENGTH + 1];
+  librados::bufferlist inodeXAttr;
 
-  int ret = rados_getxattr(ioctx, path.c_str(), XATTR_INODE, inodeXAttr,
-                           XATTR_FILE_LENGTH);
+  int ret = ioctx.getxattr(path, XATTR_INODE, inodeXAttr);
 
   if (ret < 0)
   {
     return ret;
   }
 
-  inodeXAttr[ret] = '\0';
-
   ret = 0;
 
-  std::map<std::string, std::string> attrs = stringAttrsToMap(inodeXAttr);
+  std::string inodeValue(inodeXAttr.c_str(), inodeXAttr.length());
+  std::map<std::string, std::string> attrs = stringAttrsToMap(inodeValue);
 
   if (attrs.count(POOL_KEY) == 0)
   {
@@ -471,7 +467,7 @@ getFileXAttrDirRecord(const RadosFsStat *stat)
 }
 
 int
-indexObjectMetadata(rados_ioctx_t ioctx,
+indexObjectMetadata(librados::IoCtx &ioctx,
                     const std::string &dirName,
                     const std::string &baseName,
                     std::map<std::string, std::string> &metadata,
@@ -506,41 +502,40 @@ indexObjectMetadata(rados_ioctx_t ioctx,
 }
 
 int
-writeContentsAtomically(rados_ioctx_t ioctx,
+writeContentsAtomically(librados::IoCtx &ioctx,
                         const std::string &obj,
                         const std::string &contents,
                         const std::string &xattrKey,
                         const std::string &xattrValue)
 {
-  const char *keys[] = { DIR_LOG_UPDATED };
-  const char *values[] = { DIR_LOG_UPDATED_TRUE };
-  const size_t lengths[] = { strlen(values[0]) };
+  librados::ObjectWriteOperation writeOp;
+  std::map<std::string, librados::bufferlist> omap;
+  librados::bufferlist contentsBuff;
 
-  rados_write_op_t writeOp = rados_create_write_op();
+  omap[DIR_LOG_UPDATED].append(DIR_LOG_UPDATED_TRUE);
+  writeOp.omap_set(omap);
 
-  rados_write_op_omap_set(writeOp, keys, values, lengths, 1);
-
-  rados_write_op_append(writeOp, contents.c_str(), contents.length());
+  contentsBuff.append(contents);
+  writeOp.append(contentsBuff);
 
   if (xattrKey != "")
   {
     if (xattrValue != "")
     {
-      rados_write_op_cmpxattr(writeOp, xattrKey.c_str(), LIBRADOS_CMPXATTR_OP_EQ,
-                              "", 0);
+      librados::bufferlist emptyStr, xattrValueBuff;
+      emptyStr.append("");
+      writeOp.cmpxattr(xattrKey.c_str(), LIBRADOS_CMPXATTR_OP_EQ, emptyStr);
 
-      rados_write_op_setxattr(writeOp, xattrKey.c_str(), xattrValue.c_str(),
-                              xattrValue.length());
+      xattrValueBuff.append(xattrValue);
+      writeOp.setxattr(xattrKey.c_str(), xattrValueBuff);
     }
     else
     {
-      rados_write_op_rmxattr(writeOp, xattrKey.c_str());
+      writeOp.rmxattr(xattrKey.c_str());
     }
   }
 
-  int ret = rados_write_op_operate(writeOp, ioctx, obj.c_str(), NULL, 0);
-
-  rados_release_write_op(writeOp);
+  int ret = ioctx.operate(obj, &writeOp);
 
   return ret;
 }
@@ -591,7 +586,7 @@ checkPermissionsForXAttr(const struct stat &statBuff,
 }
 
 int
-setXAttrFromPath(rados_ioctx_t ioctx,
+setXAttrFromPath(librados::IoCtx &ioctx,
                  const struct stat &statBuff,
                  uid_t uid,
                  gid_t gid,
@@ -604,12 +599,14 @@ setXAttrFromPath(rados_ioctx_t ioctx,
   if (ret != 0)
     return ret;
 
-  return rados_setxattr(ioctx, path.c_str(), attrName.c_str(),
-                        value.c_str(), value.length());
+  librados::bufferlist xattrValue;
+  xattrValue.append(value);
+
+  return ioctx.setxattr(path, attrName.c_str(), xattrValue);
 }
 
 int
-getXAttrFromPath(rados_ioctx_t ioctx,
+getXAttrFromPath(librados::IoCtx &ioctx,
                  const struct stat &statBuff,
                  uid_t uid,
                  gid_t gid,
@@ -626,18 +623,16 @@ getXAttrFromPath(rados_ioctx_t ioctx,
   if (length == 0)
     return -EINVAL;
 
-  char *buff = new char[length];
-  ret = rados_getxattr(ioctx, path.c_str(), attrName.c_str(), buff, length);
+  librados::bufferlist buff;
+  ret = ioctx.getxattr(path, attrName.c_str(), buff);
 
   if (ret >= 0)
-    value = std::string(buff, ret);
-
-  delete[] buff;
+    value = std::string(buff.c_str(), buff.length());
 
   return ret;
 }
 
-int removeXAttrFromPath(rados_ioctx_t ioctx,
+int removeXAttrFromPath(librados::IoCtx &ioctx,
                         const struct stat &statBuff,
                         uid_t uid,
                         gid_t gid,
@@ -649,10 +644,10 @@ int removeXAttrFromPath(rados_ioctx_t ioctx,
   if (ret != 0)
     return ret;
 
-  return rados_rmxattr(ioctx, path.c_str(), attrName.c_str());
+  return ioctx.rmxattr(path, attrName.c_str());
 }
 
-int getMapOfXAttrFromPath(rados_ioctx_t ioctx,
+int getMapOfXAttrFromPath(librados::IoCtx &ioctx,
                           const struct stat &statBuff,
                           uid_t uid,
                           gid_t gid,
@@ -662,25 +657,24 @@ int getMapOfXAttrFromPath(rados_ioctx_t ioctx,
   if (!statBuffHasPermission(statBuff, uid, gid, O_RDONLY))
     return -EACCES;
 
-  rados_xattrs_iter_t iter;
+  std::map<std::string, librados::bufferlist> attrs;
 
-  int ret = rados_getxattrs(ioctx, path.c_str(), &iter);
+  int ret = ioctx.getxattrs(path, attrs);
 
   if (ret != 0)
     return ret;
 
-  const char *attr = 0;
-  const char *value = 0;
-  size_t len;
   const size_t sysPrefixSize = strlen(XATTR_SYS_PREFIX);
   const size_t usrPrefixSize = strlen(XATTR_USER_PREFIX);
+  std::map<std::string, librados::bufferlist>::iterator it;
 
-  while ((ret = rados_getxattrs_next(iter, &attr, &value, &len)) == 0)
+  for (it = attrs.begin(); it != attrs.end(); it++)
   {
-    if (attr == 0)
-      break;
+    const std::string &name = (*it).first;
+    librados::bufferlist value = (*it).second;
 
-    bool hasSysPrefix = strncmp(attr, XATTR_SYS_PREFIX, sysPrefixSize) == 0;
+    bool hasSysPrefix = strncmp(name.c_str(), XATTR_SYS_PREFIX,
+                                sysPrefixSize) == 0;
 
     // Only include xattrs that have a usr or sys prefixes (for the latter, only
     // include them if user is root)
@@ -689,16 +683,13 @@ int getMapOfXAttrFromPath(rados_ioctx_t ioctx,
       if (uid != ROOT_UID)
         continue;
     }
-    else if (strncmp(attr, XATTR_USER_PREFIX, usrPrefixSize) != 0)
+    else if (strncmp(name.c_str(), XATTR_USER_PREFIX, usrPrefixSize) != 0)
     {
       continue;
     }
 
-    if (value != 0)
-      map[attr] = std::string(value, len);
+    map[name] = std::string(value.c_str(), value.length());
   }
-
-  rados_getxattrs_end(iter);
 
   return ret;
 }
@@ -925,32 +916,26 @@ createDirAndInode(const RadosFsStat *stat)
     return ret;
   }
 
-  rados_write_op_t writeOp = rados_create_write_op();
-
-  rados_write_op_create(writeOp, LIBRADOS_CREATE_EXCLUSIVE, "");
-
-  rados_write_op_setxattr(writeOp, XATTR_INODE_HARD_LINK, stat->path.c_str(),
-                          stat->path.length());
-
+  librados::ObjectWriteOperation writeOp;
+  const std::string &timeSpec = timespecToStr(&stat->statBuff.st_ctim);
   const std::string &permissions = makePermissionsXAttr(stat->statBuff.st_mode,
                                                         stat->statBuff.st_uid,
                                                         stat->statBuff.st_gid);
 
-  rados_write_op_setxattr(writeOp, XATTR_PERMISSIONS, permissions.c_str(),
-                          permissions.length());
 
-  const std::string &timeSpec = timespecToStr(&stat->statBuff.st_ctim);
+  librados::bufferlist permissionsBuff, timeSpecBuff, inodeBuff;
 
-  rados_write_op_setxattr(writeOp, XATTR_CTIME, timeSpec.c_str(),
-                          timeSpec.length());
+  permissionsBuff.append(permissions);
+  timeSpecBuff.append(timeSpec);
+  inodeBuff.append(stat->path);
 
-  rados_write_op_setxattr(writeOp, XATTR_MTIME, timeSpec.c_str(),
-                          timeSpec.length());
+  writeOp.create(true);
+  writeOp.setxattr(XATTR_PERMISSIONS, permissionsBuff);
+  writeOp.setxattr(XATTR_CTIME, timeSpecBuff);
+  writeOp.setxattr(XATTR_MTIME, timeSpecBuff);
+  writeOp.setxattr(XATTR_INODE_HARD_LINK, inodeBuff);
 
-  ret = rados_write_op_operate(writeOp, stat->pool->ioctx,
-                               stat->translatedPath.c_str(), NULL, 0);
-
-  rados_release_write_op(writeOp);
+  ret = stat->pool->ioctx.operate(stat->translatedPath, &writeOp);
 
   return ret;
 }
@@ -959,22 +944,18 @@ int
 createDirObject(const RadosFsStat *stat)
 {
   std::stringstream stream;
-  rados_write_op_t writeOp = rados_create_write_op();
+  librados::ObjectWriteOperation writeOp;
 
   stream << LINK_KEY << "='" << stat->translatedPath << "' ";
   stream << POOL_KEY << "='" << stat->pool->name << "'";
 
-  const std::string &inodeXAttr = stream.str();
+  librados::bufferlist inodeXAttr;
+  inodeXAttr.append(stream.str());
 
-  rados_write_op_create(writeOp, LIBRADOS_CREATE_EXCLUSIVE, "");
+  writeOp.create(true);
+  writeOp.setxattr(XATTR_INODE, inodeXAttr);
 
-  rados_write_op_setxattr(writeOp, XATTR_INODE, inodeXAttr.c_str(),
-                          inodeXAttr.length());
-
-  int ret = rados_write_op_operate(writeOp, stat->pool->ioctx,
-                                   stat->path.c_str(), NULL, 0);
-
-  rados_release_write_op(writeOp);
+  int ret = stat->pool->ioctx.operate(stat->path, &writeOp);
 
   return ret;
 }
@@ -995,9 +976,6 @@ void
 updateTimeAsync(const RadosFsStat *stat, const char *timeXAttrKey,
                 const std::string &time)
 {
-  librados::IoCtx ctx;
-  librados::IoCtx::from_rados_ioctx_t(stat->pool->ioctx, ctx);
-
   librados::bufferlist blist;
 
   if (time == "")
@@ -1014,22 +992,22 @@ updateTimeAsync(const RadosFsStat *stat, const char *timeXAttrKey,
   rados_aio_create_completion(0, 0, updateTimeAsyncCB, &comp);
   librados::AioCompletion completion((librados::AioCompletionImpl *)comp);
 
-  ctx.aio_operate(stat->translatedPath, &completion, &op);
+  stat->pool->ioctx.aio_operate(stat->translatedPath, &completion, &op);
 }
 
 int
 getTimeFromXAttr(const RadosFsStat *stat, const std::string &xattr,
                  timespec *spec, time_t *basicTime)
 {
-  char timeXAttr[XATTR_TIME_LENGTH];
-  const std::string &inode = stat->translatedPath;
-  int bytes = rados_getxattr(stat->pool->ioctx, inode.c_str(), xattr.c_str(),
-                             timeXAttr, XATTR_TIME_LENGTH);
+  librados::bufferlist buff;
 
-  if (bytes < 0)
-    return bytes;
+  int ret = stat->pool->ioctx.getxattr(stat->translatedPath, xattr.c_str(),
+                                       buff);
 
-  timeXAttr[bytes] = '\0';
+  if (ret < 0)
+    return ret;
+
+  std::string timeXAttr(buff.c_str(), buff.length());
 
   strToTimespec(timeXAttr, spec);
 
@@ -1053,14 +1031,12 @@ size_t alignStripeSize(size_t stripeSize, size_t alignment)
   return alignment * (stripeSize / alignment);
 }
 
-int statAndGetXAttrs(rados_ioctx_t ioctx, const std::string &obj,
+int statAndGetXAttrs(librados::IoCtx &ctx, const std::string &obj,
                      u_int64_t *size, time_t *mtime,
                      std::map<std::string, std::string> &xattrs)
 {
   int statRet;
   librados::ObjectReadOperation op;
-  librados::IoCtx ctx;
-  librados::IoCtx::from_rados_ioctx_t(ioctx, ctx);
   librados::bufferlist *xattrsResults = new librados::bufferlist[xattrs.size()];
 
   op.stat(size, mtime, &statRet);

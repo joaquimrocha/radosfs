@@ -33,39 +33,38 @@ RadosFsTest::RadosFsTest()
                                 "environment variable or use the --conf=... "
                                 "argument.");
 
-  rados_create(&mCluster, 0);
+  mCluster.init(0);
 
-  if (rados_conf_read_file(mCluster, mConf) != 0)
+  if (mCluster.conf_read_file(mConf) != 0)
     throw std::invalid_argument("Problem reading configuration file.");
 
-  rados_connect(mCluster);
+  mCluster.connect();
 
-  rados_pool_create(mCluster, TEST_POOL);
-  rados_pool_create(mCluster, TEST_POOL_MTD);
+  mCluster.pool_create(TEST_POOL);
+  mCluster.pool_create(TEST_POOL_MTD);
 
   mPoolsCreated.insert(TEST_POOL);
   mPoolsCreated.insert(TEST_POOL_MTD);
 
-  rados_shutdown(mCluster);
+  mCluster.shutdown();
 
   radosFs.init("", mConf);
 }
 
 RadosFsTest::~RadosFsTest()
 {
-  rados_create(&mCluster, 0);
-
-  rados_conf_read_file(mCluster, mConf);
-  rados_connect(mCluster);
+  mCluster.init(0);
+  mCluster.conf_read_file(mConf);
+  mCluster.connect();
 
   std::set<std::string>::iterator it;
 
   for (it = mPoolsCreated.begin(); it != mPoolsCreated.end(); it++)
   {
-    rados_pool_delete(mCluster, (*it).c_str());
+    mCluster.pool_delete((*it).c_str());
   }
 
-  rados_shutdown(mCluster);
+  mCluster.shutdown();
 }
 
 void
@@ -99,7 +98,7 @@ RadosFsTest::AddPool(int numExtraPools)
 
     const std::string &poolName = stream.str();
 
-    rados_pool_create(radosFsPriv()->radosCluster, poolName.c_str());
+    radosFsPriv()->radosCluster.pool_create(poolName.c_str());
 
     ret = radosFs.addDataPool(poolName, "/", 1000);
 

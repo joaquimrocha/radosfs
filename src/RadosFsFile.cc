@@ -589,11 +589,12 @@ RadosFsFile::chmod(long int permissions)
 
   fsStat.statBuff.st_mode = mode;
   const std::string &baseName = path().substr(mPriv->parentDir.length());
-  const std::string &linkXAttr = getFileXAttrDirRecord(&fsStat);
+  librados::bufferlist linkXAttr;
+  linkXAttr.append(getFileXAttrDirRecord(&fsStat));
 
-  ret = rados_setxattr(mPriv->mtdPool->ioctx, parentStat->translatedPath.c_str(),
-                       (XATTR_FILE_PREFIX + baseName).c_str(),
-                       linkXAttr.c_str(), linkXAttr.length());
+  ret = mPriv->mtdPool->ioctx.setxattr(parentStat->translatedPath,
+                                       (XATTR_FILE_PREFIX + baseName).c_str(),
+                                       linkXAttr);
 
   return ret;
 }

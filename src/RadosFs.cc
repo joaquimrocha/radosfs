@@ -21,7 +21,7 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/thread.hpp>
 #include <boost/progress.hpp>
-#include <rados/librados.h>
+#include <rados/librados.hpp>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <utility>
@@ -37,7 +37,7 @@ __thread gid_t RadosFsPriv::gid;
 
 RadosFsPriv::RadosFsPriv(RadosFs *radosFs)
   : radosFs(radosFs),
-    radosCluster(0),
+    initialized(false),
     dirCompactRatio(DEFAULT_DIR_COMPACT_RATIO),
     fileStripeSize(FILE_STRIPE_SIZE),
     lockFiles(true),
@@ -66,8 +66,8 @@ RadosFsPriv::~RadosFsPriv()
   mtdPoolMap.clear();
   dirPathInodeMap.clear();
 
-  if (radosCluster)
-    rados_shutdown(radosCluster);
+  if (initialized)
+    radosCluster.shutdown();
 
   pthread_mutex_lock(&dirCacheMutex);
 
@@ -244,20 +244,22 @@ RadosFsPriv::createCluster(const std::string &userName,
   if (userName != "")
     user = userName.c_str();
 
-  ret = rados_create(&radosCluster, user);
+  ret = radosCluster.init(user);
 
   if (ret != 0)
       return ret;
 
   if (confFile != "")
   {
-    ret = rados_conf_read_file(radosCluster, confFile.c_str());
+    ret = radosCluster.conf_read_file(confFile.c_str());
 
     if (ret != 0)
         return ret;
   }
 
-  ret = rados_connect(radosCluster);
+  ret = radosCluster.connect();
+
+  initialized = (ret == 0);
 
   return ret;
 }
@@ -269,8 +271,6 @@ RadosFsPriv::statLink(RadosFsPoolSP mtdPool,
 {
   int ret = 0;
   const std::string &parentDir = getParentDir(stat->path, 0);
-  char fileXAttr[XATTR_FILE_LENGTH + 1];
-
   const std::string &pathXAttr = XATTR_FILE_PREFIX +
                                  stat->path.substr(parentDir.length());
 
@@ -285,15 +285,15 @@ RadosFsPriv::statLink(RadosFsPoolSP mtdPool,
   if (ret != 0)
     return ret;
 
-  int length = rados_getxattr(inode.pool->ioctx,
-                              inode.inode.c_str(),
-                              pathXAttr.c_str(), fileXAttr,
-                              XATTR_FILE_LENGTH);
+  librados::bufferlist fileXAttr;
 
-  if (length > 0)
+  ret = inode.pool->ioctx.getxattr(inode.inode, pathXAttr.c_str(), fileXAttr);
+
+  if (ret > 0)
   {
-    fileXAttr[length] = '\0';
-    ret = statFromXAttr(stat->path, fileXAttr, &stat->statBuff,
+    std::string linkStr(fileXAttr.c_str(), fileXAttr.length());
+
+    ret = statFromXAttr(stat->path, linkStr, &stat->statBuff,
                         stat->translatedPath, pool, stat->extraData);
 
     if (stat->translatedPath == "")
@@ -301,13 +301,9 @@ RadosFsPriv::statLink(RadosFsPoolSP mtdPool,
       ret = -ENOLINK;
     }
   }
-  else if (length == -ENODATA)
+  else if (ret == -ENODATA)
   {
     ret = -ENOENT;
-  }
-  else
-  {
-    ret = length;
   }
 
   return ret;
@@ -769,7 +765,7 @@ RadosFsPriv::createPrefixDir(RadosFsPoolSP pool, const std::string &prefix)
 {
   int ret = 0;
 
-  if (rados_stat(pool->ioctx, prefix.c_str(), 0, 0) != 0)
+  if (pool->ioctx.stat(prefix, 0, 0) != 0)
   {
     RadosFsStat stat;
     stat.path = prefix;
@@ -792,10 +788,10 @@ RadosFsPriv::addPool(const std::string &name,
                      pthread_mutex_t *mutex,
                      size_t size)
 {
-  int ret = -EPERM;
+  int ret = -ENODEV;
   const std::string &cleanPrefix = sanitizePath(prefix  + "/");
 
-  if (radosCluster == 0)
+  if (!initialized)
     return ret;
 
   if (prefix == "")
@@ -811,14 +807,15 @@ RadosFsPriv::addPool(const std::string &name,
     return -EEXIST;
   }
 
-  rados_ioctx_t ioctx;
+  librados::IoCtx ioctx;
 
-  ret = rados_ioctx_create(radosCluster, name.c_str(), &ioctx);
+  ret = radosCluster.ioctx_create(name.c_str(), ioctx);
 
   if (ret != 0)
     return ret;
 
-  RadosFsPool *pool = new RadosFsPool(name.c_str(), size * MEGABYTE_CONVERSION, ioctx);
+  RadosFsPool *pool = new RadosFsPool(name.c_str(), size * MEGABYTE_CONVERSION,
+                                      ioctx);
   RadosFsPoolSP poolSP(pool);
 
   if (size == 0)
@@ -1305,14 +1302,14 @@ RadosFs::addDataPool(const std::string &name,
                      const std::string &prefix,
                      size_t size)
 {
+  librados::IoCtx ioctx;
   RadosFsPool *pool;
   RadosFsPoolList *pools = 0;
   RadosFsPoolListMap *map;
-  rados_ioctx_t ioctx;
   int ret = -EPERM;
   const std::string &cleanPrefix = sanitizePath(prefix  + "/");
 
-  if (mPriv->radosCluster == 0)
+  if (!mPriv->initialized)
     return ret;
 
   if (prefix == "")
@@ -1343,13 +1340,13 @@ RadosFs::addDataPool(const std::string &name,
     }
   }
 
-  ret = rados_ioctx_create(mPriv->radosCluster, name.c_str(), &ioctx);
+  ret = mPriv->radosCluster.ioctx_create(name.c_str(), ioctx);
 
   if (ret != 0)
     goto unlockAndExit;
 
   pool = new RadosFsPool(name.c_str(), size * MEGABYTE_CONVERSION, ioctx);
-  pool->setAlignment(rados_ioctx_pool_required_alignment(ioctx));
+  pool->setAlignment(ioctx.pool_required_alignment());
 
   if (pools == 0)
   {
@@ -1635,18 +1632,11 @@ RadosFs::stat(const std::string &path, struct stat *buff)
 std::vector<std::string>
 RadosFs::allPoolsInCluster() const
 {
-  const int poolListMaxSize = 1024;
-  char poolList[poolListMaxSize];
-  rados_pool_list(mPriv->radosCluster, poolList, poolListMaxSize);
-
-  char *currentPool = poolList;
   std::vector<std::string> poolVector;
+  std::list<std::string> poolList;
 
-  while (strlen(currentPool) != 0)
-  {
-    poolVector.push_back(currentPool);
-    currentPool += strlen(currentPool) + 1;
-  }
+  mPriv->radosCluster.pool_list(poolList);
+  poolVector.insert(poolVector.begin(), poolList.begin(), poolList.end());
 
   return poolVector;
 }
@@ -1658,9 +1648,9 @@ RadosFs::statCluster(uint64_t *totalSpaceKb,
                      uint64_t *numberOfObjects)
 {
   int ret;
-  rados_cluster_stat_t clusterStat;
+  librados::cluster_stat_t clusterStat;
 
-  ret = rados_cluster_stat(mPriv->radosCluster, &clusterStat);
+  ret = mPriv->radosCluster.cluster_stat(clusterStat);
 
   if (ret != 0)
     return ret;
