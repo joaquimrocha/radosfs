@@ -21,7 +21,6 @@
 #define RADOS_FS_INFO_IMPL_HH
 
 #include <tr1/memory>
-#include <rados/librados.h>
 
 #include "radosfscommon.h"
 #include "radosfsdefines.h"

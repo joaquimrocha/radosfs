@@ -21,7 +21,6 @@
 #define RADOS_FS_DIR_IMPL_HH
 
 #include <tr1/memory>
-#include <rados/librados.h>
 
 #include "radosfsdefines.h"
 #include "DirCache.hh"
