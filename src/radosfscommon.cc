@@ -612,16 +612,13 @@ getXAttrFromPath(librados::IoCtx &ioctx,
                  gid_t gid,
                  const std::string &path,
                  const std::string &attrName,
-                 std::string &value,
-                 size_t length)
+                 std::string &value)
 {
   int ret = checkPermissionsForXAttr(statBuff, attrName, uid, gid, O_RDONLY);
 
   if (ret != 0)
     return ret;
 
-  if (length == 0)
-    return -EINVAL;
 
   librados::bufferlist buff;
   ret = ioctx.getxattr(path, attrName.c_str(), buff);

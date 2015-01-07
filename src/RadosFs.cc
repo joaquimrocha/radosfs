@@ -1722,12 +1722,12 @@ RadosFs::getXAttr(const std::string &path,
 
   if (S_ISDIR(stat.statBuff.st_mode))
     return getXAttrFromPath(stat.pool->ioctx, stat.statBuff, uid(), gid(),
-                            stat.path, attrName, value, length);
+                            stat.path, attrName, value);
 
   if (S_ISREG(stat.statBuff.st_mode))
   {
     return getXAttrFromPath(stat.pool->ioctx, stat.statBuff, uid(), gid(),
-                            stat.translatedPath, attrName, value, length);
+                            stat.translatedPath, attrName, value);
   }
 
   return -EPERM;

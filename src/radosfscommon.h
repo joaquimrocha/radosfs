@@ -145,8 +145,7 @@ int getXAttrFromPath(librados::IoCtx &ioctx,
                      gid_t gid,
                      const std::string &path,
                      const std::string &attrName,
-                     std::string &value,
-                     size_t length);
+                     std::string &value);
 
 int removeXAttrFromPath(librados::IoCtx &ioctx,
                         const struct stat &statBuff,

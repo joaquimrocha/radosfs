@@ -337,7 +337,7 @@ RadosFsInfo::getXAttr(const std::string &attrName,
 
   return getXAttrFromPath(pool->ioctx, mPriv->stat.statBuff,
                           mPriv->radosFs->uid(), mPriv->radosFs->gid(),
-                          path, attrName, value, length);
+                          path, attrName, value);
 }
 
 int
