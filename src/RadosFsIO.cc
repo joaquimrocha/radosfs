@@ -106,14 +106,17 @@ RadosFsIO::read(char *buff, off_t offset, size_t blen)
 
     // If the bytes read were less than expected or the stripe didn't exist,
     // it should assign null characters to the nonexistent length.
-    if ((size_t) ret < length || ret == -ENOENT)
+    if ((size_t) ret < length)
     {
-      memset(buff + ret, '\0', length - ret);
+      if (ret < 0)
+      {
+        if (ret == -ENOENT)
+          ret = 0;
+        else
+          return ret;
+      }
 
-    }
-    else if (ret < 0)
-    {
-      return ret;
+      memset(buff + ret, '\0', length - ret);
     }
 
     bytesRead += length;
