@@ -320,8 +320,7 @@ RadosFsInfo::setXAttr(const std::string &attrName,
 
 int
 RadosFsInfo::getXAttr(const std::string &attrName,
-                      std::string &value,
-                      size_t length)
+                      std::string &value)
 {
   // We don't call the similar methods from RadosFs for avoiding extra stat calls
 

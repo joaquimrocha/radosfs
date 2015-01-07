@@ -1756,13 +1756,11 @@ TEST_F(RadosFsTest, XAttrs)
 
   std::string xAttrValue;
 
-  EXPECT_EQ(-EINVAL, radosFs.getXAttr(fileName, "invalid",
-                                      xAttrValue, XATTR_PERMISSIONS_LENGTH));
+  EXPECT_EQ(-EINVAL, radosFs.getXAttr(fileName, "invalid", xAttrValue));
 
   // Get an inexistent
 
-  EXPECT_LT(radosFs.getXAttr(fileName, "usr.inexistent",
-                             xAttrValue, XATTR_PERMISSIONS_LENGTH), 0);
+  EXPECT_LT(radosFs.getXAttr(fileName, "usr.inexistent", xAttrValue), 0);
 
   // Set a user attribute
 
@@ -1772,8 +1770,7 @@ TEST_F(RadosFsTest, XAttrs)
 
   // Get the attribute set above
 
-  EXPECT_EQ(value.length(), radosFs.getXAttr(fileName, attr,
-                                             xAttrValue, value.length()));
+  EXPECT_EQ(value.length(), radosFs.getXAttr(fileName, attr, xAttrValue));
 
   // Check the attribtue's value
 
@@ -1789,8 +1786,7 @@ TEST_F(RadosFsTest, XAttrs)
 
   // Get an xattr by a user who can only read
 
-  EXPECT_EQ(value.length(), radosFs.getXAttr(fileName, attr,
-                                             xAttrValue, value.length()));
+  EXPECT_EQ(value.length(), radosFs.getXAttr(fileName, attr, xAttrValue));
 
   // Check the attribute's value
 
@@ -2426,7 +2422,7 @@ TEST_F(RadosFsTest, LinkDir)
 
   EXPECT_EQ(0, dirLink.setXAttr(mdKey, mdValue));
 
-  EXPECT_GT(dirLink.getXAttr(mdKey, value, 1024), 0);
+  EXPECT_GT(dirLink.getXAttr(mdKey, value), 0);
 
   EXPECT_EQ(mdValue, value);
 
@@ -2434,8 +2430,7 @@ TEST_F(RadosFsTest, LinkDir)
 
   EXPECT_GT(map.size(), 0);
 
-  EXPECT_EQ(mdValue.length(), radosFs.getXAttr(dirLink.path(), mdKey, value,
-                                               1024));
+  EXPECT_EQ(mdValue.length(), radosFs.getXAttr(dirLink.path(), mdKey, value));
 
   // Create a dir using the link as parent
 

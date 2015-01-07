@@ -201,18 +201,15 @@ RadosFsTest::testXAttrInFsInfo(radosfs::RadosFsInfo &info)
   radosFs.setIds(TEST_UID, TEST_GID);
 
   std::string xAttrValue;
-  EXPECT_EQ(-EINVAL, info.getXAttr(XATTR_PERMISSIONS, xAttrValue,
-                                   XATTR_PERMISSIONS_LENGTH));
+  EXPECT_EQ(-EINVAL, info.getXAttr(XATTR_PERMISSIONS, xAttrValue));
 
   // Get an invalid xattr
 
-  EXPECT_EQ(-EINVAL, info.getXAttr("invalid", xAttrValue,
-                                  XATTR_PERMISSIONS_LENGTH));
+  EXPECT_EQ(-EINVAL, info.getXAttr("invalid", xAttrValue));
 
   // Get an inexistent xattr
 
-  EXPECT_LT(info.getXAttr("usr.inexistent", xAttrValue,
-                         XATTR_PERMISSIONS_LENGTH), 0);
+  EXPECT_LT(info.getXAttr("usr.inexistent", xAttrValue), 0);
 
   // Set a user attribute
 
@@ -222,7 +219,7 @@ RadosFsTest::testXAttrInFsInfo(radosfs::RadosFsInfo &info)
 
   // Get the attribute set above
 
-  EXPECT_EQ(value.length(), info.getXAttr(attr, xAttrValue, value.length()));
+  EXPECT_EQ(value.length(), info.getXAttr(attr, xAttrValue));
 
   // Check the attribtue's value
 
@@ -238,7 +235,7 @@ RadosFsTest::testXAttrInFsInfo(radosfs::RadosFsInfo &info)
 
   // Get an xattr by a user who can only read
 
-  EXPECT_EQ(value.length(), info.getXAttr(attr, xAttrValue, value.length()));
+  EXPECT_EQ(value.length(), info.getXAttr(attr, xAttrValue));
 
   // Check the attribute's value
 

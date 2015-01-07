@@ -1704,8 +1704,7 @@ RadosFs::setXAttr(const std::string &path,
 int
 RadosFs::getXAttr(const std::string &path,
                   const std::string &attrName,
-                  std::string &value,
-                  size_t length)
+                  std::string &value)
 {
   RadosFsStat stat;
 
@@ -1715,7 +1714,7 @@ RadosFs::getXAttr(const std::string &path,
     return ret;
 
   if (S_ISLNK(stat.statBuff.st_mode))
-    return getXAttr(stat.translatedPath, attrName, value, length);
+    return getXAttr(stat.translatedPath, attrName, value);
 
   if (!stat.pool)
     return -ENODEV;

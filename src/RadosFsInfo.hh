@@ -64,9 +64,7 @@ public:
   virtual int setXAttr(const std::string &attrName,
                const std::string &value);
 
-  virtual int getXAttr(const std::string &attrName,
-               std::string &value,
-               size_t length);
+  virtual int getXAttr(const std::string &attrName, std::string &value);
 
   virtual int removeXAttr(const std::string &attrName);
 

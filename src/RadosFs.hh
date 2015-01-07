@@ -100,8 +100,7 @@ public:
 
   int getXAttr(const std::string &path,
                const std::string &attrName,
-               std::string &value,
-               size_t length);
+               std::string &value);
 
   int removeXAttr(const std::string &path, const std::string &attrName);
 
