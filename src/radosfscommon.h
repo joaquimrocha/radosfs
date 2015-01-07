@@ -221,4 +221,6 @@ int statAndGetXAttrs(librados::IoCtx &ioctx, const std::string &obj,
                      u_int64_t *size, time_t *mtime,
                      std::map<std::string, std::string> &xattrs);
 
+std::string fileSizeToHex(size_t num);
+
 #endif /* __RADOS_FS_COMMON_HH__ */

@@ -254,10 +254,15 @@ RadosFsChecker::fixInodes()
            poolListIt != poolList.end();
            poolListIt++)
       {
-        int length = (*poolListIt)->ioctx.getxattr(inode, XATTR_INODE_HARD_LINK,
-                                                   hardLink);
-        if (length >= 0)
+        std::set<std::string> keys;
+        std::map<std::string, librados::bufferlist> omap;
+
+        keys.insert(XATTR_INODE_HARD_LINK);
+        int ret = (*poolListIt)->ioctx.omap_get_vals_by_keys(inode, keys, &omap);
+
+        if (ret == 0 && omap.count(XATTR_INODE_HARD_LINK) > 0)
         {
+          hardLink = omap[XATTR_INODE_HARD_LINK];
           break;
         }
       }

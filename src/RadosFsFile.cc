@@ -571,7 +571,6 @@ RadosFsFile::stat(struct stat *buff)
 int
 RadosFsFile::chmod(long int permissions)
 {
-  int ret = 0;
   long int mode;
 
   if (!exists())
@@ -589,14 +588,10 @@ RadosFsFile::chmod(long int permissions)
 
   fsStat.statBuff.st_mode = mode;
   const std::string &baseName = path().substr(mPriv->parentDir.length());
-  librados::bufferlist linkXAttr;
-  linkXAttr.append(getFileXAttrDirRecord(&fsStat));
+  std::map<std::string, librados::bufferlist> omap;
+  omap[XATTR_FILE_PREFIX + baseName].append(getFileXAttrDirRecord(&fsStat));
 
-  ret = mPriv->mtdPool->ioctx.setxattr(parentStat->translatedPath,
-                                       (XATTR_FILE_PREFIX + baseName).c_str(),
-                                       linkXAttr);
-
-  return ret;
+  return mPriv->mtdPool->ioctx.omap_set(parentStat->translatedPath, omap);
 }
 
 int

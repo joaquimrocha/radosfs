@@ -285,25 +285,27 @@ RadosFsPriv::statLink(RadosFsPoolSP mtdPool,
   if (ret != 0)
     return ret;
 
-  librados::bufferlist fileXAttr;
+  std::set<std::string> keys;
+  std::map<std::string, librados::bufferlist> omap;
 
-  ret = inode.pool->ioctx.getxattr(inode.inode, pathXAttr.c_str(), fileXAttr);
+  keys.insert(pathXAttr);
+  ret = inode.pool->ioctx.omap_get_vals_by_keys(inode.inode, keys, &omap);
 
-  if (ret > 0)
-  {
-    std::string linkStr(fileXAttr.c_str(), fileXAttr.length());
-
-    ret = statFromXAttr(stat->path, linkStr, &stat->statBuff,
-                        stat->translatedPath, pool, stat->extraData);
-
-    if (stat->translatedPath == "")
-    {
-      ret = -ENOLINK;
-    }
-  }
-  else if (ret == -ENODATA)
-  {
+  if (omap.count(pathXAttr) == 0)
     ret = -ENOENT;
+
+  if (ret < 0)
+    return ret;
+
+  librados::bufferlist fileXAttr = omap[pathXAttr];
+  std::string linkStr(fileXAttr.c_str(), fileXAttr.length());
+
+  ret = statFromXAttr(stat->path, linkStr, &stat->statBuff,
+                      stat->translatedPath, pool, stat->extraData);
+
+  if (stat->translatedPath == "")
+  {
+    ret = -ENOLINK;
   }
 
   return ret;

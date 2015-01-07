@@ -18,6 +18,7 @@
  */
 
 #include "radosfscommon.h"
+#include <climits>
 #include <sys/stat.h>
 #include <uuid/uuid.h>
 
@@ -107,17 +108,18 @@ genericStat(librados::IoCtx &ctx,
 {
   uint64_t psize;
   time_t pmtime;
-  int ret, statRet, permRet, ctimeRet, mtimeRet;
+  int ret, statRet;
   std:: string ctime, mtime, permissions;
-  librados::bufferlist permXAttr, ctimeXAttr, mtimeXAttr;
   librados::ObjectReadOperation op;
+  std::set<std::string> keys;
+  std::map<std::string, librados::bufferlist> omap;
+
+  keys.insert(XATTR_PERMISSIONS);
+  keys.insert(XATTR_MTIME);
+  keys.insert(XATTR_CTIME);
 
   op.stat(&psize, &pmtime, &statRet);
-  op.getxattr(XATTR_PERMISSIONS, &permXAttr, &permRet);
-  op.getxattr(XATTR_MTIME, &mtimeXAttr, &mtimeRet);
-  op.set_op_flags(librados::OP_FAILOK);
-  op.getxattr(XATTR_CTIME, &ctimeXAttr, &ctimeRet);
-  op.set_op_flags(librados::OP_FAILOK);
+  op.omap_get_vals_by_keys(keys, &omap, 0);
   op.assert_exists();
 
   ret = ctx.operate(object, &op, 0);
@@ -128,14 +130,27 @@ genericStat(librados::IoCtx &ctx,
   if (statRet != 0)
     return statRet;
 
-  if (ctimeXAttr.length() > 0)
-    ctime = std::string(ctimeXAttr.c_str(), ctimeXAttr.length());
-
-  if (mtimeXAttr.length() > 0)
-    mtime = std::string(mtimeXAttr.c_str(), mtimeXAttr.length());
-
-  if (permXAttr.length() > 0)
+  if (omap.count(XATTR_PERMISSIONS) > 0)
+  {
+    librados::bufferlist permXAttr = omap[XATTR_PERMISSIONS];
     permissions = std::string(permXAttr.c_str(), permXAttr.length());
+  }
+  else
+  {
+    return -ENODATA;
+  }
+
+  if (omap.count(XATTR_CTIME) > 0)
+  {
+    librados::bufferlist ctimeXAttr = omap[XATTR_CTIME];
+    ctime = std::string(ctimeXAttr.c_str(), ctimeXAttr.length());
+  }
+
+  if (omap.count(XATTR_MTIME) > 0)
+  {
+    librados::bufferlist mtimeXAttr = omap[XATTR_MTIME];
+    mtime = std::string(mtimeXAttr.c_str(), mtimeXAttr.length());
+  }
 
   genericStatFromAttrs(object, permissions, ctime, mtime, psize, pmtime, buff);
 
@@ -192,9 +207,11 @@ getInodeAndPool(librados::IoCtx &ioctx,
                 std::string &inode,
                 std::string &pool)
 {
-  librados::bufferlist inodeXAttr;
+  std::set<std::string> keys;
+  std::map<std::string, librados::bufferlist> omap;
 
-  int ret = ioctx.getxattr(path, XATTR_INODE, inodeXAttr);
+  keys.insert(XATTR_INODE);
+  int ret = ioctx.omap_get_vals_by_keys(path, keys, &omap);
 
   if (ret < 0)
   {
@@ -203,6 +220,7 @@ getInodeAndPool(librados::IoCtx &ioctx,
 
   ret = 0;
 
+  librados::bufferlist inodeXAttr = omap[XATTR_INODE];
   std::string inodeValue(inodeXAttr.c_str(), inodeXAttr.length());
   std::map<std::string, std::string> attrs = stringAttrsToMap(inodeValue);
 
@@ -522,16 +540,27 @@ writeContentsAtomically(librados::IoCtx &ioctx,
   {
     if (xattrValue != "")
     {
-      librados::bufferlist emptyStr, xattrValueBuff;
+
+      std::map<std::string, librados::bufferlist> omap;
+      omap[xattrKey].append(xattrValue);
+
+      librados::bufferlist emptyStr;
+      std::map<std::string, std::pair<librados::bufferlist, int> > omapCmp;
       emptyStr.append("");
       writeOp.cmpxattr(xattrKey.c_str(), LIBRADOS_CMPXATTR_OP_EQ, emptyStr);
 
-      xattrValueBuff.append(xattrValue);
-      writeOp.setxattr(xattrKey.c_str(), xattrValueBuff);
+      std::pair<librados::bufferlist, int> cmp(emptyStr,
+                                               LIBRADOS_CMPXATTR_OP_EQ);
+      omapCmp[xattrKey] = cmp;
+
+      writeOp.omap_cmp(omapCmp, 0);
+      writeOp.omap_set(omap);
     }
     else
     {
-      writeOp.rmxattr(xattrKey.c_str());
+      std::set<std::string> keys;
+      keys.insert(xattrKey);
+      writeOp.omap_rm_keys(keys);
     }
   }
 
@@ -599,10 +628,10 @@ setXAttrFromPath(librados::IoCtx &ioctx,
   if (ret != 0)
     return ret;
 
-  librados::bufferlist xattrValue;
-  xattrValue.append(value);
+  std::map<std::string, librados::bufferlist> omap;
+  omap[attrName].append(value);
 
-  return ioctx.setxattr(path, attrName.c_str(), xattrValue);
+  return ioctx.omap_set(path, omap);
 }
 
 int
@@ -619,14 +648,22 @@ getXAttrFromPath(librados::IoCtx &ioctx,
   if (ret != 0)
     return ret;
 
+  std::set<std::string> keys;
+  std::map<std::string, librados::bufferlist> omap;
 
-  librados::bufferlist buff;
-  ret = ioctx.getxattr(path, attrName.c_str(), buff);
+  keys.insert(attrName);
+  ret = ioctx.omap_get_vals_by_keys(path, keys, &omap);
 
-  if (ret >= 0)
-    value = std::string(buff.c_str(), buff.length());
+  if (omap.count(attrName) == 0)
+    ret = -ENODATA;
 
-  return ret;
+  if (ret < 0)
+    return ret;
+
+  librados::bufferlist buff = omap[attrName];
+  value = std::string(buff.c_str(), buff.length());
+
+  return value.length();
 }
 
 int removeXAttrFromPath(librados::IoCtx &ioctx,
@@ -641,7 +678,10 @@ int removeXAttrFromPath(librados::IoCtx &ioctx,
   if (ret != 0)
     return ret;
 
-  return ioctx.rmxattr(path, attrName.c_str());
+  std::set<std::string> keys;
+  keys.insert(attrName);
+
+  return ioctx.omap_rm_keys(path, keys);
 }
 
 int getMapOfXAttrFromPath(librados::IoCtx &ioctx,
@@ -656,7 +696,7 @@ int getMapOfXAttrFromPath(librados::IoCtx &ioctx,
 
   std::map<std::string, librados::bufferlist> attrs;
 
-  int ret = ioctx.getxattrs(path, attrs);
+  int ret = ioctx.omap_get_vals(path, "", UINT_MAX, &attrs);
 
   if (ret != 0)
     return ret;
@@ -920,17 +960,14 @@ createDirAndInode(const RadosFsStat *stat)
                                                         stat->statBuff.st_gid);
 
 
-  librados::bufferlist permissionsBuff, timeSpecBuff, inodeBuff;
-
-  permissionsBuff.append(permissions);
-  timeSpecBuff.append(timeSpec);
-  inodeBuff.append(stat->path);
+  std::map<std::string, librados::bufferlist> omap;
+  omap[XATTR_PERMISSIONS].append(permissions);
+  omap[XATTR_CTIME].append(timeSpec);
+  omap[XATTR_MTIME].append(timeSpec);
+  omap[XATTR_INODE_HARD_LINK].append(stat->path);
 
   writeOp.create(true);
-  writeOp.setxattr(XATTR_PERMISSIONS, permissionsBuff);
-  writeOp.setxattr(XATTR_CTIME, timeSpecBuff);
-  writeOp.setxattr(XATTR_MTIME, timeSpecBuff);
-  writeOp.setxattr(XATTR_INODE_HARD_LINK, inodeBuff);
+  writeOp.omap_set(omap);
 
   ret = stat->pool->ioctx.operate(stat->translatedPath, &writeOp);
 
@@ -946,11 +983,11 @@ createDirObject(const RadosFsStat *stat)
   stream << LINK_KEY << "='" << stat->translatedPath << "' ";
   stream << POOL_KEY << "='" << stat->pool->name << "'";
 
-  librados::bufferlist inodeXAttr;
-  inodeXAttr.append(stream.str());
+  std::map<std::string, librados::bufferlist> omap;
+  omap[XATTR_INODE].append(stream.str());
 
   writeOp.create(true);
-  writeOp.setxattr(XATTR_INODE, inodeXAttr);
+  writeOp.omap_set(omap);
 
   int ret = stat->pool->ioctx.operate(stat->path, &writeOp);
 
@@ -973,16 +1010,16 @@ void
 updateTimeAsync(const RadosFsStat *stat, const char *timeXAttrKey,
                 const std::string &time)
 {
-  librados::bufferlist blist;
+  std::map<std::string, librados::bufferlist> omap;
 
   if (time == "")
-    blist.append(getCurrentTimeStr());
+    omap[timeXAttrKey].append(getCurrentTimeStr());
   else
-    blist.append(time);
+    omap[timeXAttrKey].append(time);
 
   librados::ObjectWriteOperation op;
 
-  op.setxattr(timeXAttrKey, blist);
+  op.omap_set(omap);
 
   rados_completion_t comp;
 
@@ -996,14 +1033,20 @@ int
 getTimeFromXAttr(const RadosFsStat *stat, const std::string &xattr,
                  timespec *spec, time_t *basicTime)
 {
-  librados::bufferlist buff;
+  std::set<std::string> keys;
+  std::map<std::string, librados::bufferlist> omap;
 
-  int ret = stat->pool->ioctx.getxattr(stat->translatedPath, xattr.c_str(),
-                                       buff);
+  keys.insert(xattr);
+  int ret = stat->pool->ioctx.omap_get_vals_by_keys(stat->translatedPath, keys,
+                                                    &omap);
+
+  if (omap.count(xattr) == 0)
+    ret = -ENODATA;
 
   if (ret < 0)
     return ret;
 
+  librados::bufferlist buff = omap[xattr];
   std::string timeXAttr(buff.c_str(), buff.length());
 
   strToTimespec(timeXAttr, spec);
@@ -1034,33 +1077,40 @@ int statAndGetXAttrs(librados::IoCtx &ctx, const std::string &obj,
 {
   int statRet;
   librados::ObjectReadOperation op;
-  librados::bufferlist *xattrsResults = new librados::bufferlist[xattrs.size()];
-
-  op.stat(size, mtime, &statRet);
-
+  std::set<std::string> keys;
+  std::map<std::string, librados::bufferlist> omap;
   std::map<std::string, std::string>::iterator it;
   size_t i;
+
   for (it = xattrs.begin(), i = 0; it != xattrs.end(); it++, i++)
   {
-    const std::string &xattr = (*it).first;
-    op.getxattr(xattr.c_str(), &xattrsResults[i], 0);
-    op.set_op_flags(librados::OP_FAILOK);
+    keys.insert((*it).first);
   }
+
+  op.stat(size, mtime, &statRet);
+  op.omap_get_vals_by_keys(keys, &omap, 0);
 
   ctx.operate(obj, &op, 0);
 
-  for (it = xattrs.begin(), i = 0; it != xattrs.end(); it++, i++)
+  for (it = xattrs.begin(); it != xattrs.end(); it++)
   {
-    librados::bufferlist *xattrValue = &xattrsResults[i];
+    const std::string &key = (*it).first;
 
-    if (xattrValue->length() > 0)
-    {
-      xattrs[(*it).first] = std::string(xattrValue->c_str(),
-                                        xattrValue->length());
-    }
+    if (omap.count(key) == 0)
+      continue;
+
+    librados::bufferlist *xattrValue = &omap[key];
+    xattrs[key] = std::string(xattrValue->c_str(), xattrValue->length());
   }
 
-  delete[] xattrsResults;
-
   return statRet;
+}
+
+std::string
+fileSizeToHex(size_t num)
+{
+  char stripeNumHex[XATTR_FILE_SIZE_LENGTH];
+  sprintf(stripeNumHex, "%0*x", XATTR_FILE_SIZE_LENGTH, (unsigned int) num);
+
+  return std::string(stripeNumHex, XATTR_FILE_SIZE_LENGTH);
 }

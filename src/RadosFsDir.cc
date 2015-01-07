@@ -1037,12 +1037,10 @@ RadosFsDir::chmod(long int permissions)
   {
     stat.statBuff.st_mode = mode;
     const std::string &baseName = path().substr(mPriv->parentDir.length());
-    librados::bufferlist linkXAttr;
-    linkXAttr.append(getFileXAttrDirRecord(&stat));
+    std::map<std::string, librados::bufferlist> omap;
+    omap[XATTR_FILE_PREFIX + baseName].append(getFileXAttrDirRecord(&stat));
 
-    ret = stat.pool->ioctx.setxattr(parentStat->translatedPath,
-                                    (XATTR_FILE_PREFIX + baseName).c_str(),
-                                    linkXAttr);
+    ret = stat.pool->ioctx.omap_set(parentStat->translatedPath, omap);
   }
   else
   {
@@ -1055,8 +1053,10 @@ RadosFsDir::chmod(long int permissions)
     permissionsXAttr.append(makePermissionsXAttr(mode, stat.statBuff.st_uid,
                                                  stat.statBuff.st_gid));
 
-    ret = stat.pool->ioctx.setxattr(stat.translatedPath, XATTR_PERMISSIONS,
-                                    permissionsXAttr);
+    std::map<std::string, librados::bufferlist> omap;
+    omap[XATTR_PERMISSIONS] = permissionsXAttr;
+
+    ret = stat.pool->ioctx.omap_set(stat.translatedPath, omap);
   }
 
   return ret;
@@ -1101,8 +1101,10 @@ RadosFsDir::useTMTime(bool useTMTime)
   permissionsXattr.append(makePermissionsXAttr(mode, stat.statBuff.st_uid,
                                                stat.statBuff.st_gid));
 
-  return stat.pool->ioctx.setxattr(stat.translatedPath, XATTR_PERMISSIONS,
-                                   permissionsXattr);
+  std::map<std::string, librados::bufferlist> omap;
+  omap[XATTR_PERMISSIONS] = permissionsXattr;
+
+  return stat.pool->ioctx.omap_set(stat.translatedPath, omap);
 }
 
 bool
