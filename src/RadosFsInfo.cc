@@ -30,7 +30,7 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
-InfoPriv::InfoPriv(Fs *radosFs, const std::string &objPath)
+FsObjPriv::FsObjPriv(Fs *radosFs, const std::string &objPath)
   : radosFs(radosFs),
     target(""),
     exists(false)
@@ -38,11 +38,11 @@ InfoPriv::InfoPriv(Fs *radosFs, const std::string &objPath)
   setPath(objPath);
 }
 
-InfoPriv::~InfoPriv()
+FsObjPriv::~FsObjPriv()
 {}
 
 int
-InfoPriv::makeRealPath(std::string &path)
+FsObjPriv::makeRealPath(std::string &path)
 {
   std::string parent = getParentDir(path, 0);
   Stat stat;
@@ -85,7 +85,7 @@ InfoPriv::makeRealPath(std::string &path)
 }
 
 void
-InfoPriv::setPath(const std::string &path)
+FsObjPriv::setPath(const std::string &path)
 {
   int ret;
   this->path = sanitizePath(path);
@@ -105,7 +105,7 @@ InfoPriv::setPath(const std::string &path)
 }
 
 int
-InfoPriv::makeLink(std::string &linkPath)
+FsObjPriv::makeLink(std::string &linkPath)
 {
   int ret;
 
@@ -198,54 +198,54 @@ InfoPriv::makeLink(std::string &linkPath)
   return indexObject(&parentDirStat, &linkStat, '+');
 }
 
-Info::Info(Fs *radosFs, const std::string &path)
-  : mPriv(new InfoPriv(radosFs, path))
+FsObj::FsObj(Fs *radosFs, const std::string &path)
+  : mPriv(new FsObjPriv(radosFs, path))
 {
   update();
 }
 
-Info::~Info()
+FsObj::~FsObj()
 {}
 
-Info::Info(const Info &otherInfo)
-  : mPriv(new InfoPriv(otherInfo.filesystem(), otherInfo.path()))
+FsObj::FsObj(const FsObj &otherFsObj)
+  : mPriv(new FsObjPriv(otherFsObj.filesystem(), otherFsObj.path()))
 {
   update();
 }
 
 std::string
-Info::path() const
+FsObj::path() const
 {
   return mPriv->path;
 }
 
 void
-Info::setPath(const std::string &path)
+FsObj::setPath(const std::string &path)
 {
   mPriv->setPath(path);
   update();
 }
 
 Fs *
-Info::filesystem() const
+FsObj::filesystem() const
 {
   return mPriv->radosFs;
 }
 
 void
-Info::setFilesystem(Fs *radosFs)
+FsObj::setFilesystem(Fs *radosFs)
 {
   mPriv->radosFs = radosFs;
 }
 
 bool
-Info::isFile() const
+FsObj::isFile() const
 {
   return !isDir();
 }
 
 bool
-Info::isDir() const
+FsObj::isDir() const
 {
   if (!exists())
     return isDirPath(mPriv->path);
@@ -257,15 +257,15 @@ Info::isDir() const
 }
 
 bool
-Info::exists() const
+FsObj::exists() const
 {
   return mPriv->exists;
 }
 
 int
-Info::stat(struct stat *buff)
+FsObj::stat(struct stat *buff)
 {
-  Info::update();
+  FsObj::update();
 
   if (!isReadable())
     return -EPERM;
@@ -276,7 +276,7 @@ Info::stat(struct stat *buff)
 }
 
 void
-Info::update()
+FsObj::update()
 {
   mPriv->exists = false;
 
@@ -298,7 +298,7 @@ Info::update()
 }
 
 int
-Info::setXAttr(const std::string &attrName, const std::string &value)
+FsObj::setXAttr(const std::string &attrName, const std::string &value)
 {
   // We don't call the similar methods from RadosFs for avoiding extra stat calls
 
@@ -318,7 +318,7 @@ Info::setXAttr(const std::string &attrName, const std::string &value)
 }
 
 int
-Info::getXAttr(const std::string &attrName, std::string &value)
+FsObj::getXAttr(const std::string &attrName, std::string &value)
 {
   // We don't call the similar methods from RadosFs for avoiding extra stat calls
 
@@ -338,7 +338,7 @@ Info::getXAttr(const std::string &attrName, std::string &value)
 }
 
 int
-Info::removeXAttr(const std::string &attrName)
+FsObj::removeXAttr(const std::string &attrName)
 {
   // We don't call the similar methods from RadosFs for avoiding extra stat calls
 
@@ -358,7 +358,7 @@ Info::removeXAttr(const std::string &attrName)
 }
 
 int
-Info::getXAttrsMap(std::map<std::string, std::string> &map)
+FsObj::getXAttrsMap(std::map<std::string, std::string> &map)
 {
   // We don't call the similar methods from RadosFs for avoiding extra stat calls
 
@@ -378,7 +378,7 @@ Info::getXAttrsMap(std::map<std::string, std::string> &map)
 }
 
 int
-Info::createLink(const std::string &linkName)
+FsObj::createLink(const std::string &linkName)
 {
   std::string absLinkName(linkName);
 
@@ -408,7 +408,7 @@ Info::createLink(const std::string &linkName)
 }
 
 bool
-Info::isLink() const
+FsObj::isLink() const
 {
   if (!exists())
     return false;
@@ -417,37 +417,37 @@ Info::isLink() const
 }
 
 std::string
-Info::targetPath() const
+FsObj::targetPath() const
 {
   return mPriv->target;
 }
 
 void *
-Info::fsStat(void)
+FsObj::fsStat(void)
 {
   return &mPriv->stat;
 }
 
 void
-Info::setFsStat(void *stat)
+FsObj::setFsStat(void *stat)
 {
   mPriv->stat = *reinterpret_cast<Stat *>(stat);
 }
 
 void *
-Info::parentFsStat()
+FsObj::parentFsStat()
 {
   return &mPriv->parentDirStat;
 }
 
 int
-Info::chmod(long int permissions)
+FsObj::chmod(long int permissions)
 {
   return -EOPNOTSUPP;
 }
 
 int
-Info::rename(const std::string &newPath)
+FsObj::rename(const std::string &newPath)
 {
   return -EOPNOTSUPP;
 }

@@ -194,7 +194,7 @@ RadosFsTest::createContentsRecursively(const std::string &prefix,
 }
 
 void
-RadosFsTest::testXAttrInFsInfo(radosfs::Info &info)
+RadosFsTest::testXAttrInFsInfo(radosfs::FsObj &info)
 {
   // Get the permissions xattr by a unauthorized user
 

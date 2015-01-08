@@ -36,7 +36,7 @@ class RadosFsChecker;
 RADOS_FS_BEGIN_NAMESPACE
 
 class FsPriv;
-class Info;
+class FsObj;
 
 class Fs
 {
@@ -125,7 +125,7 @@ public:
   void setFileLocking(bool lock);
   bool fileLocking(void) const;
 
-  Info * getFsInfo(const std::string &path);
+  FsObj * getFsObj(const std::string &path);
 
   int getInodeAndPool(const std::string &path, std::string *inode,
                       std::string *pool);
@@ -135,7 +135,7 @@ private:
 
   friend class ::RadosFsTest;
   friend class ::RadosFsChecker;
-  friend class InfoPriv;
+  friend class FsObjPriv;
   friend class FilePriv;
   friend class DirPriv;
   friend class FileIO;

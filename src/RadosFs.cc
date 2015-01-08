@@ -1845,8 +1845,8 @@ Fs::fileLocking(void) const
   return mPriv->lockFiles;
 }
 
-Info *
-Fs::getFsInfo(const std::string &path)
+FsObj *
+Fs::getFsObj(const std::string &path)
 {
   Stat stat;
 

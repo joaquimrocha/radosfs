@@ -29,13 +29,13 @@
 RADOS_FS_BEGIN_NAMESPACE
 
 class Fs;
-class Info;
+class FsObj;
 
-class InfoPriv
+class FsObjPriv
 {
 public:
-  InfoPriv(Fs *radosFs, const std::string &path);
-  ~InfoPriv();
+  FsObjPriv(Fs *radosFs, const std::string &path);
+  ~FsObjPriv();
 
   void setPath(const std::string &path);
 

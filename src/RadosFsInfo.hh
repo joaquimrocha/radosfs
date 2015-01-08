@@ -28,16 +28,16 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
-class InfoPriv;
+class FsObjPriv;
 
-class Info
+class FsObj
 {
 public:
-  Info(Fs *radosFs, const std::string &path);
+  FsObj(Fs *radosFs, const std::string &path);
 
-  virtual ~Info();
+  virtual ~FsObj();
 
-  Info(const Info &otherInfo);
+  FsObj(const FsObj &otherFsObj);
 
   virtual bool isWritable(void) = 0;
 
@@ -88,7 +88,7 @@ protected:
   void * parentFsStat(void);
 
 private:
-  std::auto_ptr<InfoPriv> mPriv;
+  std::auto_ptr<FsObjPriv> mPriv;
 };
 
 RADOS_FS_END_NAMESPACE

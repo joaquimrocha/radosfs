@@ -404,24 +404,24 @@ DirPriv::rename(const std::string &destination)
 }
 
 Dir::Dir(Fs *radosFs, const std::string &path)
-  : Info(radosFs, getDirPath(path.c_str())),
+  : FsObj(radosFs, getDirPath(path.c_str())),
     mPriv(new DirPriv(this))
 {}
 
 Dir::Dir(const Dir &otherDir)
-  : Info(otherDir),
+  : FsObj(otherDir),
     mPriv(new DirPriv(this))
 {}
 
 Dir::Dir(const Dir *otherDir)
-  : Info(*otherDir),
+  : FsObj(*otherDir),
     mPriv(new DirPriv(this))
 {}
 
 Dir::Dir(Fs *radosFs,
          const std::string &path,
          bool cacheable)
-  : Info(radosFs, getDirPath(path.c_str())),
+  : FsObj(radosFs, getDirPath(path.c_str())),
     mPriv(new DirPriv(this, cacheable))
 {}
 
@@ -563,7 +563,7 @@ Dir::create(int mode,
 
   indexObject(&parentStat, &stat, '+');
 
-  Info::update();
+  FsObj::update();
   mPriv->updateDirInfoPtr();
 
   mPriv->radosFsPriv()->updateTMTime(&stat, &stat.statBuff.st_ctim);
@@ -579,7 +579,7 @@ Dir::remove()
   Fs *radosFs = filesystem();
   Stat stat, *statPtr;
 
-  Info::update();
+  FsObj::update();
 
   ret = mPriv->radosFsPriv()->stat(mPriv->parentDir, &stat);
 
@@ -624,7 +624,7 @@ Dir::remove()
   if (ret == 0)
     indexObject(&stat, statPtr, '-');
 
-  Info::update();
+  FsObj::update();
 
   if (info)
     mPriv->updateFsDirCache();
@@ -639,7 +639,7 @@ Dir::remove()
 void
 Dir::update()
 {
-  Info::update();
+  FsObj::update();
 
   if (isLink())
   {
@@ -703,7 +703,7 @@ Dir::setPath(const std::string &path)
 
   mPriv->dirInfo.reset();
 
-  Info::setPath(dirPath);
+  FsObj::setPath(dirPath);
 
   mPriv->updatePath();
 }
@@ -755,7 +755,7 @@ Dir::isReadable()
 int
 Dir::stat(struct stat *buff)
 {
-  return Info::stat(buff);
+  return FsObj::stat(buff);
 }
 
 

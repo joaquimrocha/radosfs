@@ -51,7 +51,7 @@ protected:
 
   void AddPool(int numExtraPools = 0);
 
-  void testXAttrInFsInfo(radosfs::Info &info);
+  void testXAttrInFsInfo(radosfs::FsObj &info);
 
   void createNFiles(size_t numFiles);
 

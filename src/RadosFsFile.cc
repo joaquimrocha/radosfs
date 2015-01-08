@@ -280,7 +280,7 @@ FilePriv::rename(const std::string &destination)
 }
 
 File::File(Fs *radosFs, const std::string &path, File::OpenMode mode)
-  : Info(radosFs, getFilePath(path)),
+  : FsObj(radosFs, getFilePath(path)),
     mPriv(new FilePriv(this, mode))
 {}
 
@@ -288,12 +288,12 @@ File::~File()
 {}
 
 File::File(const File &otherFile)
-  : Info(otherFile),
+  : FsObj(otherFile),
     mPriv(new FilePriv(this, otherFile.mode()))
 {}
 
 File::File(const File *otherFile)
-  : Info(*otherFile),
+  : FsObj(*otherFile),
     mPriv(new FilePriv(this, otherFile->mode()))
 {}
 
@@ -468,7 +468,7 @@ File::remove()
 {
   int ret;
 
-  Info::update();
+  FsObj::update();
 
   ret = mPriv->verifyExistanceAndType();
 
@@ -492,7 +492,7 @@ File::remove()
   else
     return -EACCES;
 
-  Info::update();
+  FsObj::update();
 
   return ret;
 }
@@ -528,7 +528,7 @@ File::isReadable()
 void
 File::update()
 {
-  Info::update();
+  FsObj::update();
   mPriv->updatePath();
 }
 
@@ -537,7 +537,7 @@ File::setPath(const std::string &path)
 {
   std::string filePath = getFilePath(path);
 
-  Info::setPath(filePath);
+  FsObj::setPath(filePath);
 }
 
 int
@@ -545,7 +545,7 @@ File::stat(struct stat *buff)
 {
   Stat *stat;
 
-  Info::update();
+  FsObj::update();
 
   if (!exists())
     return -ENOENT;
