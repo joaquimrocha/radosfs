@@ -33,7 +33,7 @@
 #include "radosfscommon.h"
 #include "radosfsdefines.h"
 #include "DirCache.hh"
-#include "RadosFsIO.hh"
+#include "RadosFsFileIO.hh"
 #include "RadosFsLogger.hh"
 #include "RadosFsFinder.hh"
 

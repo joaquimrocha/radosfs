@@ -25,7 +25,7 @@
 #include <stdexcept>
 #include <time.h>
 
-#include "RadosFsIO.hh"
+#include "RadosFsFileIO.hh"
 #include "RadosFsTest.hh"
 #include "radosfscommon.h"
 

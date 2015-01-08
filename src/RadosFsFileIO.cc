@@ -26,7 +26,7 @@
 
 #include "radosfsdefines.h"
 #include "RadosFsAsyncOpPriv.hh"
-#include "RadosFsIO.hh"
+#include "RadosFsFileIO.hh"
 #include "RadosFsLogger.hh"
 #include "RadosFsPriv.hh"
 
@@ -699,8 +699,8 @@ FileIO::syncAndResetLocker(AsyncOpSP op)
 bool
 FileIO::hasSingleClient(const FileIOSP &io)
 {
-  // If there is only one client using an instance of the given RadosFsIO, then
-  // the use count is 2 because there is a reference hold in RadosFsPriv's map.
+  // If there is only one client using an instance of the given FileIO, then
+  // the use count is 2 because there is a reference hold in FsPriv's map.
   return io.use_count() == 2;
 }
 

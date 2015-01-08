@@ -17,8 +17,8 @@
  * for more details.
  */
 
-#ifndef RADOS_FS_OP_HH
-#define RADOS_FS_OP_HH
+#ifndef RADOS_FS_FILE_IO_HH
+#define RADOS_FS_FILE_IO_HH
 
 #include <boost/chrono.hpp>
 #include <boost/thread/mutex.hpp>
@@ -127,4 +127,4 @@ private:
 
 RADOS_FS_END_NAMESPACE
 
-#endif /* RADOS_FS_OP_HH */
+#endif /* RADOS_FS_FILE_IO_HH */
