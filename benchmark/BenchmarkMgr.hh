@@ -2,7 +2,7 @@
 #define __BENCHMARK_MGR_HH__
 
 #include <pthread.h>
-#include <rados/librados.h>
+#include <rados/librados.hpp>
 
 #include "RadosFs.hh"
 #include "RadosFsDir.hh"
@@ -26,7 +26,7 @@ public:
   radosfs::RadosFs radosFs;
 
 private:
-  rados_t mCluster;
+  librados::Rados mCluster;
   const char *mConf;
   int mNumFiles;
   bool mCreateInDir;

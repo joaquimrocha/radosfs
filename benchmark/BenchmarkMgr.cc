@@ -7,17 +7,17 @@ BenchmarkMgr::BenchmarkMgr(const char *conf)
     mNumFiles(0),
     mCreateInDir(false)
 {
-  rados_create(&mCluster, 0);
+  mCluster.init(0);
 
-  if (rados_conf_read_file(mCluster, mConf) != 0)
+  if (mCluster.conf_read_file(mConf) != 0)
     throw std::invalid_argument("Problem reading configuration file.");
 
-  rados_connect(mCluster);
+  mCluster.connect();
 
-  rados_pool_create(mCluster, TEST_POOL_DATA);
-  rados_pool_create(mCluster, TEST_POOL_MTD);
+  mCluster.pool_create(TEST_POOL_DATA);
+  mCluster.pool_create(TEST_POOL_MTD);
 
-  rados_shutdown(mCluster);
+  mCluster.shutdown();
 
   radosFs.init("", mConf);
 
@@ -26,15 +26,15 @@ BenchmarkMgr::BenchmarkMgr(const char *conf)
 
 BenchmarkMgr::~BenchmarkMgr()
 {
-  rados_create(&mCluster, 0);
+  mCluster.init(0);
 
-  rados_conf_read_file(mCluster, mConf);
-  rados_connect(mCluster);
+  mCluster.conf_read_file(mConf);
+  mCluster.connect();
 
-  rados_pool_delete(mCluster, TEST_POOL_DATA);
-  rados_pool_delete(mCluster, TEST_POOL_MTD);
+  mCluster.pool_delete(TEST_POOL_DATA);
+  mCluster.pool_delete(TEST_POOL_MTD);
 
-  rados_shutdown(mCluster);
+  mCluster.shutdown();
 
   pthread_mutex_destroy(&mNumFilesMutex);
 }
