@@ -69,7 +69,7 @@ endif( Linux )
 
 install( TARGETS radosfs LIBRARY DESTINATION ${LIB_INSTALL_DIR} )
 install( FILES
-         RadosFs.hh RadosFsDir.hh RadosFsFile.hh RadosFsInfo.hh
+         Filesystem.hh Dir.hh File.hh FsObj.hh
          DESTINATION include/radosfs )
 install( FILES
          libradosfs.hh
