@@ -27,7 +27,7 @@ typedef struct _FinderData FinderData;
 class Finder
 {
 public:
-  Finder(Fs *radosFs);
+  Finder(Filesystem *radosFs);
   ~Finder(void);
 
   enum FindOptions
@@ -49,7 +49,7 @@ public:
                      const Dir &dir,
                      struct stat &buff);
 
-  Fs *radosFs;
+  Filesystem *radosFs;
 };
 
 struct _FinderData {

@@ -46,7 +46,7 @@ getObjectsFromCluster(Pool *pool, const std::string &prefix,
   return 0;
 }
 
-RadosFsChecker::RadosFsChecker(radosfs::Fs *radosFs)
+RadosFsChecker::RadosFsChecker(radosfs::Filesystem *radosFs)
   : mRadosFs(radosFs)
 {}
 

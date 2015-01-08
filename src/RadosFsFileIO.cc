@@ -32,7 +32,7 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
-FileIO::FileIO(Fs *radosFs, const PoolSP pool, const std::string &iNode,
+FileIO::FileIO(Filesystem *radosFs, const PoolSP pool, const std::string &iNode,
                size_t stripeSize)
   : mRadosFs(radosFs),
     mPool(pool),
@@ -188,7 +188,7 @@ void
 FileIO::setCompletionDebugMsg(librados::AioCompletion *completion,
                               const std::string &message)
 {
-  if (mRadosFs->logLevel() == Fs::LOG_LEVEL_DEBUG)
+  if (mRadosFs->logLevel() == Filesystem::LOG_LEVEL_DEBUG)
   {
     std::string *arg = new std::string(message);
     completion->set_complete_callback(arg, onCompleted);

@@ -43,7 +43,7 @@ public:
     MODE_READ_WRITE = (MODE_READ | MODE_WRITE)
   };
 
-  File(Fs *radosFs, const std::string &path, OpenMode mode = MODE_READ_WRITE);
+  File(Filesystem *radosFs, const std::string &path, OpenMode mode = MODE_READ_WRITE);
 
   virtual ~File();
 

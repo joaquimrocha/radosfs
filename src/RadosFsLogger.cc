@@ -29,7 +29,7 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
-Fs::LogLevel Logger::level = Fs::LOG_LEVEL_DEBUG;
+Filesystem::LogLevel Logger::level = Filesystem::LOG_LEVEL_DEBUG;
 
 void *
 readConfiguredLogLevel(void *fsLogger)
@@ -56,20 +56,20 @@ readConfiguredLogLevel(void *fsLogger)
 
       fclose(fp);
 
-      Fs::LogLevel previousLevel, newLevel;
+      Filesystem::LogLevel previousLevel, newLevel;
 
       newLevel = logger->logLevel();
       previousLevel = newLevel;
 
       const char *levelNames[] = {"NONE", "DEBUG", 0};
-      const Fs::LogLevel levels[] = {Fs::LOG_LEVEL_NONE,
-                                     Fs::LOG_LEVEL_DEBUG};
+      const Filesystem::LogLevel levels[] = {Filesystem::LOG_LEVEL_NONE,
+                                     Filesystem::LOG_LEVEL_DEBUG};
 
       for (int i = 0; levelNames[i] != 0; i++)
       {
         if (strlen(level) < 2)
         {
-          newLevel = Fs::LOG_LEVEL_NONE;
+          newLevel = Filesystem::LOG_LEVEL_NONE;
           break;
         }
 
@@ -116,13 +116,13 @@ Logger::~Logger()
 }
 
 void
-Logger::log(const char *file, const int line, const Fs::LogLevel msgLevel,
+Logger::log(const char *file, const int line, const Filesystem::LogLevel msgLevel,
             const char *msg,
             ...)
 {
-  Fs::LogLevel currentLevel = Logger::level;
+  Filesystem::LogLevel currentLevel = Logger::level;
 
-  if (currentLevel == Fs::LOG_LEVEL_NONE || (currentLevel & msgLevel) == 0)
+  if (currentLevel == Filesystem::LOG_LEVEL_NONE || (currentLevel & msgLevel) == 0)
     return;
 
   va_list args;
@@ -154,7 +154,7 @@ Logger::log(const char *file, const int line, const Fs::LogLevel msgLevel,
 }
 
 void
-Logger::setLogLevel(const Fs::LogLevel newLevel)
+Logger::setLogLevel(const Filesystem::LogLevel newLevel)
 {
   pthread_mutex_lock(levelMutex());
 
@@ -163,10 +163,10 @@ Logger::setLogLevel(const Fs::LogLevel newLevel)
   pthread_mutex_unlock(levelMutex());
 }
 
-Fs::LogLevel
+Filesystem::LogLevel
 Logger::logLevel()
 {
-  Fs::LogLevel currentLevel;
+  Filesystem::LogLevel currentLevel;
 
   pthread_mutex_lock(levelMutex());
 

@@ -35,14 +35,14 @@ class RadosFsChecker;
 
 RADOS_FS_BEGIN_NAMESPACE
 
-class FsPriv;
+class FilesystemPriv;
 class FsObj;
 
-class Fs
+class Filesystem
 {
 public:
-  Fs();
-  ~Fs();
+  Filesystem();
+  ~Filesystem();
 
   enum LogLevel
   {
@@ -131,7 +131,7 @@ public:
                       std::string *pool);
 
 private:
-  FsPriv *mPriv;
+  FilesystemPriv *mPriv;
 
   friend class ::RadosFsTest;
   friend class ::RadosFsChecker;

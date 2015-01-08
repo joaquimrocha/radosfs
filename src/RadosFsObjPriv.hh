@@ -28,13 +28,13 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
-class Fs;
+class Filesystem;
 class FsObj;
 
 class FsObjPriv
 {
 public:
-  FsObjPriv(Fs *radosFs, const std::string &path);
+  FsObjPriv(Filesystem *radosFs, const std::string &path);
   ~FsObjPriv();
 
   void setPath(const std::string &path);
@@ -43,10 +43,10 @@ public:
 
   int makeRealPath(std::string &path);
 
-  FsPriv * radosFsPriv(void) const { return radosFs->mPriv; }
+  FilesystemPriv * radosFsPriv(void) const { return radosFs->mPriv; }
 
   std::string path;
-  Fs *radosFs;
+  Filesystem *radosFs;
   std::string target;
   Stat stat;
   Stat parentDirStat;

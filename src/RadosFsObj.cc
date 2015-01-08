@@ -30,7 +30,7 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
-FsObjPriv::FsObjPriv(Fs *radosFs, const std::string &objPath)
+FsObjPriv::FsObjPriv(Filesystem *radosFs, const std::string &objPath)
   : radosFs(radosFs),
     target(""),
     exists(false)
@@ -198,7 +198,7 @@ FsObjPriv::makeLink(std::string &linkPath)
   return indexObject(&parentDirStat, &linkStat, '+');
 }
 
-FsObj::FsObj(Fs *radosFs, const std::string &path)
+FsObj::FsObj(Filesystem *radosFs, const std::string &path)
   : mPriv(new FsObjPriv(radosFs, path))
 {
   update();
@@ -226,14 +226,14 @@ FsObj::setPath(const std::string &path)
   update();
 }
 
-Fs *
+Filesystem *
 FsObj::filesystem() const
 {
   return mPriv->radosFs;
 }
 
 void
-FsObj::setFilesystem(Fs *radosFs)
+FsObj::setFilesystem(Filesystem *radosFs)
 {
   mPriv->radosFs = radosFs;
 }

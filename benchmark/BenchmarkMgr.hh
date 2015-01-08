@@ -23,7 +23,7 @@ public:
   void setCreateInDir(bool create) { mCreateInDir = create; }
   bool createInDir(void) const { return mCreateInDir; }
 
-  radosfs::Fs radosFs;
+  radosfs::Filesystem radosFs;
 
 private:
   librados::Rados mCluster;

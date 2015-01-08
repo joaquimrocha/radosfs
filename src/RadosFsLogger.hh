@@ -7,9 +7,9 @@
 #include "RadosFs.hh"
 
 #define radosfs_debug(...) radosfs::Logger::log(__FILE__, \
-                                                __LINE__, \
-                                                radosfs::Fs::LOG_LEVEL_DEBUG, \
-                                                __VA_ARGS__)
+                                        __LINE__, \
+                                        radosfs::Filesystem::LOG_LEVEL_DEBUG, \
+                                        __VA_ARGS__)
 
 RADOS_FS_BEGIN_NAMESPACE
 
@@ -19,18 +19,18 @@ public:
   Logger();
   ~Logger();
 
-  static Fs::LogLevel level;
+  static Filesystem::LogLevel level;
 
   static void log(const char *file,
                   const int line,
-                  const Fs::LogLevel l,
+                  const Filesystem::LogLevel l,
                   const char *msg,
                   ...);
 
   pthread_mutex_t * levelMutex(void) { return &mLevelMutex; }
 
-  void setLogLevel(const Fs::LogLevel level);
-  Fs::LogLevel logLevel(void);
+  void setLogLevel(const Filesystem::LogLevel level);
+  Filesystem::LogLevel logLevel(void);
 
 private:
   static const int mBufferMaxSize = 1024;

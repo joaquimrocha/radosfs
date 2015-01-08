@@ -33,7 +33,7 @@ class FsObjPriv;
 class FsObj
 {
 public:
-  FsObj(Fs *radosFs, const std::string &path);
+  FsObj(Filesystem *radosFs, const std::string &path);
 
   virtual ~FsObj();
 
@@ -47,9 +47,9 @@ public:
 
   virtual void setPath(const std::string &path);
 
-  virtual Fs *filesystem(void) const;
+  virtual Filesystem *filesystem(void) const;
 
-  virtual void setFilesystem(Fs *radosFs);
+  virtual void setFilesystem(Filesystem *radosFs);
 
   virtual bool isFile(void) const;
 

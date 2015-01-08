@@ -110,7 +110,7 @@ DirPriv::makeDirsRecursively(Stat *stat, const char *path, uid_t uid, gid_t gid)
   int ret = 0;
   const std::string dirPath = getDirPath(path);
   const std::string parentDir = getParentDir(path, &index);
-  FsPriv *radosFsPriv = dir->filesystem()->mPriv;
+  FilesystemPriv *radosFsPriv = dir->filesystem()->mPriv;
   struct stat *buff;
 
   if (radosFsPriv->stat(dirPath.c_str(), stat) == 0)
@@ -254,7 +254,7 @@ DirPriv::fsStat(void)
   return reinterpret_cast<Stat *>(dir->fsStat());
 }
 
-FsPriv *
+FilesystemPriv *
 DirPriv::radosFsPriv(void)
 {
   return dir->filesystem()->mPriv;
@@ -403,7 +403,7 @@ DirPriv::rename(const std::string &destination)
   return ret;
 }
 
-Dir::Dir(Fs *radosFs, const std::string &path)
+Dir::Dir(Filesystem *radosFs, const std::string &path)
   : FsObj(radosFs, getDirPath(path.c_str())),
     mPriv(new DirPriv(this))
 {}
@@ -418,7 +418,7 @@ Dir::Dir(const Dir *otherDir)
     mPriv(new DirPriv(this))
 {}
 
-Dir::Dir(Fs *radosFs,
+Dir::Dir(Filesystem *radosFs,
          const std::string &path,
          bool cacheable)
   : FsObj(radosFs, getDirPath(path.c_str())),
@@ -484,7 +484,7 @@ Dir::create(int mode,
 {
   int ret;
   const std::string &dir = path();
-  Fs *radosFs = filesystem();
+  Filesystem *radosFs = filesystem();
 
   if (exists())
   {
@@ -576,7 +576,7 @@ Dir::remove()
 {
   int ret;
   const std::string &dirPath = path();
-  Fs *radosFs = filesystem();
+  Filesystem *radosFs = filesystem();
   Stat stat, *statPtr;
 
   FsObj::update();
@@ -720,7 +720,7 @@ Dir::isWritable()
     return -ENOLINK;
   }
 
-  Fs *radosFs = filesystem();
+  Filesystem *radosFs = filesystem();
   uid_t uid = radosFs->uid();
   gid_t gid = radosFs->gid();
 
@@ -742,7 +742,7 @@ Dir::isReadable()
     return -ENOLINK;
   }
 
-  Fs *radosFs = filesystem();
+  Filesystem *radosFs = filesystem();
   uid_t uid = radosFs->uid();
   gid_t gid = radosFs->gid();
 

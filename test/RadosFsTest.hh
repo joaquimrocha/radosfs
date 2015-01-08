@@ -62,9 +62,9 @@ protected:
                                 size_t numFiles,
                                 ssize_t levels);
 
-  radosfs::Fs radosFs;
+  radosfs::Filesystem radosFs;
 
-  radosfs::FsPriv *radosFsPriv(void) const { return radosFs.mPriv; }
+  radosfs::FilesystemPriv *radosFsPriv(void) const { return radosFs.mPriv; }
   radosfs::FilePriv *radosFsFilePriv(radosfs::File &file);
   radosfs::DirPriv *radosFsDirPriv(radosfs::Dir &dir);
 

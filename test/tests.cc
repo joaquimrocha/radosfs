@@ -1330,7 +1330,7 @@ typedef enum {
 
 struct FsActionInfo
 {
-  radosfs::Fs *fs;
+  radosfs::Filesystem *fs;
   FsActionType actionType;
   std::string path;
   std::string action;
@@ -1340,7 +1340,7 @@ struct FsActionInfo
   pthread_mutex_t *mutex;
   pthread_cond_t *cond;
 
-  FsActionInfo(radosfs::Fs *radosFs,
+  FsActionInfo(radosfs::Filesystem *radosFs,
                FsActionType actionType,
                const std::string &path,
                std::string action,
@@ -1364,7 +1364,7 @@ void
 runFileActionInThread(FsActionInfo *actionInfo)
 {
   bool useMutex = actionInfo->mutex != 0;
-  radosfs::Fs *fs = actionInfo->fs;
+  radosfs::Filesystem *fs = actionInfo->fs;
 
   if (useMutex)
     pthread_mutex_lock(actionInfo->mutex);
@@ -1395,7 +1395,7 @@ void
 runDirActionInThread(FsActionInfo *actionInfo)
 {
   bool useMutex = actionInfo->mutex != 0;
-  radosfs::Fs *fs = actionInfo->fs;
+  radosfs::Filesystem *fs = actionInfo->fs;
 
   if (useMutex)
     pthread_mutex_lock(actionInfo->mutex);
@@ -1461,7 +1461,7 @@ TEST_F(RadosFsTest, FileOpsMultipleClients)
   radosFs.addDataPool(TEST_POOL, "/", 50 * 1024);
   radosFs.addMetadataPool(TEST_POOL, "/");
 
-  radosfs::Fs otherClient;
+  radosfs::Filesystem otherClient;
   otherClient.init("", conf());
 
   otherClient.addDataPool(TEST_POOL, "/", 50 * 1024);
@@ -1619,7 +1619,7 @@ TEST_F(RadosFsTest, DirOpsMultipleClients)
 
   // Create another RadosFs instance to be used as a different client
 
-  radosfs::Fs otherClient;
+  radosfs::Filesystem otherClient;
   otherClient.init("", conf());
 
   otherClient.addDataPool(TEST_POOL, "/", 50 * 1024);

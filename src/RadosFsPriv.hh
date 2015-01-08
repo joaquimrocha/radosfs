@@ -39,7 +39,7 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
-class Fs;
+class Filesystem;
 
 typedef std::vector<PoolSP> PoolList;
 
@@ -92,11 +92,11 @@ public:
   size_t maxCacheSize;
 };
 
-class FsPriv
+class FilesystemPriv
 {
 public:
-  FsPriv(Fs *radosFs);
-  ~FsPriv();
+  FilesystemPriv(Filesystem *radosFs);
+  ~FilesystemPriv();
 
   int createCluster(const std::string &userName,
                     const std::string &confFile);
@@ -212,7 +212,7 @@ public:
 
   boost::shared_ptr<boost::asio::io_service> getIoService();
 
-  Fs *radosFs;
+  Filesystem *radosFs;
   librados::Rados radosCluster;
   bool initialized;
   static __thread uid_t uid;

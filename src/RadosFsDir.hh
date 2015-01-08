@@ -33,9 +33,9 @@ class DirPriv;
 class Dir : public FsObj
 {
 public:
-  Dir(Fs *radosFs, const std::string &path);
+  Dir(Filesystem *radosFs, const std::string &path);
 
-  Dir(Fs *radosFs, const std::string &path, bool cacheable);
+  Dir(Filesystem *radosFs, const std::string &path, bool cacheable);
 
   Dir(const Dir &otherDir);
 

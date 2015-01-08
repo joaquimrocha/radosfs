@@ -57,7 +57,7 @@ public:
            std::set<std::string> &results,
            const std::map<Finder::FindOptions, FinderArg> &args);
 
-  FsPriv *radosFsPriv(void);
+  FilesystemPriv *radosFsPriv(void);
 
   int rename(const std::string &newName);
 

@@ -31,7 +31,7 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
-Finder::Finder(Fs *fs)
+Finder::Finder(Filesystem *fs)
   : radosFs(fs)
 {}
 

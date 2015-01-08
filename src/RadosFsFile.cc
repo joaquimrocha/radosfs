@@ -56,7 +56,7 @@ FilePriv::updatePath()
 
   parentDir = getParentDir(fsFile->path(), 0);
 
-  Fs *radosFs = fsFile->filesystem();
+  Filesystem *radosFs = fsFile->filesystem();
 
   mtdPool = radosFs->mPriv->getMetadataPoolFromPath(fsFile->path());
 
@@ -279,7 +279,7 @@ FilePriv::rename(const std::string &destination)
   return ret;
 }
 
-File::File(Fs *radosFs, const std::string &path, File::OpenMode mode)
+File::File(Filesystem *radosFs, const std::string &path, File::OpenMode mode)
   : FsObj(radosFs, getFilePath(path)),
     mPriv(new FilePriv(this, mode))
 {}

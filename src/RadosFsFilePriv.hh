@@ -26,7 +26,7 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
-class Fs;
+class Filesystem;
 class File;
 
 class FilePriv

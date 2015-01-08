@@ -59,7 +59,7 @@ struct OpsManager
 class FileIO
 {
 public:
-  FileIO(Fs *radosFs,
+  FileIO(Filesystem *radosFs,
          const PoolSP pool,
          const std::string &iNode,
          size_t stripeSize);
@@ -104,7 +104,7 @@ public:
   int sync(const std::string &opId) { return mOpManager.sync(opId); }
 
 private:
-  Fs *mRadosFs;
+  Filesystem *mRadosFs;
   const PoolSP mPool;
   const std::string mInode;
   size_t mStripeSize;
