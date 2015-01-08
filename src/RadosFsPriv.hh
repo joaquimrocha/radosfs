@@ -148,12 +148,12 @@ public:
                                             PoolSP pool,
                                             bool addToCache = true);
 
-  FileIOSP getRadosFsIO(const std::string &path);
+  FileIOSP getFileIO(const std::string &path);
 
-  FileIOSP getOrCreateFsIO(const std::string &path, const Stat *stat);
+  FileIOSP getOrCreateFileIO(const std::string &path, const Stat *stat);
 
-  void setRadosFsIO(FileIOSP sharedFsIO);
-  void removeRadosFsIO(FileIOSP sharedFsIO);
+  void setFileIO(FileIOSP sharedFileIO);
+  void removeFileIO(FileIOSP sharedFileIO);
 
   void updateDirCache(std::tr1::shared_ptr<DirCache> &cache);
 

@@ -65,7 +65,7 @@ FilePriv::updatePath()
 
   updatePermissions();
 
-  radosFsIO.reset();
+  fileIO.reset();
 
   if (!fsFile->exists())
   {
@@ -100,7 +100,7 @@ FilePriv::updatePath()
   }
   else if (stat && stat->translatedPath != "")
   {
-    radosFsIO = radosFs->mPriv->getOrCreateFsIO(stat->translatedPath, stat);
+    fileIO = radosFs->mPriv->getOrCreateFileIO(stat->translatedPath, stat);
   }
 }
 
@@ -168,13 +168,13 @@ FilePriv::updatePermissions()
 int
 FilePriv::removeFile()
 {
-  if (!radosFsIO)
+  if (!fileIO)
     return 0;
 
-  if (!FileIO::hasSingleClient(radosFsIO))
-    radosFsIO->setLazyRemoval(true);
+  if (!FileIO::hasSingleClient(fileIO))
+    fileIO->setLazyRemoval(true);
   else
-    return radosFsIO->remove();
+    return fileIO->remove();
 
   return 0;
 }
@@ -329,7 +329,7 @@ File::read(char *buff, off_t offset, size_t blen)
     if (isLink())
       return mPriv->target->read(buff, offset, blen);
 
-    ret = mPriv->radosFsIO->read(buff, offset, blen);
+    ret = mPriv->fileIO->read(buff, offset, blen);
   }
 
   return ret;
@@ -356,7 +356,7 @@ File::write(const char *buff, off_t offset, size_t blen, bool copyBuffer)
     updateTimeAsync(mPriv->fsStat(), XATTR_MTIME);
 
     std::string opId;
-    ret = mPriv->radosFsIO->write(buff, offset, blen, &opId, copyBuffer);
+    ret = mPriv->fileIO->write(buff, offset, blen, &opId, copyBuffer);
 
     {
       boost::unique_lock<boost::mutex> lock(mPriv->asyncOpsMutex);
@@ -383,7 +383,7 @@ File::writeSync(const char *buff, off_t offset, size_t blen)
 
     updateTimeAsync(mPriv->fsStat(), XATTR_MTIME);
 
-    return mPriv->radosFsIO->writeSync(buff, offset, blen);
+    return mPriv->fileIO->writeSync(buff, offset, blen);
   }
 
   return -EACCES;
@@ -410,9 +410,9 @@ File::create(int mode, const std::string pool, size_t stripe)
 
   if (exists())
   {
-    if (mPriv->radosFsIO && mPriv->radosFsIO->lazyRemoval())
+    if (mPriv->fileIO && mPriv->fileIO->lazyRemoval())
     {
-      mPriv->radosFsIO->setLazyRemoval(false);
+      mPriv->fileIO->setLazyRemoval(false);
     }
     else
     {
@@ -503,11 +503,11 @@ File::truncate(unsigned long long size)
   if (isLink())
     return mPriv->target->truncate(size);
 
-  if (mPriv->radosFsIO)
+  if (mPriv->fileIO)
   {
     updateTimeAsync(mPriv->fsStat(), XATTR_MTIME);
 
-    return mPriv->radosFsIO->truncate(size);
+    return mPriv->fileIO->truncate(size);
   }
 
   return -ENODEV;
@@ -560,7 +560,7 @@ File::stat(struct stat *buff)
   if (isLink())
     return 0;
 
-  buff->st_size = mPriv->radosFsIO->getSize();
+  buff->st_size = mPriv->fileIO->getSize();
 
   return 0;
 }
@@ -631,7 +631,7 @@ File::sync()
   std::vector<std::string>::iterator it;
   for (it = mPriv->asyncOps.begin(); it != mPriv->asyncOps.end(); it++)
   {
-    ret = mPriv->radosFsIO->sync(*it);
+    ret = mPriv->fileIO->sync(*it);
   }
 
   mPriv->asyncOps.clear();

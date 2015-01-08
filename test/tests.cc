@@ -461,11 +461,11 @@ TEST_F(RadosFsTest, CreateFile)
 
   radosfs::FilePriv *filePriv = radosFsFilePriv(otherFile);
 
-  EXPECT_TRUE(radosfs::FileIO::hasSingleClient(filePriv->radosFsIO));
+  EXPECT_TRUE(radosfs::FileIO::hasSingleClient(filePriv->fileIO));
 
   file.setPath(otherFile.path());
 
-  EXPECT_FALSE(radosfs::FileIO::hasSingleClient(filePriv->radosFsIO));
+  EXPECT_FALSE(radosfs::FileIO::hasSingleClient(filePriv->fileIO));
 
   otherFile.setPath("/file-in-different-pool");
 
@@ -503,7 +503,7 @@ TEST_F(RadosFsTest, CreateFile)
 
   sameFile.setPath(newFile.path());
 
-  ASSERT_EQ(stripeSize, radosFsFilePriv(sameFile)->radosFsIO->stripeSize());
+  ASSERT_EQ(stripeSize, radosFsFilePriv(sameFile)->fileIO->stripeSize());
 }
 
 TEST_F(RadosFsTest, RemoveFile)
@@ -1515,7 +1515,7 @@ TEST_F(RadosFsTest, FileOpsMultipleClients)
   pthread_join(t1, &status);
   pthread_join(t2, &status);
 
-  std::string inode = radosFsFilePriv(file)->radosFsIO->inode();
+  std::string inode = radosFsFilePriv(file)->fileIO->inode();
   librados::IoCtx ioctx = radosFsFilePriv(file)->dataPool->ioctx;
 
   EXPECT_TRUE(checkStripesExistence(ioctx, inode, 0, 0, true));
@@ -1575,7 +1575,7 @@ TEST_F(RadosFsTest, FileOpsMultipleClients)
 
   EXPECT_EQ(0, file.create());
 
-  inode = radosFsFilePriv(file)->radosFsIO->inode();
+  inode = radosFsFilePriv(file)->fileIO->inode();
 
   buff.st_size = 1;
 
@@ -2869,8 +2869,8 @@ TEST_F(RadosFsTest, PoolAlignment)
 
   EXPECT_EQ(0, radosFsPriv()->stat(file.path(), &stat));
 
-  radosfs::FileIO *radosFsIO = radosFsFilePriv(file)->radosFsIO.get();
-  size_t lastStripe = radosFsIO->getLastStripeIndex();
+  radosfs::FileIO *fileIO = radosFsFilePriv(file)->fileIO.get();
+  size_t lastStripe = fileIO->getLastStripeIndex();
 
   u_int64_t size;
 
@@ -2887,7 +2887,7 @@ TEST_F(RadosFsTest, PoolAlignment)
 
   size_t totalStoredSize = (lastStripe + 1) * alignedStripeSize;
 
-  EXPECT_EQ(totalStoredSize, lastStripe * radosFsIO->stripeSize() + size);
+  EXPECT_EQ(totalStoredSize, lastStripe * fileIO->stripeSize() + size);
 
   // Check that the file size still reports the same as the contents' originally
   // set
@@ -2901,7 +2901,7 @@ TEST_F(RadosFsTest, PoolAlignment)
 
   EXPECT_EQ(0, file.truncate(contentsSize / 2));
 
-  lastStripe = radosFsIO->getLastStripeIndex();
+  lastStripe = fileIO->getLastStripeIndex();
 
   EXPECT_EQ(0, stat.pool->ioctx.stat(
                     makeFileStripeName(stat.translatedPath, lastStripe).c_str(),

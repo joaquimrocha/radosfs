@@ -465,8 +465,8 @@ FsPriv::statXAttrInThread(std::string path, std::string xattr, Stat *stat,
 
   dataPool = getDataPool(path, pool);
   stat->pool = dataPool;
-  FileIOSP radosFsIO = getOrCreateFsIO(stat->translatedPath, stat);
-  stat->statBuff.st_size = radosFsIO->getSize();
+  FileIOSP fileIO = getOrCreateFileIO(stat->translatedPath, stat);
+  stat->statBuff.st_size = fileIO->getSize();
 
   bool notify = false;
 
@@ -1115,23 +1115,23 @@ FsPriv::getDirInfo(const std::string &inode, PoolSP pool,
 }
 
 FileIOSP
-FsPriv::getRadosFsIO(const std::string &path)
+FsPriv::getFileIO(const std::string &path)
 {
-  FileIOSP fsIO;
+  FileIOSP io;
   boost::unique_lock<boost::mutex> lock(operationsMutex);
 
   if (operations.count(path) != 0)
-    fsIO = operations[path];
+    io = operations[path];
 
-  return fsIO;
+  return io;
 }
 
 FileIOSP
-FsPriv::getOrCreateFsIO(const std::string &path, const Stat *stat)
+FsPriv::getOrCreateFileIO(const std::string &path, const Stat *stat)
 {
-  FileIOSP fsIO = getRadosFsIO(path);
+  FileIOSP io = getFileIO(path);
 
-  if (!fsIO)
+  if (!io)
   {
     int stripeSize = 0;
 
@@ -1144,30 +1144,30 @@ FsPriv::getOrCreateFsIO(const std::string &path, const Stat *stat)
       stripeSize = alignStripeSize(radosFs->fileStripeSize(),
                                    stat->pool->alignment);
 
-    fsIO = FileIOSP(new FileIO(radosFs, stat->pool, stat->translatedPath,
+    io = FileIOSP(new FileIO(radosFs, stat->pool, stat->translatedPath,
                                stripeSize));
 
-    setRadosFsIO(fsIO);
+    setFileIO(io);
   }
 
-  return fsIO;
+  return io;
 }
 
 void
-FsPriv::setRadosFsIO(FileIOSP sharedFsIO)
+FsPriv::setFileIO(FileIOSP sharedFileIO)
 {
   boost::unique_lock<boost::mutex> lock(operationsMutex);
 
-  operations[sharedFsIO->inode()] = sharedFsIO;
+  operations[sharedFileIO->inode()] = sharedFileIO;
 }
 
 void
-FsPriv::removeRadosFsIO(FileIOSP sharedFsIO)
+FsPriv::removeFileIO(FileIOSP sharedFileIO)
 {
   boost::unique_lock<boost::mutex> lock(operationsMutex);
 
-  if (operations.count(sharedFsIO->inode()))
-    operations.erase(sharedFsIO->inode());
+  if (operations.count(sharedFileIO->inode()))
+    operations.erase(sharedFileIO->inode());
 }
 
 std::vector<Stat>
@@ -1247,10 +1247,10 @@ FsPriv::checkFileLocks(void)
     while (it != operations.end())
     {
       boost::this_thread::interruption_point();
-      FileIOSP fsIO = (*it).second;
-      if (fsIO)
+      FileIOSP io = (*it).second;
+      if (io)
       {
-        if (FileIO::hasSingleClient(fsIO))
+        if (FileIO::hasSingleClient(io))
         {
           oldIt = it;
           it++;
@@ -1258,7 +1258,7 @@ FsPriv::checkFileLocks(void)
           continue;
         }
         else
-          fsIO->manageIdleLock(FILE_IDLE_LOCK_TIMEOUT);
+          io->manageIdleLock(FILE_IDLE_LOCK_TIMEOUT);
       }
 
       it++;

@@ -59,7 +59,7 @@ public:
   std::string parentDir;
   File::OpenMode permissions;
   File::OpenMode mode;
-  std::tr1::shared_ptr<FileIO> radosFsIO;
+  std::tr1::shared_ptr<FileIO> fileIO;
   std::vector<std::string> asyncOps;
   boost::mutex asyncOpsMutex;
 };
