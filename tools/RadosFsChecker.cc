@@ -27,7 +27,7 @@
 #include "radosfscommon.h"
 #include "radosfsdefines.h"
 #include "RadosFsChecker.hh"
-#include "RadosFsPriv.hh"
+#include "FilesystemPriv.hh"
 
 static int
 getObjectsFromCluster(Pool *pool, const std::string &prefix,

@@ -22,11 +22,11 @@
 
 #include "radosfsdefines.h"
 #include "radosfscommon.h"
-#include "RadosFsObj.hh"
-#include "RadosFsObjPriv.hh"
-#include "RadosFsDir.hh"
-#include "RadosFsFile.hh"
-#include "RadosFsPriv.hh"
+#include "FsObj.hh"
+#include "FsObjPriv.hh"
+#include "Dir.hh"
+#include "File.hh"
+#include "FilesystemPriv.hh"
 
 RADOS_FS_BEGIN_NAMESPACE
 

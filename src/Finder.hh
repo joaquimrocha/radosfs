@@ -10,7 +10,7 @@
 #include <set>
 #include <string>
 
-#include "RadosFsDir.hh"
+#include "Dir.hh"
 #include "radosfsdefines.h"
 
 RADOS_FS_BEGIN_NAMESPACE

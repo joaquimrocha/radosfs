@@ -23,8 +23,8 @@
 #include <utility>
 
 #include "radosfscommon.h"
-#include "RadosFsFinder.hh"
-#include "RadosFsLogger.hh"
+#include "Finder.hh"
+#include "Logger.hh"
 
 #define DEFAULT_NUM_FINDER_THREADS 100
 #define MAX_INACTIVE_THREAD_TIME 5

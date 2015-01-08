@@ -19,9 +19,9 @@
 
 #include <rados/librados.hpp>
 
-#include "RadosFsAsyncOp.hh"
-#include "RadosFsAsyncOpPriv.hh"
-#include "RadosFsLogger.hh"
+#include "AsyncOp.hh"
+#include "AsyncOpPriv.hh"
+#include "Logger.hh"
 
 RADOS_FS_BEGIN_NAMESPACE
 

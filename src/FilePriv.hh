@@ -17,59 +17,53 @@
  * for more details.
  */
 
-#ifndef RADOS_FS_DIR_IMPL_HH
-#define RADOS_FS_DIR_IMPL_HH
+#ifndef RADOS_FS_FILE_PRIV_HH
+#define RADOS_FS_FILE_PRIV_HH
 
 #include <tr1/memory>
-
 #include "radosfsdefines.h"
-#include "DirCache.hh"
-#include "RadosFsFinder.hh"
+#include "FileIO.hh"
 
 RADOS_FS_BEGIN_NAMESPACE
 
-class Dir;
+class Filesystem;
+class File;
 
-class DirPriv
+class FilePriv
 {
 public:
-  DirPriv(Dir *dirObj);
-  DirPriv(Dir *dirObj, bool cacheable);
+  FilePriv(File *fsFile, File::OpenMode mode);
+  ~FilePriv();
 
-  virtual ~DirPriv();
+  void updatePermissions(void);
 
-  int makeDirsRecursively(Stat *buff,
-                          const char *path,
-                          uid_t uid,
-                          gid_t gid);
+  int verifyExistanceAndType(void);
 
   void updatePath(void);
 
-  bool updateDirInfoPtr(void);
+  static std::string sanitizePath(const std::string &path);
 
-  const PoolSP getPool(void);
+  int removeFile(void);
 
   Stat *fsStat(void);
 
-  void updateFsDirCache();
+  int rename(const std::string &destination);
 
-  int find(std::set<std::string> &entries,
-           std::set<std::string> &results,
-           const std::map<Finder::FindOptions, FinderArg> &args);
+  void updateDataPool(const std::string &pool);
 
-  FilesystemPriv *radosFsPriv(void);
-
-  int rename(const std::string &newName);
-
-  int moveDirTreeObjects(const Stat *oldDir, const Stat *newDir);
-
-  Dir *dir;
-  Dir *target;
+  File *fsFile;
+  File *target;
+  PoolSP dataPool;
+  PoolSP mtdPool;
+  std::string inode;
   std::string parentDir;
-  std::tr1::shared_ptr<DirCache> dirInfo;
-  bool cacheable;
+  File::OpenMode permissions;
+  File::OpenMode mode;
+  std::tr1::shared_ptr<FileIO> fileIO;
+  std::vector<std::string> asyncOps;
+  boost::mutex asyncOpsMutex;
 };
 
 RADOS_FS_END_NAMESPACE
 
-#endif /* RADOS_FS_DIR_IMPL_HH */
+#endif /* RADOS_FS_FILE_PRIV_HH */

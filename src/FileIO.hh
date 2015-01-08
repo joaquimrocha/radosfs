@@ -28,8 +28,8 @@
 #include <vector>
 #include <tr1/memory>
 
-#include "RadosFs.hh"
-#include "RadosFsAsyncOp.hh"
+#include "Filesystem.hh"
+#include "AsyncOp.hh"
 #include "radosfscommon.h"
 
 #define FILE_STRIPE_LOCKER "file-stripe-locker"

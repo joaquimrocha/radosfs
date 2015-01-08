@@ -17,8 +17,8 @@
  * for more details.
  */
 
-#ifndef __RADOS_IMPL_HH__
-#define __RADOS_IMPL_HH__
+#ifndef __RADOS_FS_FILESYSTEM_PRIV_HH__
+#define __RADOS_FS_FILESYSTEM_PRIV_HH__
 
 #include <boost/asio.hpp>
 #include <boost/thread.hpp>
@@ -33,9 +33,9 @@
 #include "radosfscommon.h"
 #include "radosfsdefines.h"
 #include "DirCache.hh"
-#include "RadosFsFileIO.hh"
-#include "RadosFsLogger.hh"
-#include "RadosFsFinder.hh"
+#include "FileIO.hh"
+#include "Logger.hh"
+#include "Finder.hh"
 
 RADOS_FS_BEGIN_NAMESPACE
 
@@ -240,4 +240,4 @@ public:
 
 RADOS_FS_END_NAMESPACE
 
-#endif /* __RADOS_IMPL_HH__ */
+#endif /* __RADOS_FS_FILESYSTEM_PRIV_HH__ */

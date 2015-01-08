@@ -25,7 +25,7 @@
 
 #include "radosfscommon.h"
 #include "radosfsdefines.h"
-#include "RadosFsLogger.hh"
+#include "Logger.hh"
 
 RADOS_FS_BEGIN_NAMESPACE
 

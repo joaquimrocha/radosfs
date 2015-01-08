@@ -25,10 +25,10 @@
 #include <rados/librados.hpp>
 
 #include "radosfsdefines.h"
-#include "RadosFsAsyncOpPriv.hh"
-#include "RadosFsFileIO.hh"
-#include "RadosFsLogger.hh"
-#include "RadosFsPriv.hh"
+#include "AsyncOpPriv.hh"
+#include "FileIO.hh"
+#include "Logger.hh"
+#include "FilesystemPriv.hh"
 
 RADOS_FS_BEGIN_NAMESPACE
 

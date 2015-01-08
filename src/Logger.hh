@@ -4,7 +4,7 @@
 #include <string>
 
 #include "radosfsdefines.h"
-#include "RadosFs.hh"
+#include "Filesystem.hh"
 
 #define radosfs_debug(...) radosfs::Logger::log(__FILE__, \
                                         __LINE__, \

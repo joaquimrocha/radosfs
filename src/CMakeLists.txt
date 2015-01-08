@@ -40,17 +40,17 @@ add_custom_target(${LOG_LEVEL_FILE_BASE_NAME}_target
 
 add_library( radosfs SHARED
              radosfscommon.cc radosfscommon.h
-             RadosFs.cc RadosFs.hh RadosFsPriv.hh
+             Filesystem.cc Filesystem.hh FilesystemPriv.hh
              DirCache.cc DirCache.hh
              radosfsdefines.h
              hash64.c hash64.h
-             RadosFsFile.cc RadosFsFile.hh RadosFsFilePriv.hh
-             RadosFsDir.cc RadosFsDir.hh RadosFsDirPriv.hh
-             RadosFsObj.cc RadosFsObj.hh RadosFsObjPriv.hh
-             RadosFsFileIO.cc RadosFsFileIO.hh
-             RadosFsLogger.cc RadosFsLogger.hh
-             RadosFsFinder.cc RadosFsFinder.hh
-             RadosFsAsyncOp.cc RadosFsAsyncOp.cc RadosFsAsyncOpPriv.hh
+             File.cc File.hh FilePriv.hh
+             Dir.cc Dir.hh DirPriv.hh
+             FsObj.cc FsObj.hh FsObjPriv.hh
+             FileIO.cc FileIO.hh
+             Logger.cc Logger.hh
+             Finder.cc Finder.hh
+             AsyncOp.cc AsyncOp.cc AsyncOpPriv.hh
 )
 
 include_directories( ${RADOS_INCLUDE_DIR} )

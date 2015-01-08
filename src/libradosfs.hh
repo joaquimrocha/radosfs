@@ -20,8 +20,8 @@
 #ifndef __LIB_RADOS_FS_HH__
 #define __LIB_RADOS_FS_HH__
 
-#include <radosfs/RadosFs.hh>
-#include <radosfs/RadosFsDir.hh>
-#include <radosfs/RadosFsFile.hh>
+#include <radosfs/Filesystem.hh>
+#include <radosfs/Dir.hh>
+#include <radosfs/File.hh>
 
 #endif // __LIB_RADOS_FS_HH__

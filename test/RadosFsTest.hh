@@ -21,12 +21,12 @@
 #include <rados/librados.hpp>
 #include <set>
 #include <string>
-#include "RadosFs.hh"
-#include "RadosFsPriv.hh"
-#include "RadosFsFile.hh"
-#include "RadosFsFilePriv.hh"
-#include "RadosFsDirPriv.hh"
-#include "RadosFsDir.hh"
+#include "Filesystem.hh"
+#include "FilesystemPriv.hh"
+#include "File.hh"
+#include "FilePriv.hh"
+#include "DirPriv.hh"
+#include "Dir.hh"
 
 #ifndef RADOS_FS_TEST_HH
 #define RADOS_FS_TEST_HH

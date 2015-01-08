@@ -17,8 +17,8 @@
  * for more details.
  */
 
-#ifndef __RADOS_FS_HH__
-#define __RADOS_FS_HH__
+#ifndef __RADOS_FS_FILESYSTEM_HH__
+#define __RADOS_FS_FILESYSTEM_HH__
 
 #include <map>
 #include <string>
@@ -143,4 +143,4 @@ private:
 
 RADOS_FS_END_NAMESPACE
 
-#endif /* __RADOS_FS_HH__ */
+#endif /* __RADOS_FS_FILESYSTEM_HH__ */

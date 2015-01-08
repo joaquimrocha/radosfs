@@ -23,8 +23,8 @@
 #include <cstdlib>
 #include <set>
 
-#include "RadosFs.hh"
-#include "RadosFsObj.hh"
+#include "Filesystem.hh"
+#include "FsObj.hh"
 
 RADOS_FS_BEGIN_NAMESPACE
 

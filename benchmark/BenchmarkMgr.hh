@@ -4,9 +4,9 @@
 #include <pthread.h>
 #include <rados/librados.hpp>
 
-#include "RadosFs.hh"
-#include "RadosFsDir.hh"
-#include "RadosFsFile.hh"
+#include "Filesystem.hh"
+#include "Dir.hh"
+#include "File.hh"
 
 #define TEST_POOL_DATA "radosfs-benchmark-data-pool"
 #define TEST_POOL_MTD "radosfs-benchmark-data-pool"

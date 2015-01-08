@@ -17,14 +17,14 @@
  * for more details.
  */
 
-#ifndef RADOS_FS_OBJ_IMPL_HH
-#define RADOS_FS_OBJ_IMPL_HH
+#ifndef RADOS_FS_OBJ_PRIV_HH
+#define RADOS_FS_OBJ_PRIV_HH
 
 #include <tr1/memory>
 
 #include "radosfscommon.h"
 #include "radosfsdefines.h"
-#include "RadosFsPriv.hh"
+#include "FilesystemPriv.hh"
 
 RADOS_FS_BEGIN_NAMESPACE
 
@@ -55,4 +55,4 @@ public:
 
 RADOS_FS_END_NAMESPACE
 
-#endif /* RADOS_FS_OBJ_IMPL_HH */
+#endif /* RADOS_FS_OBJ_PRIV_HH */

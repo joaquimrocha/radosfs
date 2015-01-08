@@ -26,9 +26,9 @@
 #include <unistd.h>
 #include <utility>
 
-#include "RadosFs.hh"
-#include "RadosFsFile.hh"
-#include "RadosFsPriv.hh"
+#include "Filesystem.hh"
+#include "File.hh"
+#include "FilesystemPriv.hh"
 
 RADOS_FS_BEGIN_NAMESPACE
 
@@ -459,7 +459,7 @@ FilesystemPriv::statXAttrInThread(std::string path, std::string xattr,
   PoolSP dataPool;
   std::string pool;
   *ret = statFromXAttr(path, xattr, &stat->statBuff, stat->translatedPath,
-                          pool, stat->extraData);
+                       pool, stat->extraData);
 
   if (*ret != 0)
   {
@@ -1149,7 +1149,7 @@ FilesystemPriv::getOrCreateFileIO(const std::string &path, const Stat *stat)
                                    stat->pool->alignment);
 
     io = FileIOSP(new FileIO(radosFs, stat->pool, stat->translatedPath,
-                               stripeSize));
+                             stripeSize));
 
     setFileIO(io);
   }

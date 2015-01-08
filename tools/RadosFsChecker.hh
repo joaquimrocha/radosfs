@@ -17,9 +17,9 @@
  * for more details.
  */
 
-#include "RadosFs.hh"
-#include "RadosFsDir.hh"
-#include "RadosFsFile.hh"
+#include "Filesystem.hh"
+#include "Dir.hh"
+#include "File.hh"
 
 #include <map>
 #include <set>

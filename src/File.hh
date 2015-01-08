@@ -23,8 +23,8 @@
 #include <cstdlib>
 #include <memory>
 
-#include "RadosFs.hh"
-#include "RadosFsObj.hh"
+#include "Filesystem.hh"
+#include "FsObj.hh"
 
 class RadosFsTest;
 

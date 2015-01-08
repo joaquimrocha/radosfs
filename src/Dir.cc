@@ -20,10 +20,10 @@
 #include <sys/stat.h>
 
 #include "radosfscommon.h"
-#include "RadosFsDir.hh"
-#include "RadosFsDirPriv.hh"
-#include "RadosFsPriv.hh"
-#include "RadosFsFinder.hh"
+#include "Dir.hh"
+#include "DirPriv.hh"
+#include "FilesystemPriv.hh"
+#include "Finder.hh"
 
 RADOS_FS_BEGIN_NAMESPACE
 
