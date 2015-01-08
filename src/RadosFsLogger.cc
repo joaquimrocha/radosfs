@@ -29,7 +29,7 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
-RadosFs::LogLevel RadosFsLogger::level = RadosFs::LOG_LEVEL_DEBUG;
+Fs::LogLevel Logger::level = Fs::LOG_LEVEL_DEBUG;
 
 void *
 readConfiguredLogLevel(void *fsLogger)
@@ -40,7 +40,7 @@ readConfiguredLogLevel(void *fsLogger)
   const int levelMaxChars = 10;
   char level[levelMaxChars];
   level[0] = '\0';
-  RadosFsLogger *logger = (RadosFsLogger *) fsLogger;
+  Logger *logger = (Logger *) fsLogger;
 
   while (true)
   {
@@ -56,20 +56,20 @@ readConfiguredLogLevel(void *fsLogger)
 
       fclose(fp);
 
-      RadosFs::LogLevel previousLevel, newLevel;
+      Fs::LogLevel previousLevel, newLevel;
 
       newLevel = logger->logLevel();
       previousLevel = newLevel;
 
       const char *levelNames[] = {"NONE", "DEBUG", 0};
-      const RadosFs::LogLevel levels[] = {RadosFs::LOG_LEVEL_NONE,
-                                          RadosFs::LOG_LEVEL_DEBUG};
+      const Fs::LogLevel levels[] = {Fs::LOG_LEVEL_NONE,
+                                     Fs::LOG_LEVEL_DEBUG};
 
       for (int i = 0; levelNames[i] != 0; i++)
       {
         if (strlen(level) < 2)
         {
-          newLevel = RadosFs::LOG_LEVEL_NONE;
+          newLevel = Fs::LOG_LEVEL_NONE;
           break;
         }
 
@@ -94,7 +94,7 @@ readConfiguredLogLevel(void *fsLogger)
   pthread_exit(0);
 }
 
-RadosFsLogger::RadosFsLogger()
+Logger::Logger()
 {
   pthread_mutex_init(&mLevelMutex, 0);
 
@@ -107,7 +107,7 @@ RadosFsLogger::RadosFsLogger()
   }
 }
 
-RadosFsLogger::~RadosFsLogger()
+Logger::~Logger()
 {
   void *status;
   pthread_cancel(thread);
@@ -116,15 +116,13 @@ RadosFsLogger::~RadosFsLogger()
 }
 
 void
-RadosFsLogger::log(const char *file,
-                   const int line,
-                   const RadosFs::LogLevel msgLevel,
-                   const char *msg,
-                   ...)
+Logger::log(const char *file, const int line, const Fs::LogLevel msgLevel,
+            const char *msg,
+            ...)
 {
-  RadosFs::LogLevel currentLevel = RadosFsLogger::level;
+  Fs::LogLevel currentLevel = Logger::level;
 
-  if (currentLevel == RadosFs::LOG_LEVEL_NONE || (currentLevel & msgLevel) == 0)
+  if (currentLevel == Fs::LOG_LEVEL_NONE || (currentLevel & msgLevel) == 0)
     return;
 
   va_list args;
@@ -156,7 +154,7 @@ RadosFsLogger::log(const char *file,
 }
 
 void
-RadosFsLogger::setLogLevel(const RadosFs::LogLevel newLevel)
+Logger::setLogLevel(const Fs::LogLevel newLevel)
 {
   pthread_mutex_lock(levelMutex());
 
@@ -165,10 +163,10 @@ RadosFsLogger::setLogLevel(const RadosFs::LogLevel newLevel)
   pthread_mutex_unlock(levelMutex());
 }
 
-RadosFs::LogLevel
-RadosFsLogger::logLevel()
+Fs::LogLevel
+Logger::logLevel()
 {
-  RadosFs::LogLevel currentLevel;
+  Fs::LogLevel currentLevel;
 
   pthread_mutex_lock(levelMutex());
 

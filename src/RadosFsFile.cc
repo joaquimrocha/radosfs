@@ -28,36 +28,35 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
-RadosFsFilePriv::RadosFsFilePriv(RadosFsFile *fsFile,
-                                 RadosFsFile::OpenMode mode)
+FilePriv::FilePriv(File *fsFile, File::OpenMode mode)
   : fsFile(fsFile),
     target(0),
-    permissions(RadosFsFile::MODE_NONE),
+    permissions(File::MODE_NONE),
     mode(mode)
 {
   updatePath();
 }
 
-RadosFsFilePriv::~RadosFsFilePriv()
+FilePriv::~FilePriv()
 {
   if (target)
     delete target;
 }
 
 void
-RadosFsFilePriv::updateDataPool(const std::string &pool)
+FilePriv::updateDataPool(const std::string &pool)
 {
   dataPool = fsFile->filesystem()->mPriv->getDataPool(fsFile->path(), pool);
 }
 
 void
-RadosFsFilePriv::updatePath()
+FilePriv::updatePath()
 {
-  RadosFsStat *stat = fsStat();
+  Stat *stat = fsStat();
 
   parentDir = getParentDir(fsFile->path(), 0);
 
-  RadosFs *radosFs = fsFile->filesystem();
+  Fs *radosFs = fsFile->filesystem();
 
   mtdPool = radosFs->mPriv->getMetadataPoolFromPath(fsFile->path());
 
@@ -95,9 +94,9 @@ RadosFsFilePriv::updatePath()
 
   if (fsFile->isLink())
   {
-    target = new RadosFsFile(fsFile->filesystem(),
-                             fsFile->targetPath(),
-                             mode);
+    target = new File(fsFile->filesystem(),
+                      fsFile->targetPath(),
+                      mode);
   }
   else if (stat && stat->translatedPath != "")
   {
@@ -106,7 +105,7 @@ RadosFsFilePriv::updatePath()
 }
 
 int
-RadosFsFilePriv::verifyExistanceAndType()
+FilePriv::verifyExistanceAndType()
 {
   if (fsFile->isLink() && !target->exists())
     return -ENOLINK;
@@ -121,10 +120,10 @@ RadosFsFilePriv::verifyExistanceAndType()
 }
 
 void
-RadosFsFilePriv::updatePermissions()
+FilePriv::updatePermissions()
 {
-  permissions = RadosFsFile::MODE_NONE;
-  RadosFsStat stat, *fileStat;
+  permissions = File::MODE_NONE;
+  Stat stat, *fileStat;
 
   if (!mtdPool.get())
     return;
@@ -151,28 +150,28 @@ RadosFsFilePriv::updatePermissions()
   if (fsFile->exists() && !fsFile->isFile())
     return;
 
-  if (canWriteParent && (mode & RadosFsFile::MODE_WRITE))
+  if (canWriteParent && (mode & File::MODE_WRITE))
   {
     if (!fsFile->exists() ||
         statBuffHasPermission(fileStat->statBuff, uid, gid, O_WRONLY))
       permissions =
-          (RadosFsFile::OpenMode) (permissions | RadosFsFile::MODE_WRITE);
+          (File::OpenMode) (permissions | File::MODE_WRITE);
   }
 
-  if (canReadParent && (mode & RadosFsFile::MODE_READ) &&
+  if (canReadParent && (mode & File::MODE_READ) &&
       statBuffHasPermission(fileStat->statBuff, uid, gid, O_RDONLY))
   {
-    permissions = (RadosFsFile::OpenMode) (permissions | RadosFsFile::MODE_READ);
+    permissions = (File::OpenMode) (permissions | File::MODE_READ);
   }
 }
 
 int
-RadosFsFilePriv::removeFile()
+FilePriv::removeFile()
 {
   if (!radosFsIO)
     return 0;
 
-  if (!RadosFsIO::hasSingleClient(radosFsIO))
+  if (!FileIO::hasSingleClient(radosFsIO))
     radosFsIO->setLazyRemoval(true);
   else
     return radosFsIO->remove();
@@ -180,18 +179,18 @@ RadosFsFilePriv::removeFile()
   return 0;
 }
 
-RadosFsStat *
-RadosFsFilePriv::fsStat(void)
+Stat *
+FilePriv::fsStat(void)
 {
-  return reinterpret_cast<RadosFsStat *>(fsFile->fsStat());
+  return reinterpret_cast<Stat *>(fsFile->fsStat());
 }
 
 int
-RadosFsFilePriv::rename(const std::string &destination)
+FilePriv::rename(const std::string &destination)
 {
   int index;
   int ret;
-  RadosFsStat stat, parentStat;
+  Stat stat, parentStat;
   std::string destParent = getParentDir(destination, &index);
   std::string baseName;
 
@@ -202,7 +201,7 @@ RadosFsFilePriv::rename(const std::string &destination)
 
   if (destParent == parentDir)
   {
-    parentStat = *reinterpret_cast<RadosFsStat *>(fsFile->parentFsStat());
+    parentStat = *reinterpret_cast<Stat *>(fsFile->parentFsStat());
   }
   else
   {
@@ -266,8 +265,8 @@ RadosFsFilePriv::rename(const std::string &destination)
   if (ret != 0)
     return ret;
 
-  RadosFsStat *oldParentStat =
-      reinterpret_cast<RadosFsStat *>(fsFile->parentFsStat());
+  Stat *oldParentStat =
+      reinterpret_cast<Stat *>(fsFile->parentFsStat());
 
   stat.path = fsFile->path();
   ret = indexObject(oldParentStat, &stat, '-');
@@ -280,28 +279,26 @@ RadosFsFilePriv::rename(const std::string &destination)
   return ret;
 }
 
-RadosFsFile::RadosFsFile(RadosFs *radosFs,
-                         const std::string &path,
-                         RadosFsFile::OpenMode mode)
-  : RadosFsInfo(radosFs, getFilePath(path)),
-    mPriv(new RadosFsFilePriv(this, mode))
+File::File(Fs *radosFs, const std::string &path, File::OpenMode mode)
+  : Info(radosFs, getFilePath(path)),
+    mPriv(new FilePriv(this, mode))
 {}
 
-RadosFsFile::~RadosFsFile()
+File::~File()
 {}
 
-RadosFsFile::RadosFsFile(const RadosFsFile &otherFile)
-  : RadosFsInfo(otherFile),
-    mPriv(new RadosFsFilePriv(this, otherFile.mode()))
+File::File(const File &otherFile)
+  : Info(otherFile),
+    mPriv(new FilePriv(this, otherFile.mode()))
 {}
 
-RadosFsFile::RadosFsFile(const RadosFsFile *otherFile)
-  : RadosFsInfo(*otherFile),
-    mPriv(new RadosFsFilePriv(this, otherFile->mode()))
+File::File(const File *otherFile)
+  : Info(*otherFile),
+    mPriv(new FilePriv(this, otherFile->mode()))
 {}
 
-RadosFsFile &
-RadosFsFile::operator=(const RadosFsFile &otherFile)
+File &
+File::operator=(const File &otherFile)
 {
   if (this != &otherFile)
   {
@@ -312,14 +309,14 @@ RadosFsFile::operator=(const RadosFsFile &otherFile)
   return *this;
 }
 
-RadosFsFile::OpenMode
-RadosFsFile::mode() const
+File::OpenMode
+File::mode() const
 {
   return mPriv->mode;
 }
 
 ssize_t
-RadosFsFile::read(char *buff, off_t offset, size_t blen)
+File::read(char *buff, off_t offset, size_t blen)
 {
   int ret;
   if ((ret = mPriv->verifyExistanceAndType()) != 0)
@@ -327,7 +324,7 @@ RadosFsFile::read(char *buff, off_t offset, size_t blen)
 
   ret = -EACCES;
 
-  if (mPriv->permissions & RadosFsFile::MODE_READ)
+  if (mPriv->permissions & File::MODE_READ)
   {
     if (isLink())
       return mPriv->target->read(buff, offset, blen);
@@ -339,19 +336,19 @@ RadosFsFile::read(char *buff, off_t offset, size_t blen)
 }
 
 int
-RadosFsFile::write(const char *buff, off_t offset, size_t blen)
+File::write(const char *buff, off_t offset, size_t blen)
 {
   return write(buff, offset, blen, false);
 }
 
 int
-RadosFsFile::write(const char *buff, off_t offset, size_t blen, bool copyBuffer)
+File::write(const char *buff, off_t offset, size_t blen, bool copyBuffer)
 {
   int ret;
   if ((ret = mPriv->verifyExistanceAndType()) != 0)
     return ret;
 
-  if (mPriv->permissions & RadosFsFile::MODE_WRITE)
+  if (mPriv->permissions & File::MODE_WRITE)
   {
     if (isLink())
       return mPriv->target->write(buff, offset, blen, copyBuffer);
@@ -373,13 +370,13 @@ RadosFsFile::write(const char *buff, off_t offset, size_t blen, bool copyBuffer)
 }
 
 int
-RadosFsFile::writeSync(const char *buff, off_t offset, size_t blen)
+File::writeSync(const char *buff, off_t offset, size_t blen)
 {
   int ret;
   if ((ret = mPriv->verifyExistanceAndType()) != 0)
     return ret;
 
-  if (mPriv->permissions & RadosFsFile::MODE_WRITE)
+  if (mPriv->permissions & File::MODE_WRITE)
   {
     if (isLink())
       return mPriv->target->writeSync(buff, offset, blen);
@@ -393,10 +390,10 @@ RadosFsFile::writeSync(const char *buff, off_t offset, size_t blen)
 }
 
 int
-RadosFsFile::create(int mode, const std::string pool, size_t stripe)
+File::create(int mode, const std::string pool, size_t stripe)
 {
-  RadosFsStat *stat = reinterpret_cast<RadosFsStat *>(fsStat());
-  RadosFsStat *parentStat = reinterpret_cast<RadosFsStat *>(parentFsStat());
+  Stat *stat = reinterpret_cast<Stat *>(fsStat());
+  Stat *parentStat = reinterpret_cast<Stat *>(parentFsStat());
   int ret;
 
   if (pool != "")
@@ -423,7 +420,7 @@ RadosFsFile::create(int mode, const std::string pool, size_t stripe)
     }
   }
 
-  if ((mPriv->permissions & RadosFsFile::MODE_WRITE) == 0)
+  if ((mPriv->permissions & File::MODE_WRITE) == 0)
     return -EACCES;
 
   uid_t uid;
@@ -467,11 +464,11 @@ RadosFsFile::create(int mode, const std::string pool, size_t stripe)
 }
 
 int
-RadosFsFile::remove()
+File::remove()
 {
   int ret;
 
-  RadosFsInfo::update();
+  Info::update();
 
   ret = mPriv->verifyExistanceAndType();
 
@@ -481,7 +478,7 @@ RadosFsFile::remove()
   uid_t uid;
   gid_t gid;
 
-  RadosFsStat *stat = mPriv->fsStat();
+  Stat *stat = mPriv->fsStat();
 
   filesystem()->getIds(&uid, &gid);
 
@@ -489,19 +486,19 @@ RadosFsFile::remove()
                             O_WRONLY | O_RDWR))
   {
     ret = mPriv->removeFile();
-    RadosFsStat *parentStat = reinterpret_cast<RadosFsStat *>(parentFsStat());
+    Stat *parentStat = reinterpret_cast<Stat *>(parentFsStat());
     indexObject(parentStat, stat, '-');
   }
   else
     return -EACCES;
 
-  RadosFsInfo::update();
+  Info::update();
 
   return ret;
 }
 
 int
-RadosFsFile::truncate(unsigned long long size)
+File::truncate(unsigned long long size)
 {
   if (isLink())
     return mPriv->target->truncate(size);
@@ -517,38 +514,38 @@ RadosFsFile::truncate(unsigned long long size)
 }
 
 bool
-RadosFsFile::isWritable()
+File::isWritable()
 {
-  return (mPriv->permissions & RadosFsFile::MODE_WRITE) != 0;
+  return (mPriv->permissions & File::MODE_WRITE) != 0;
 }
 
 bool
-RadosFsFile::isReadable()
+File::isReadable()
 {
-  return (mPriv->permissions & RadosFsFile::MODE_READ) != 0;
+  return (mPriv->permissions & File::MODE_READ) != 0;
 }
 
 void
-RadosFsFile::update()
+File::update()
 {
-  RadosFsInfo::update();
+  Info::update();
   mPriv->updatePath();
 }
 
 void
-RadosFsFile::setPath(const std::string &path)
+File::setPath(const std::string &path)
 {
   std::string filePath = getFilePath(path);
 
-  RadosFsInfo::setPath(filePath);
+  Info::setPath(filePath);
 }
 
 int
-RadosFsFile::stat(struct stat *buff)
+File::stat(struct stat *buff)
 {
-  RadosFsStat *stat;
+  Stat *stat;
 
-  RadosFsInfo::update();
+  Info::update();
 
   if (!exists())
     return -ENOENT;
@@ -569,7 +566,7 @@ RadosFsFile::stat(struct stat *buff)
 }
 
 int
-RadosFsFile::chmod(long int permissions)
+File::chmod(long int permissions)
 {
   long int mode;
 
@@ -578,8 +575,8 @@ RadosFsFile::chmod(long int permissions)
 
   mode = permissions | S_IFREG;
 
-  RadosFsStat fsStat = *mPriv->fsStat();
-  RadosFsStat *parentStat = reinterpret_cast<RadosFsStat *>(parentFsStat());
+  Stat fsStat = *mPriv->fsStat();
+  Stat *parentStat = reinterpret_cast<Stat *>(parentFsStat());
 
   uid_t uid = filesystem()->uid();
 
@@ -595,7 +592,7 @@ RadosFsFile::chmod(long int permissions)
 }
 
 int
-RadosFsFile::rename(const std::string &newPath)
+File::rename(const std::string &newPath)
 {
   int ret;
 
@@ -626,7 +623,7 @@ RadosFsFile::rename(const std::string &newPath)
 }
 
 int
-RadosFsFile::sync()
+File::sync()
 {
   int ret = 0;
   boost::unique_lock<boost::mutex> lock(mPriv->asyncOpsMutex);

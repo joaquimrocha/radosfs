@@ -25,14 +25,14 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
-RadosFsAsyncOpPriv::RadosFsAsyncOpPriv(const std::string &id)
+AyncOpPriv::AyncOpPriv(const std::string &id)
   : id(id),
     complete(false),
     returnCode(-EINPROGRESS),
     ready(false)
 {}
 
-RadosFsAsyncOpPriv::~RadosFsAsyncOpPriv()
+AyncOpPriv::~AyncOpPriv()
 {
   boost::unique_lock<boost::mutex> lock(mOpMutex);
 
@@ -45,7 +45,7 @@ RadosFsAsyncOpPriv::~RadosFsAsyncOpPriv()
 }
 
 int
-RadosFsAsyncOpPriv::waitForCompletion(void)
+AyncOpPriv::waitForCompletion(void)
 {
   while (returnCode == -EINPROGRESS)
   {
@@ -81,46 +81,46 @@ RadosFsAsyncOpPriv::waitForCompletion(void)
 }
 
 void
-RadosFsAsyncOpPriv::addCompletion(librados::AioCompletion *comp)
+AyncOpPriv::addCompletion(librados::AioCompletion *comp)
 {
   boost::unique_lock<boost::mutex> lock(mOpMutex);
   mOperations.push_back(comp);
 }
 
 void
-RadosFsAsyncOpPriv::setReady()
+AyncOpPriv::setReady()
 {
   boost::unique_lock<boost::mutex> lock(mOpMutex);
   ready = true;
 }
 
-RadosFsAsyncOp::RadosFsAsyncOp(const std::string &id)
-  : mPriv(new RadosFsAsyncOpPriv(id))
+AsyncOp::AsyncOp(const std::string &id)
+  : mPriv(new AyncOpPriv(id))
 {}
 
-RadosFsAsyncOp::~RadosFsAsyncOp()
+AsyncOp::~AsyncOp()
 {}
 
 std::string
-RadosFsAsyncOp::id(void)
+AsyncOp::id(void)
 {
   return mPriv->id;
 }
 
 bool
-RadosFsAsyncOp::isFinished(void)
+AsyncOp::isFinished(void)
 {
   return mPriv->complete;
 }
 
 int
-RadosFsAsyncOp::returnValue(void)
+AsyncOp::returnValue(void)
 {
   return mPriv->returnCode;
 }
 
 int
-RadosFsAsyncOp::waitForCompletion(void)
+AsyncOp::waitForCompletion(void)
 {
   return mPriv->waitForCompletion();
 }

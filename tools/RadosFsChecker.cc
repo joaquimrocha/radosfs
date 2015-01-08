@@ -30,7 +30,7 @@
 #include "RadosFsPriv.hh"
 
 static int
-getObjectsFromCluster(RadosFsPool *pool, const std::string &prefix,
+getObjectsFromCluster(Pool *pool, const std::string &prefix,
                       std::map<std::string, std::string> &entries)
 {
   librados::ObjectIterator it;
@@ -46,14 +46,14 @@ getObjectsFromCluster(RadosFsPool *pool, const std::string &prefix,
   return 0;
 }
 
-RadosFsChecker::RadosFsChecker(radosfs::RadosFs *radosFs)
+RadosFsChecker::RadosFsChecker(radosfs::Fs *radosFs)
   : mRadosFs(radosFs)
 {}
 
 bool
 RadosFsChecker::checkPath(const std::string &path)
 {
-  RadosFsStat stat;
+  Stat stat;
   int ret = mRadosFs->mPriv->stat(path, &stat);
 
   if (ret != 0)
@@ -91,7 +91,7 @@ RadosFsChecker::checkPath(const std::string &path)
 void
 RadosFsChecker::checkDirRecursive(const std::string &path)
 {
-  radosfs::RadosFsDir dir(mRadosFs, path);
+  radosfs::Dir dir(mRadosFs, path);
 
   if (!dir.exists())
   {
@@ -117,8 +117,8 @@ RadosFsChecker::checkDirRecursive(const std::string &path)
 int
 RadosFsChecker::check()
 {
-  radosfs::RadosFsPoolMap::const_iterator mtdMapIt;
-  radosfs::RadosFsPoolListMap::const_iterator dataMapIt;
+  radosfs::PoolMap::const_iterator mtdMapIt;
+  radosfs::PoolListMap::const_iterator dataMapIt;
   std::set<std::string> prefixes;
 
   fprintf(stdout, "Checking...\n");
@@ -144,8 +144,8 @@ RadosFsChecker::check()
   {
     int ret;
 
-    const radosfs::RadosFsPoolList &pools = (*dataMapIt).second;
-    radosfs::RadosFsPoolList::const_iterator poolIt;
+    const radosfs::PoolList &pools = (*dataMapIt).second;
+    radosfs::PoolList::const_iterator poolIt;
 
     for (poolIt = pools.begin(); poolIt != pools.end(); poolIt++)
     {
@@ -184,7 +184,7 @@ RadosFsChecker::fixDirs()
     }
     else
     {
-      radosfs::RadosFsDir dir(mRadosFs, path.c_str());
+      radosfs::Dir dir(mRadosFs, path.c_str());
 
       if ((ret = dir.create()) != 0)
       {
@@ -209,7 +209,7 @@ RadosFsChecker::fixDirs()
     }
     else
     {
-      RadosFsStat stat, parentStat;
+      Stat stat, parentStat;
 
       mRadosFs->mPriv->stat(path, &stat);
 
@@ -239,16 +239,16 @@ RadosFsChecker::fixInodes()
   std::map<std::string, std::string>::const_iterator it;
   for (it = mInodes.begin(); it != mInodes.end(); it++)
   {
-    radosfs::RadosFsPoolListMap &poolMap = mRadosFs->mPriv->poolMap;
-    radosfs::RadosFsPoolListMap::iterator poolIt;
+    radosfs::PoolListMap &poolMap = mRadosFs->mPriv->poolMap;
+    radosfs::PoolListMap::iterator poolIt;
     const std::string &inode = (*it).first;
     librados::bufferlist hardLink;
 
     // retrieve the inode hard link from the correct pool
     for (poolIt = poolMap.begin(); poolIt != poolMap.end(); poolIt++)
     {
-      const radosfs::RadosFsPoolList &poolList = (*poolIt).second;
-      radosfs::RadosFsPoolList::const_iterator poolListIt;
+      const radosfs::PoolList &poolList = (*poolIt).second;
+      radosfs::PoolList::const_iterator poolListIt;
 
       for (poolListIt = poolList.begin();
            poolListIt != poolList.end();
@@ -284,8 +284,8 @@ RadosFsChecker::fixInodes()
       {
         action = "Created";
 
-        RadosFsPoolSP pool;
-        RadosFsStat stat, parentStat;
+        PoolSP pool;
+        Stat stat, parentStat;
 
         pool = mRadosFs->mPriv->getMetadataPoolFromPath(hardLinkStr);
 

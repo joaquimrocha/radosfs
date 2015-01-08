@@ -34,21 +34,21 @@
 #include "hash64.h"
 #include "radosfsdefines.h"
 
-struct RadosFsPool {
+struct Pool {
   std::string name;
   size_t size;
   librados::IoCtx ioctx;
   u_int64_t alignment;
 
-  RadosFsPool(const std::string &poolName, size_t poolSize,
-              librados::IoCtx &ioctx)
+  Pool(const std::string &poolName, size_t poolSize,
+       librados::IoCtx &ioctx)
     : name(poolName),
       size(poolSize),
       ioctx(ioctx),
       alignment(0)
   {}
 
-  ~RadosFsPool(void)
+  ~Pool(void)
   {}
 
   void setAlignment(u_int64_t alignment) { this->alignment = alignment; }
@@ -56,13 +56,13 @@ struct RadosFsPool {
   bool hasAlignment(void) { return alignment != 0; }
 };
 
-typedef std::tr1::shared_ptr<RadosFsPool> RadosFsPoolSP;
+typedef std::tr1::shared_ptr<Pool> PoolSP;
 
-struct RadosFsStat {
+struct Stat {
   std::string path;
   std::string translatedPath;
   struct stat statBuff;
-  RadosFsPoolSP pool;
+  PoolSP pool;
   std::map<std::string, std::string> extraData;
 
   void reset(void)
@@ -81,8 +81,8 @@ struct RadosFsStat {
 
 typedef struct {
   std::string inode;
-  RadosFsPoolSP pool;
-} RadosFsInode;
+  PoolSP pool;
+} Inode;
 
 ino_t hash(const char *path);
 
@@ -117,7 +117,7 @@ std::string escapeObjName(const std::string &obj);
 
 std::string unescapeObjName(const std::string &obj);
 
-int indexObject(const RadosFsStat *parentStat, const RadosFsStat *stat, char op);
+int indexObject(const Stat *parentStat, const Stat *stat, char op);
 
 std::string getObjectIndexLine(const std::string &obj, char op);
 
@@ -186,15 +186,15 @@ std::string makeFileStripeName(const std::string &filePath, size_t stripeIndex);
 
 bool nameIsStripe(const std::string &name);
 
-std::string getFileXAttrDirRecord(const RadosFsStat *stat);
+std::string getFileXAttrDirRecord(const Stat *stat);
 
 bool isDirPath(const std::string &path);
 
 std::string generateUuid(void);
 
-int createDirAndInode(const RadosFsStat *stat);
+int createDirAndInode(const Stat *stat);
 
-int createDirObject(const RadosFsStat *stat);
+int createDirObject(const Stat *stat);
 
 int getInodeAndPool(librados::IoCtx &ioctx, const std::string &path,
                     std::string &inode, std::string &pool);
@@ -207,10 +207,10 @@ void strToTimespec(const std::string &specStr, timespec *spec);
 
 std::string getCurrentTimeStr(void);
 
-void updateTimeAsync(const RadosFsStat *stat, const char *timeXAttrKey,
+void updateTimeAsync(const Stat *stat, const char *timeXAttrKey,
                      const std::string &time = "");
 
-int getTimeFromXAttr(const RadosFsStat *stat, const std::string &xattr,
+int getTimeFromXAttr(const Stat *stat, const std::string &xattr,
                      timespec *spec, time_t *basicTime);
 
 bool hasTMTimeEnabled(mode_t mode);

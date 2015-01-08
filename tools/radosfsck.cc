@@ -158,7 +158,7 @@ main(int argc, char **argv)
   if (ret != 0)
     return ret;
 
-  radosfs::RadosFs radosFs;
+  radosfs::Fs radosFs;
   radosFs.init("", confPath.c_str());
 
   int numPosArgs = argc - position;

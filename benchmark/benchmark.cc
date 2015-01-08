@@ -72,7 +72,7 @@ createFiles(void *bInfo)
   {
     prefix << "/";
 
-    radosfs::RadosFsDir dir(&benchmark->radosFs, prefix.str());
+    radosfs::Dir dir(&benchmark->radosFs, prefix.str());
     int ret = dir.create();
 
     if (ret != 0)
@@ -98,9 +98,9 @@ createFiles(void *bInfo)
 
     clock_gettime(CLOCK_REALTIME, &timeBefore);
 
-    radosfs::RadosFsFile file(&benchmark->radosFs,
-                              stream.str(),
-                              radosfs::RadosFsFile::MODE_WRITE);
+    radosfs::File file(&benchmark->radosFs,
+                       stream.str(),
+                       radosfs::File::MODE_WRITE);
 
     int ret = file.create();
 

@@ -28,16 +28,16 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
-class RadosFsInfoPriv;
+class InfoPriv;
 
-class RadosFsInfo
+class Info
 {
 public:
-  RadosFsInfo(RadosFs *radosFs, const std::string &path);
+  Info(Fs *radosFs, const std::string &path);
 
-  virtual ~RadosFsInfo();
+  virtual ~Info();
 
-  RadosFsInfo(const RadosFsInfo &otherInfo);
+  Info(const Info &otherInfo);
 
   virtual bool isWritable(void) = 0;
 
@@ -47,9 +47,9 @@ public:
 
   virtual void setPath(const std::string &path);
 
-  virtual RadosFs *filesystem(void) const;
+  virtual Fs *filesystem(void) const;
 
-  virtual void setFilesystem(RadosFs *radosFs);
+  virtual void setFilesystem(Fs *radosFs);
 
   virtual bool isFile(void) const;
 
@@ -88,7 +88,7 @@ protected:
   void * parentFsStat(void);
 
 private:
-  std::auto_ptr<RadosFsInfoPriv> mPriv;
+  std::auto_ptr<InfoPriv> mPriv;
 };
 
 RADOS_FS_END_NAMESPACE

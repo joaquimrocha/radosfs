@@ -40,7 +40,7 @@ typedef struct
 class DirCache
 {
 public:
-  DirCache(const std::string &inode, RadosFsPoolSP pool);
+  DirCache(const std::string &inode, PoolSP pool);
   virtual ~DirCache(void);
 
   int update(void);
@@ -60,7 +60,7 @@ private:
   void parseContents(char *buff, int length);
 
   std::string mInode;
-  RadosFsPoolSP mPool;
+  PoolSP mPool;
   std::map<std::string, DirEntry> mContents;
   std::set<std::string> mEntryNames;
   uint64_t mLastCachedSize;

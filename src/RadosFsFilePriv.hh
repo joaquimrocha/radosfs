@@ -26,15 +26,14 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
-class RadosFs;
-class RadosFsFile;
+class Fs;
+class File;
 
-class RadosFsFilePriv
+class FilePriv
 {
 public:
-  RadosFsFilePriv(RadosFsFile *fsFile,
-                  RadosFsFile::OpenMode mode);
-  ~RadosFsFilePriv();
+  FilePriv(File *fsFile, File::OpenMode mode);
+  ~FilePriv();
 
   void updatePermissions(void);
 
@@ -46,21 +45,21 @@ public:
 
   int removeFile(void);
 
-  RadosFsStat *fsStat(void);
+  Stat *fsStat(void);
 
   int rename(const std::string &destination);
 
   void updateDataPool(const std::string &pool);
 
-  RadosFsFile *fsFile;
-  RadosFsFile *target;
-  RadosFsPoolSP dataPool;
-  RadosFsPoolSP mtdPool;
+  File *fsFile;
+  File *target;
+  PoolSP dataPool;
+  PoolSP mtdPool;
   std::string inode;
   std::string parentDir;
-  RadosFsFile::OpenMode permissions;
-  RadosFsFile::OpenMode mode;
-  std::tr1::shared_ptr<RadosFsIO> radosFsIO;
+  File::OpenMode permissions;
+  File::OpenMode mode;
+  std::tr1::shared_ptr<FileIO> radosFsIO;
   std::vector<std::string> asyncOps;
   boost::mutex asyncOpsMutex;
 };

@@ -108,14 +108,14 @@ RadosFsTest::AddPool(int numExtraPools)
   }
 }
 
-radosfs::RadosFsFilePriv *
-RadosFsTest::radosFsFilePriv(radosfs::RadosFsFile &file)
+radosfs::FilePriv *
+RadosFsTest::radosFsFilePriv(radosfs::File &file)
 {
   return file.mPriv.get();
 }
 
-radosfs::RadosFsDirPriv *
-RadosFsTest::radosFsDirPriv(radosfs::RadosFsDir &dir)
+radosfs::DirPriv *
+RadosFsTest::radosFsDirPriv(radosfs::Dir &dir)
 {
   return dir.mPriv.get();
 }
@@ -129,8 +129,8 @@ RadosFsTest::createNFiles(size_t numFiles)
   {
     std::ostringstream s;
     s << i;
-    radosfs::RadosFsFile file(&radosFs, dirPath + "file" + s.str(),
-                              radosfs::RadosFsFile::MODE_WRITE);
+    radosfs::File file(&radosFs, dirPath + "file" + s.str(),
+                       radosfs::File::MODE_WRITE);
     int ret = file.create();
     EXPECT_TRUE(ret == 0 || ret == -EEXIST);
   }
@@ -145,8 +145,8 @@ RadosFsTest::removeNFiles(size_t numFiles)
   {
     std::ostringstream s;
     s << i;
-    radosfs::RadosFsFile file(&radosFs, dirPath + "file" + s.str(),
-                              radosfs::RadosFsFile::MODE_WRITE);
+    radosfs::File file(&radosFs, dirPath + "file" + s.str(),
+                       radosfs::File::MODE_WRITE);
     EXPECT_EQ(0, file.remove());
   }
 }
@@ -165,7 +165,7 @@ RadosFsTest::createContentsRecursively(const std::string &prefix,
     int ret;
     std::ostringstream s;
     s << i;
-    radosfs::RadosFsDir dir(&radosFs, prefix + "d" + s.str());
+    radosfs::Dir dir(&radosFs, prefix + "d" + s.str());
 
     if ((ret = dir.create()) == 0)
     {
@@ -183,8 +183,8 @@ RadosFsTest::createContentsRecursively(const std::string &prefix,
     int ret;
     std::ostringstream s;
     s << i;
-    radosfs::RadosFsFile file(&radosFs, prefix + "f" + s.str(),
-                              radosfs::RadosFsFile::MODE_READ_WRITE);
+    radosfs::File file(&radosFs, prefix + "f" + s.str(),
+                       radosfs::File::MODE_READ_WRITE);
 
     if ((ret = file.create()) != 0)
       return ret;
@@ -194,7 +194,7 @@ RadosFsTest::createContentsRecursively(const std::string &prefix,
 }
 
 void
-RadosFsTest::testXAttrInFsInfo(radosfs::RadosFsInfo &info)
+RadosFsTest::testXAttrInFsInfo(radosfs::Info &info)
 {
   // Get the permissions xattr by a unauthorized user
 

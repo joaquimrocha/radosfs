@@ -31,7 +31,7 @@
 class RadosFsChecker
 {
 public:
-  RadosFsChecker(radosfs::RadosFs *radosFs);
+  RadosFsChecker(radosfs::Fs *radosFs);
 
   int check(void);
   void printIssues(void);
@@ -45,7 +45,7 @@ private:
   bool checkPath(const std::string &path);
   void checkDirRecursive(const std::string &path);
 
-  radosfs::RadosFs *mRadosFs;
+  radosfs::Fs *mRadosFs;
   bool mVerbose;
   bool mDry;
   std::map<std::string, std::string> mBrokenLinks;

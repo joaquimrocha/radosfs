@@ -27,7 +27,7 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
-RadosFsDirPriv::RadosFsDirPriv(RadosFsDir *dirObj)
+DirPriv::DirPriv(Dir *dirObj)
   : dir(dirObj),
     target(0),
     cacheable(true)
@@ -35,7 +35,7 @@ RadosFsDirPriv::RadosFsDirPriv(RadosFsDir *dirObj)
   updatePath();
 }
 
-RadosFsDirPriv::RadosFsDirPriv(RadosFsDir *dirObj, bool useCache)
+DirPriv::DirPriv(Dir *dirObj, bool useCache)
   : dir(dirObj),
     target(0),
     cacheable(useCache)
@@ -43,13 +43,13 @@ RadosFsDirPriv::RadosFsDirPriv(RadosFsDir *dirObj, bool useCache)
   updatePath();
 }
 
-RadosFsDirPriv::~RadosFsDirPriv()
+DirPriv::~DirPriv()
 {
   delete target;
 }
 
 void
-RadosFsDirPriv::updatePath()
+DirPriv::updatePath()
 {
   const std::string &dirPath = dir->path();
 
@@ -63,7 +63,7 @@ RadosFsDirPriv::updatePath()
 
   if (dir->isLink())
   {
-    target = new RadosFsDir(dir->filesystem(), dir->targetPath());
+    target = new Dir(dir->filesystem(), dir->targetPath());
   }
   else
   {
@@ -72,7 +72,7 @@ RadosFsDirPriv::updatePath()
 }
 
 bool
-RadosFsDirPriv::updateDirInfoPtr()
+DirPriv::updateDirInfoPtr()
 {
   if (dir->exists() && !dir->isLink() && !dir->isFile())
   {
@@ -89,7 +89,7 @@ RadosFsDirPriv::updateDirInfoPtr()
 }
 
 void
-RadosFsDirPriv::updateFsDirCache()
+DirPriv::updateFsDirCache()
 {
   if (dir->exists())
     dir->filesystem()->mPriv->updateDirCache(dirInfo);
@@ -97,23 +97,20 @@ RadosFsDirPriv::updateFsDirCache()
     dir->filesystem()->mPriv->removeDirCache(dirInfo);
 }
 
-const RadosFsPoolSP
-RadosFsDirPriv::getPool()
+const PoolSP
+DirPriv::getPool()
 {
   return dir->filesystem()->mPriv->getMetadataPoolFromPath(dir->path());
 }
 
 int
-RadosFsDirPriv::makeDirsRecursively(RadosFsStat *stat,
-                                    const char *path,
-                                    uid_t uid,
-                                    gid_t gid)
+DirPriv::makeDirsRecursively(Stat *stat, const char *path, uid_t uid, gid_t gid)
 {
   int index;
   int ret = 0;
   const std::string dirPath = getDirPath(path);
   const std::string parentDir = getParentDir(path, &index);
-  RadosFsPriv *radosFsPriv = dir->filesystem()->mPriv;
+  FsPriv *radosFsPriv = dir->filesystem()->mPriv;
   struct stat *buff;
 
   if (radosFsPriv->stat(dirPath.c_str(), stat) == 0)
@@ -134,7 +131,7 @@ RadosFsDirPriv::makeDirsRecursively(RadosFsStat *stat,
 
   if (ret == 0)
   {
-    RadosFsStat parentStat;
+    Stat parentStat;
     radosFsPriv->stat(parentDir.c_str(), &parentStat);
 
     buff = &stat->statBuff;
@@ -166,7 +163,7 @@ RadosFsDirPriv::makeDirsRecursively(RadosFsStat *stat,
 }
 
 void
-findInThread(RadosFsFinder *finder, FinderData *data, boost::mutex &mutex,
+findInThread(Finder *finder, FinderData *data, boost::mutex &mutex,
              boost::condition_variable &cond)
 {
   int ret = finder->find(data);
@@ -189,9 +186,8 @@ findInThread(RadosFsFinder *finder, FinderData *data, boost::mutex &mutex,
 }
 
 int
-RadosFsDirPriv::find(std::set<std::string> &entries,
-                     std::set<std::string> &results,
-                     const std::map<RadosFsFinder::FindOptions, FinderArg> &args)
+DirPriv::find(std::set<std::string> &entries, std::set<std::string> &results,
+              const std::map<Finder::FindOptions, FinderArg> &args)
 {
   int ret = 0;
   boost::mutex mutex;
@@ -199,7 +195,7 @@ RadosFsDirPriv::find(std::set<std::string> &entries,
 
   int numRelatedJobs = 0;
   std::set<std::string>::iterator it;
-  RadosFsFinder finder(dir->filesystem());
+  Finder finder(dir->filesystem());
   std::vector<FinderData *> jobs;
 
   for (it = entries.begin(); it != entries.end(); it++)
@@ -252,21 +248,20 @@ RadosFsDirPriv::find(std::set<std::string> &entries,
   return ret;
 }
 
-RadosFsStat *
-RadosFsDirPriv::fsStat(void)
+Stat *
+DirPriv::fsStat(void)
 {
-  return reinterpret_cast<RadosFsStat *>(dir->fsStat());
+  return reinterpret_cast<Stat *>(dir->fsStat());
 }
 
-RadosFsPriv *
-RadosFsDirPriv::radosFsPriv(void)
+FsPriv *
+DirPriv::radosFsPriv(void)
 {
   return dir->filesystem()->mPriv;
 }
 
 int
-RadosFsDirPriv::moveDirTreeObjects(const RadosFsStat *oldDir,
-                                   const RadosFsStat *newDir)
+DirPriv::moveDirTreeObjects(const Stat *oldDir, const Stat *newDir)
 {
   if (dirInfo || updateDirInfoPtr())
   {
@@ -281,8 +276,8 @@ RadosFsDirPriv::moveDirTreeObjects(const RadosFsStat *oldDir,
 
       if (entry != "" && entry[entry.length() - 1] == PATH_SEP)
       {
-        RadosFsStat oldSubDir, newSubDir;
-        RadosFsDir subDir(dir->filesystem(), dir->path() + entry, false);
+        Stat oldSubDir, newSubDir;
+        Dir subDir(dir->filesystem(), dir->path() + entry, false);
 
         oldSubDir = *subDir.mPriv->fsStat();
         newSubDir = oldSubDir;
@@ -308,10 +303,10 @@ RadosFsDirPriv::moveDirTreeObjects(const RadosFsStat *oldDir,
 }
 
 int
-RadosFsDirPriv::rename(const std::string &destination)
+DirPriv::rename(const std::string &destination)
 {
   int index;
-  RadosFsStat stat, oldStat, parentStat;
+  Stat stat, oldStat, parentStat;
   std::string destParent = getParentDir(destination, &index);
   std::string realParentPath;
   std::string baseName;
@@ -387,8 +382,8 @@ RadosFsDirPriv::rename(const std::string &destination)
   if (ret != 0)
     return ret;
 
-  RadosFsStat *oldParentStat =
-      reinterpret_cast<RadosFsStat *>(dir->parentFsStat());
+  Stat *oldParentStat =
+      reinterpret_cast<Stat *>(dir->parentFsStat());
 
   ret = indexObject(oldParentStat, &oldStat, '-');
 
@@ -408,33 +403,33 @@ RadosFsDirPriv::rename(const std::string &destination)
   return ret;
 }
 
-RadosFsDir::RadosFsDir(RadosFs *radosFs, const std::string &path)
-  : RadosFsInfo(radosFs, getDirPath(path.c_str())),
-    mPriv(new RadosFsDirPriv(this))
+Dir::Dir(Fs *radosFs, const std::string &path)
+  : Info(radosFs, getDirPath(path.c_str())),
+    mPriv(new DirPriv(this))
 {}
 
-RadosFsDir::RadosFsDir(const RadosFsDir &otherDir)
-  : RadosFsInfo(otherDir),
-    mPriv(new RadosFsDirPriv(this))
+Dir::Dir(const Dir &otherDir)
+  : Info(otherDir),
+    mPriv(new DirPriv(this))
 {}
 
-RadosFsDir::RadosFsDir(const RadosFsDir *otherDir)
-  : RadosFsInfo(*otherDir),
-    mPriv(new RadosFsDirPriv(this))
+Dir::Dir(const Dir *otherDir)
+  : Info(*otherDir),
+    mPriv(new DirPriv(this))
 {}
 
-RadosFsDir::RadosFsDir(RadosFs *radosFs,
-                       const std::string &path,
-                       bool cacheable)
-  : RadosFsInfo(radosFs, getDirPath(path.c_str())),
-    mPriv(new RadosFsDirPriv(this, cacheable))
+Dir::Dir(Fs *radosFs,
+         const std::string &path,
+         bool cacheable)
+  : Info(radosFs, getDirPath(path.c_str())),
+    mPriv(new DirPriv(this, cacheable))
 {}
 
-RadosFsDir::~RadosFsDir()
+Dir::~Dir()
 {}
 
-RadosFsDir &
-RadosFsDir::operator=(const RadosFsDir &otherDir)
+Dir &
+Dir::operator=(const Dir &otherDir)
 {
   if (this != &otherDir)
   {
@@ -445,13 +440,13 @@ RadosFsDir::operator=(const RadosFsDir &otherDir)
 }
 
 std::string
-RadosFsDir::getParent(const std::string &path, int *pos)
+Dir::getParent(const std::string &path, int *pos)
 {
   return getParentDir(path, pos);
 }
 
 int
-RadosFsDir::entryList(std::set<std::string> &entries)
+Dir::entryList(std::set<std::string> &entries)
 {
   if (isFile())
   {
@@ -482,14 +477,14 @@ RadosFsDir::entryList(std::set<std::string> &entries)
 }
 
 int
-RadosFsDir::create(int mode,
-                   bool mkpath,
-                   int owner,
-                   int group)
+Dir::create(int mode,
+            bool mkpath,
+            int owner,
+            int group)
 {
   int ret;
   const std::string &dir = path();
-  RadosFs *radosFs = filesystem();
+  Fs *radosFs = filesystem();
 
   if (exists())
   {
@@ -502,7 +497,7 @@ RadosFsDir::create(int mode,
     return -EEXIST;
   }
 
-  const RadosFsPoolSP pool = mPriv->getPool();
+  const PoolSP pool = mPriv->getPool();
 
   if (!pool)
     return -ENODEV;
@@ -521,7 +516,7 @@ RadosFsDir::create(int mode,
   if (mode >= 0)
     permOctal = mode | S_IFDIR;
 
-  RadosFsStat stat, parentStat;
+  Stat stat, parentStat;
 
   if (mkpath)
   {
@@ -568,7 +563,7 @@ RadosFsDir::create(int mode,
 
   indexObject(&parentStat, &stat, '+');
 
-  RadosFsInfo::update();
+  Info::update();
   mPriv->updateDirInfoPtr();
 
   mPriv->radosFsPriv()->updateTMTime(&stat, &stat.statBuff.st_ctim);
@@ -577,14 +572,14 @@ RadosFsDir::create(int mode,
 }
 
 int
-RadosFsDir::remove()
+Dir::remove()
 {
   int ret;
   const std::string &dirPath = path();
-  RadosFs *radosFs = filesystem();
-  RadosFsStat stat, *statPtr;
+  Fs *radosFs = filesystem();
+  Stat stat, *statPtr;
 
-  RadosFsInfo::update();
+  Info::update();
 
   ret = mPriv->radosFsPriv()->stat(mPriv->parentDir, &stat);
 
@@ -603,7 +598,7 @@ RadosFsDir::remove()
   if (isFile())
     return -ENOTDIR;
 
-  statPtr = reinterpret_cast<RadosFsStat *>(fsStat());
+  statPtr = reinterpret_cast<Stat *>(fsStat());
 
   DirCache *info = 0;
 
@@ -629,7 +624,7 @@ RadosFsDir::remove()
   if (ret == 0)
     indexObject(&stat, statPtr, '-');
 
-  RadosFsInfo::update();
+  Info::update();
 
   if (info)
     mPriv->updateFsDirCache();
@@ -642,9 +637,9 @@ RadosFsDir::remove()
 }
 
 void
-RadosFsDir::update()
+Dir::update()
 {
-  RadosFsInfo::update();
+  Info::update();
 
   if (isLink())
   {
@@ -669,7 +664,7 @@ RadosFsDir::update()
 }
 
 int
-RadosFsDir::entry(int entryIndex, std::string &entry)
+Dir::entry(int entryIndex, std::string &entry)
 {
   if (isFile())
   {
@@ -699,7 +694,7 @@ RadosFsDir::entry(int entryIndex, std::string &entry)
 }
 
 void
-RadosFsDir::setPath(const std::string &path)
+Dir::setPath(const std::string &path)
 {
   const std::string &dirPath = getDirPath(path.c_str());
 
@@ -708,13 +703,13 @@ RadosFsDir::setPath(const std::string &path)
 
   mPriv->dirInfo.reset();
 
-  RadosFsInfo::setPath(dirPath);
+  Info::setPath(dirPath);
 
   mPriv->updatePath();
 }
 
 bool
-RadosFsDir::isWritable()
+Dir::isWritable()
 {
   if (isLink())
   {
@@ -725,7 +720,7 @@ RadosFsDir::isWritable()
     return -ENOLINK;
   }
 
-  RadosFs *radosFs = filesystem();
+  Fs *radosFs = filesystem();
   uid_t uid = radosFs->uid();
   gid_t gid = radosFs->gid();
 
@@ -736,7 +731,7 @@ RadosFsDir::isWritable()
 }
 
 bool
-RadosFsDir::isReadable()
+Dir::isReadable()
 {
   if (isLink())
   {
@@ -747,7 +742,7 @@ RadosFsDir::isReadable()
     return -ENOLINK;
   }
 
-  RadosFs *radosFs = filesystem();
+  Fs *radosFs = filesystem();
   uid_t uid = radosFs->uid();
   gid_t gid = radosFs->gid();
 
@@ -758,20 +753,20 @@ RadosFsDir::isReadable()
 }
 
 int
-RadosFsDir::stat(struct stat *buff)
+Dir::stat(struct stat *buff)
 {
-  return RadosFsInfo::stat(buff);
+  return Info::stat(buff);
 }
 
 
 int
-RadosFsDir::stat(struct stat *buff, timespec *tmtime)
+Dir::stat(struct stat *buff, timespec *tmtime)
 {
   int ret = stat(buff);
 
   if (ret == 0)
   {
-    const RadosFsStat *stat = mPriv->fsStat();
+    const Stat *stat = mPriv->fsStat();
     ret = getTimeFromXAttr(stat, XATTR_TMTIME, tmtime, 0);
 
     if (ret == -ENODATA)
@@ -790,7 +785,7 @@ RadosFsDir::stat(struct stat *buff, timespec *tmtime)
 }
 
 int
-RadosFsDir::compact()
+Dir::compact()
 {
   if (isLink())
   {
@@ -811,9 +806,8 @@ RadosFsDir::compact()
 }
 
 int
-RadosFsDir::setMetadata(const std::string &entry,
-                        const std::string &key,
-                        const std::string &value)
+Dir::setMetadata(const std::string &entry, const std::string &key,
+                 const std::string &value)
 {
   if (isLink())
   {
@@ -855,9 +849,8 @@ RadosFsDir::setMetadata(const std::string &entry,
 }
 
 int
-RadosFsDir::getMetadata(const std::string &entry,
-                        const std::string &key,
-                        std::string &value)
+Dir::getMetadata(const std::string &entry, const std::string &key,
+                 std::string &value)
 {
   if (isLink())
   {
@@ -885,7 +878,7 @@ RadosFsDir::getMetadata(const std::string &entry,
 }
 
 int
-RadosFsDir::removeMetadata(const std::string &entry, const std::string &key)
+Dir::removeMetadata(const std::string &entry, const std::string &key)
 {
   if (isLink())
   {
@@ -932,7 +925,7 @@ RadosFsDir::removeMetadata(const std::string &entry, const std::string &key)
 }
 
 int
-RadosFsDir::find(std::set<std::string> &results, const std::string args)
+Dir::find(std::set<std::string> &results, const std::string args)
 {
   if (isLink())
   {
@@ -945,7 +938,7 @@ RadosFsDir::find(std::set<std::string> &results, const std::string args)
 
   int ret = 0;
   std::set<std::string> dirs, files, entries;
-  std::map<RadosFsFinder::FindOptions, FinderArg> finderArgs;
+  std::map<Finder::FindOptions, FinderArg> finderArgs;
 
   entries.insert(path());
 
@@ -959,17 +952,17 @@ RadosFsDir::find(std::set<std::string> &results, const std::string args)
 
     FinderArg arg;
     arg.valueStr = "";
-    RadosFsFinder::FindOptions option  = RadosFsFinder::FIND_NAME_EQ;
+    Finder::FindOptions option  = Finder::FIND_NAME_EQ;
 
     bool isIName = key == FINDER_KEY_INAME;
     if (key == FINDER_KEY_NAME || isIName)
     {
       arg.valueStr = value;
 
-      option = RadosFsFinder::FIND_NAME_EQ;
+      option = Finder::FIND_NAME_EQ;
 
       if (op == FINDER_NE_SYM)
-        option = RadosFsFinder::FIND_NAME_NE;
+        option = Finder::FIND_NAME_NE;
 
       if (isIName)
         arg.valueInt = 1;
@@ -981,17 +974,17 @@ RadosFsDir::find(std::set<std::string> &results, const std::string args)
       arg.valueInt = atoi(value.c_str());
 
       if (op == FINDER_EQ_SYM)
-        option = RadosFsFinder::FIND_SIZE_EQ;
+        option = Finder::FIND_SIZE_EQ;
       else if (op == FINDER_NE_SYM)
-        option = RadosFsFinder::FIND_SIZE_NE;
+        option = Finder::FIND_SIZE_NE;
       else if (op == FINDER_GE_SYM)
-        option = RadosFsFinder::FIND_SIZE_GE;
+        option = Finder::FIND_SIZE_GE;
       else if (op == FINDER_GT_SYM)
-        option = RadosFsFinder::FIND_SIZE_GT;
+        option = Finder::FIND_SIZE_GT;
       else if (op == FINDER_LE_SYM)
-        option = RadosFsFinder::FIND_SIZE_LE;
+        option = Finder::FIND_SIZE_LE;
       else if (op == FINDER_LT_SYM)
-        option = RadosFsFinder::FIND_SIZE_LT;
+        option = Finder::FIND_SIZE_LT;
     }
 
     finderArgs[option] = arg;
@@ -1011,7 +1004,7 @@ RadosFsDir::find(std::set<std::string> &results, const std::string args)
 }
 
 int
-RadosFsDir::chmod(long int permissions)
+Dir::chmod(long int permissions)
 {
   if (isLink())
   {
@@ -1030,8 +1023,8 @@ RadosFsDir::chmod(long int permissions)
 
   mode = permissions | S_IFDIR;
 
-  RadosFsStat stat = *reinterpret_cast<RadosFsStat *>(fsStat());
-  RadosFsStat *parentStat = reinterpret_cast<RadosFsStat *>(parentFsStat());
+  Stat stat = *reinterpret_cast<Stat *>(fsStat());
+  Stat *parentStat = reinterpret_cast<Stat *>(parentFsStat());
 
   if (isLink())
   {
@@ -1063,7 +1056,7 @@ RadosFsDir::chmod(long int permissions)
 }
 
 int
-RadosFsDir::rename(const std::string &newName)
+Dir::rename(const std::string &newName)
 {
   if (!exists())
     return -ENOENT;
@@ -1087,11 +1080,11 @@ RadosFsDir::rename(const std::string &newName)
 }
 
 int
-RadosFsDir::useTMTime(bool useTMTime)
+Dir::useTMTime(bool useTMTime)
 {
   mode_t mode;
   librados::bufferlist permissionsXattr;
-  RadosFsStat stat = *reinterpret_cast<RadosFsStat *>(fsStat());
+  Stat stat = *reinterpret_cast<Stat *>(fsStat());
 
   if (useTMTime)
     mode = stat.statBuff.st_mode | TMTIME_MASK;
@@ -1108,9 +1101,9 @@ RadosFsDir::useTMTime(bool useTMTime)
 }
 
 bool
-RadosFsDir::usingTMTime()
+Dir::usingTMTime()
 {
-  RadosFsStat stat = *reinterpret_cast<RadosFsStat *>(fsStat());
+  Stat stat = *reinterpret_cast<Stat *>(fsStat());
 
   return hasTMTimeEnabled(stat.statBuff.st_mode);
 }

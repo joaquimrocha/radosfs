@@ -28,17 +28,17 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
-class RadosFsDir;
+class Dir;
 
-class RadosFsDirPriv
+class DirPriv
 {
 public:
-  RadosFsDirPriv(RadosFsDir *dirObj);
-  RadosFsDirPriv(RadosFsDir *dirObj, bool cacheable);
+  DirPriv(Dir *dirObj);
+  DirPriv(Dir *dirObj, bool cacheable);
 
-  virtual ~RadosFsDirPriv();
+  virtual ~DirPriv();
 
-  int makeDirsRecursively(RadosFsStat *buff,
+  int makeDirsRecursively(Stat *buff,
                           const char *path,
                           uid_t uid,
                           gid_t gid);
@@ -47,24 +47,24 @@ public:
 
   bool updateDirInfoPtr(void);
 
-  const RadosFsPoolSP getPool(void);
+  const PoolSP getPool(void);
 
-  RadosFsStat *fsStat(void);
+  Stat *fsStat(void);
 
   void updateFsDirCache();
 
   int find(std::set<std::string> &entries,
            std::set<std::string> &results,
-           const std::map<RadosFsFinder::FindOptions, FinderArg> &args);
+           const std::map<Finder::FindOptions, FinderArg> &args);
 
-  RadosFsPriv *radosFsPriv(void);
+  FsPriv *radosFsPriv(void);
 
   int rename(const std::string &newName);
 
-  int moveDirTreeObjects(const RadosFsStat *oldDir, const RadosFsStat *newDir);
+  int moveDirTreeObjects(const Stat *oldDir, const Stat *newDir);
 
-  RadosFsDir *dir;
-  RadosFsDir *target;
+  Dir *dir;
+  Dir *target;
   std::string parentDir;
   std::tr1::shared_ptr<DirCache> dirInfo;
   bool cacheable;

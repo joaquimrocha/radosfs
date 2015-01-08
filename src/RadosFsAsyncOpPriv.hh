@@ -29,11 +29,11 @@ RADOS_FS_BEGIN_NAMESPACE
 
 typedef std::vector<librados::AioCompletion *> CompletionList;
 
-class RadosFsAsyncOpPriv
+class AyncOpPriv
 {
 public:
-  RadosFsAsyncOpPriv(const std::string &id);
-  ~RadosFsAsyncOpPriv(void);
+  AyncOpPriv(const std::string &id);
+  ~AyncOpPriv(void);
 
   int waitForCompletion(void);
   void addCompletion(librados::AioCompletion *comp);

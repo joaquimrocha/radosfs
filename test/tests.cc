@@ -52,14 +52,14 @@ TEST_F(RadosFsTest, Pools)
 
   EXPECT_GT(allPools.size(), 0);
 
-  radosfs::RadosFsFile file(&radosFs,
-                            "/file",
-                            radosfs::RadosFsFile::MODE_READ_WRITE);
+  radosfs::File file(&radosFs,
+                     "/file",
+                     radosfs::File::MODE_READ_WRITE);
 
   EXPECT_EQ(-ENODEV, file.create());
 
-  radosfs::RadosFsDir dir(&radosFs,
-                          "/dir");
+  radosfs::Dir dir(&radosFs,
+                   "/dir");
 
   EXPECT_EQ(-ENODEV, dir.create());
 
@@ -103,8 +103,8 @@ TEST_F(RadosFsTest, Pools)
 
   // Create a dir and check if it got into the data pool
 
-  RadosFsStat stat;
-  RadosFsPoolSP dataPool, mtdPool;
+  Stat stat;
+  PoolSP dataPool, mtdPool;
 
   mtdPool = radosFsPriv()->getMetadataPoolFromPath(dir.path());
 
@@ -177,7 +177,7 @@ TEST_F(RadosFsTest, CharacterConsistency)
 
   std::string path = "no-slash";
 
-  radosfs::RadosFsDir otherDir(&radosFs, path);
+  radosfs::Dir otherDir(&radosFs, path);
 
   EXPECT_EQ("/" + path + "/", otherDir.path());
 
@@ -196,7 +196,7 @@ TEST_F(RadosFsTest, CharacterConsistency)
 
   EXPECT_EQ('/' + path + '/', otherDir.path());
 
-  radosfs::RadosFsDir rootDir(&radosFs, "/");
+  radosfs::Dir rootDir(&radosFs, "/");
   rootDir.update();
 
   std::set<std::string> entries;
@@ -217,7 +217,7 @@ TEST_F(RadosFsTest, PathsLength)
 
   // Create a file with that path
 
-  radosfs::RadosFsFile file(&radosFs, longString);
+  radosfs::File file(&radosFs, longString);
 
   EXPECT_EQ(0, file.create());
 
@@ -244,7 +244,7 @@ TEST_F(RadosFsTest, PathsLength)
 
   // Get the entries in the root directory
 
-  radosfs::RadosFsDir dir(&radosFs, "/");
+  radosfs::Dir dir(&radosFs, "/");
   dir.update();
 
   std::set<std::string> entries;
@@ -266,7 +266,7 @@ TEST_F(RadosFsTest, PathsLength)
 
   EXPECT_EQ(0, file.remove());
 
-  radosfs::RadosFsDir otherDir(&radosFs, "");
+  radosfs::Dir otherDir(&radosFs, "");
 
   EXPECT_THROW(otherDir.setPath(longString), std::invalid_argument);
 
@@ -301,7 +301,7 @@ TEST_F(RadosFsTest, CreateDir)
 
   // Create dir without existing parent
 
-  radosfs::RadosFsDir subDir(&radosFs, "/testdir/testsubdir");
+  radosfs::Dir subDir(&radosFs, "/testdir/testsubdir");
 
   EXPECT_NE(0, subDir.create());
 
@@ -309,7 +309,7 @@ TEST_F(RadosFsTest, CreateDir)
 
   // Create dir from path without ending in /
 
-  radosfs::RadosFsDir dir(&radosFs, "/testdir");
+  radosfs::Dir dir(&radosFs, "/testdir");
 
   std::string path(dir.path());
 
@@ -339,13 +339,13 @@ TEST_F(RadosFsTest, CreateDir)
 
   // Check path when empty string is given
 
-  dir = radosfs::RadosFsDir(&radosFs, "");
+  dir = radosfs::Dir(&radosFs, "");
 
   EXPECT_EQ("/", dir.path());
 
   // Create dir when file with same name exists
 
-  radosfs::RadosFsFile file(&radosFs, "/test", radosfs::RadosFsFile::MODE_WRITE);
+  radosfs::File file(&radosFs, "/test", radosfs::File::MODE_WRITE);
   EXPECT_EQ(0, file.create());
 
   dir.setPath("/test");
@@ -372,10 +372,10 @@ TEST_F(RadosFsTest, RemoveDir)
 {
   AddPool();
 
-  radosfs::RadosFsDir dir(&radosFs, "/testdir");
+  radosfs::Dir dir(&radosFs, "/testdir");
   EXPECT_EQ(0, dir.create());
 
-  radosfs::RadosFsDir subDir(&radosFs, "/testdir/testsubdir");
+  radosfs::Dir subDir(&radosFs, "/testdir/testsubdir");
   EXPECT_EQ(0, subDir.create());
 
   // Remove non-empty dir
@@ -400,13 +400,13 @@ TEST_F(RadosFsTest, DirParent)
 {
   AddPool();
 
-  radosfs::RadosFsDir dir(&radosFs, "/testdir");
+  radosfs::Dir dir(&radosFs, "/testdir");
 
-  std::string parent = radosfs::RadosFsDir::getParent(dir.path());
+  std::string parent = radosfs::Dir::getParent(dir.path());
 
   EXPECT_EQ("/", parent);
 
-  parent = radosfs::RadosFsDir::getParent("");
+  parent = radosfs::Dir::getParent("");
 
   EXPECT_EQ("", parent);
 }
@@ -419,8 +419,8 @@ TEST_F(RadosFsTest, CreateFile)
 
   // Create regular file
 
-  radosfs::RadosFsFile file(&radosFs, "/testfile",
-                            radosfs::RadosFsFile::MODE_WRITE);
+  radosfs::File file(&radosFs, "/testfile",
+                     radosfs::File::MODE_WRITE);
 
   EXPECT_FALSE(file.exists());
 
@@ -434,7 +434,7 @@ TEST_F(RadosFsTest, CreateFile)
 
   // Create file when dir with same name exists
 
-  radosfs::RadosFsDir dir(&radosFs, "/test");
+  radosfs::Dir dir(&radosFs, "/test");
 
   EXPECT_EQ(0, dir.create());
 
@@ -450,8 +450,8 @@ TEST_F(RadosFsTest, CreateFile)
 
   EXPECT_NE('/', path[path.length() - 1]);
 
-  radosfs::RadosFsFile otherFile(&radosFs, "/testfile/",
-                                 radosfs::RadosFsFile::MODE_WRITE);
+  radosfs::File otherFile(&radosFs, "/testfile/",
+                          radosfs::File::MODE_WRITE);
 
   path = otherFile.path();
 
@@ -459,13 +459,13 @@ TEST_F(RadosFsTest, CreateFile)
 
   // Check the shared pointer use
 
-  radosfs::RadosFsFilePriv *filePriv = radosFsFilePriv(otherFile);
+  radosfs::FilePriv *filePriv = radosFsFilePriv(otherFile);
 
-  EXPECT_TRUE(radosfs::RadosFsIO::hasSingleClient(filePriv->radosFsIO));
+  EXPECT_TRUE(radosfs::FileIO::hasSingleClient(filePriv->radosFsIO));
 
   file.setPath(otherFile.path());
 
-  EXPECT_FALSE(radosfs::RadosFsIO::hasSingleClient(filePriv->radosFsIO));
+  EXPECT_FALSE(radosfs::FileIO::hasSingleClient(filePriv->radosFsIO));
 
   otherFile.setPath("/file-in-different-pool");
 
@@ -473,7 +473,7 @@ TEST_F(RadosFsTest, CreateFile)
 
   EXPECT_EQ(0, otherFile.create(-1, poolName));
 
-  RadosFsStat stat;
+  Stat stat;
 
   EXPECT_EQ(0, radosFsPriv()->stat(otherFile.path(), &stat));
 
@@ -486,8 +486,8 @@ TEST_F(RadosFsTest, CreateFile)
   // Instance one file when it doesn't exist and create it when it has been
   // already created from a different instance
 
-  radosfs::RadosFsFile newFile(&radosFs, "/file");
-  radosfs::RadosFsFile sameFile(&radosFs, newFile.path());
+  radosfs::File newFile(&radosFs, "/file");
+  radosfs::File sameFile(&radosFs, newFile.path());
 
   EXPECT_EQ(0, newFile.create());
 
@@ -510,8 +510,8 @@ TEST_F(RadosFsTest, RemoveFile)
 {
   AddPool();
 
-  radosfs::RadosFsFile file(&radosFs, "/testfile",
-                            radosfs::RadosFsFile::MODE_WRITE);
+  radosfs::File file(&radosFs, "/testfile",
+                     radosfs::File::MODE_WRITE);
 
   EXPECT_NE(0, file.remove());
 
@@ -521,13 +521,13 @@ TEST_F(RadosFsTest, RemoveFile)
 
   EXPECT_FALSE(file.exists());
 
-  radosfs::RadosFsFile *file1, *file2;
+  radosfs::File *file1, *file2;
 
-  file1 = new radosfs::RadosFsFile(&radosFs, "/testfile1",
-                                   radosfs::RadosFsFile::MODE_WRITE);
+  file1 = new radosfs::File(&radosFs, "/testfile1",
+                            radosfs::File::MODE_WRITE);
 
-  file2 = new radosfs::RadosFsFile(&radosFs, file1->path(),
-                                   radosfs::RadosFsFile::MODE_WRITE);
+  file2 = new radosfs::File(&radosFs, file1->path(),
+                            radosfs::File::MODE_WRITE);
 
   EXPECT_EQ(0, file1->create());
 
@@ -587,8 +587,8 @@ TEST_F(RadosFsTest, CreateFileInDir)
 
   // Create file in nonexisting dir
 
-  radosfs::RadosFsFile file(&radosFs, "/testdir/testfile",
-                            radosfs::RadosFsFile::MODE_WRITE);
+  radosfs::File file(&radosFs, "/testdir/testfile",
+                     radosfs::File::MODE_WRITE);
 
   EXPECT_NE(0, file.create());
 
@@ -596,7 +596,7 @@ TEST_F(RadosFsTest, CreateFileInDir)
 
   // Create file in existing dir
 
-  radosfs::RadosFsDir dir(&radosFs, radosfs::RadosFsDir::getParent(file.path()).c_str());
+  radosfs::Dir dir(&radosFs, radosfs::Dir::getParent(file.path()).c_str());
 
   EXPECT_EQ(0, dir.create());
 
@@ -613,7 +613,7 @@ TEST_F(RadosFsTest, DirPermissions)
 
   // Create dir with owner
 
-  radosfs::RadosFsDir dir(&radosFs, "/userdir");
+  radosfs::Dir dir(&radosFs, "/userdir");
   EXPECT_EQ(0, dir.create((S_IRWXU | S_IRGRP | S_IROTH), false, TEST_UID, TEST_GID));
 
   EXPECT_TRUE(dir.isWritable());
@@ -626,7 +626,7 @@ TEST_F(RadosFsTest, DirPermissions)
 
   // Create dir by owner in a not writable path
 
-  radosfs::RadosFsDir subDir(&radosFs, "/testdir");
+  radosfs::Dir subDir(&radosFs, "/testdir");
 
   EXPECT_EQ(-EACCES, subDir.create());
 
@@ -703,7 +703,7 @@ TEST_F(RadosFsTest, FilePermissions)
 
   // Create file by root
 
-  radosfs::RadosFsDir dir(&radosFs, "/userdir");
+  radosfs::Dir dir(&radosFs, "/userdir");
 
   EXPECT_EQ(0, dir.create((S_IRWXU | S_IRGRP | S_IROTH), false, TEST_UID, TEST_GID));
 
@@ -711,8 +711,8 @@ TEST_F(RadosFsTest, FilePermissions)
 
   // Create file by non-root in a not writable path
 
-  radosfs::RadosFsFile file(&radosFs, "/userfile",
-                            radosfs::RadosFsFile::MODE_WRITE);
+  radosfs::File file(&radosFs, "/userfile",
+                     radosfs::File::MODE_WRITE);
   EXPECT_EQ(-EACCES, file.create());
 
   // Create file by non-root in a writable path
@@ -729,8 +729,8 @@ TEST_F(RadosFsTest, FilePermissions)
 
   // Create file in another owner's folder
 
-  radosfs::RadosFsFile otherFile(&radosFs, dir.path() + "otheruserfile",
-                                 radosfs::RadosFsFile::MODE_WRITE);
+  radosfs::File otherFile(&radosFs, dir.path() + "otheruserfile",
+                          radosfs::File::MODE_WRITE);
   EXPECT_EQ(-EACCES, otherFile.create());
 
   // Remove file by owner
@@ -741,15 +741,15 @@ TEST_F(RadosFsTest, FilePermissions)
 
   // Create file by owner and readable by others
 
-  file = radosfs::RadosFsFile(&radosFs, dir.path() + "userfile");
+  file = radosfs::File(&radosFs, dir.path() + "userfile");
   EXPECT_EQ(0, file.create());
 
   radosFs.setIds(TEST_UID + 1, TEST_GID + 1);
 
   // Check if file is readable by non-owner
 
-  otherFile = radosfs::RadosFsFile(&radosFs, file.path(),
-                                   radosfs::RadosFsFile::MODE_READ);
+  otherFile = radosfs::File(&radosFs, file.path(),
+                            radosfs::File::MODE_READ);
 
   EXPECT_TRUE(otherFile.isReadable());
 
@@ -818,7 +818,7 @@ TEST_F(RadosFsTest, DirContents)
 
   // Create dir and check entries
 
-  radosfs::RadosFsDir dir(&radosFs, "/userdir");
+  radosfs::Dir dir(&radosFs, "/userdir");
 
   EXPECT_EQ(0, dir.create());
 
@@ -830,8 +830,8 @@ TEST_F(RadosFsTest, DirContents)
 
   // Create file in dir and check entries
 
-  radosfs::RadosFsFile file(&radosFs, dir.path() + "userfile",
-                            radosfs::RadosFsFile::MODE_WRITE);
+  radosfs::File file(&radosFs, dir.path() + "userfile",
+                     radosfs::File::MODE_WRITE);
 
   EXPECT_EQ(0, file.create());
 
@@ -847,7 +847,7 @@ TEST_F(RadosFsTest, DirContents)
 
   // Try to create file with an existing path and check entries
 
-  radosfs::RadosFsFile sameFile(file);
+  radosfs::File sameFile(file);
 
   EXPECT_EQ(-EEXIST, sameFile.create());
 
@@ -863,8 +863,8 @@ TEST_F(RadosFsTest, DirContents)
 
   const std::string &otherFileName("userfile1");
 
-  radosfs::RadosFsFile otherFile(&radosFs, dir.path() + otherFileName,
-                                 radosfs::RadosFsFile::MODE_WRITE);
+  radosfs::File otherFile(&radosFs, dir.path() + otherFileName,
+                          radosfs::File::MODE_WRITE);
 
   EXPECT_EQ(0, otherFile.create());
 
@@ -880,7 +880,7 @@ TEST_F(RadosFsTest, DirContents)
 
   const std::string &subDirName("subdir");
 
-  radosfs::RadosFsDir subDir(&radosFs, dir.path() + subDirName);
+  radosfs::Dir subDir(&radosFs, dir.path() + subDirName);
 
   EXPECT_EQ(0, subDir.create());
 
@@ -894,7 +894,7 @@ TEST_F(RadosFsTest, DirContents)
 
   // Try to create a subdir with an existing path and check entries
 
-  radosfs::RadosFsDir sameSubDir(subDir);
+  radosfs::Dir sameSubDir(subDir);
 
   EXPECT_EQ(0, sameSubDir.create(-1, true));
 
@@ -929,8 +929,8 @@ TEST_F(RadosFsTest, DirContents)
 
   // Create file and write to it
 
-  file = radosfs::RadosFsFile(&radosFs, "/my-file",
-                              radosfs::RadosFsFile::MODE_READ_WRITE);
+  file = radosfs::File(&radosFs, "/my-file",
+                       radosfs::File::MODE_READ_WRITE);
 
   EXPECT_EQ(0, file.create());
 
@@ -973,10 +973,10 @@ TEST_F(RadosFsTest, FileInode)
 {
   AddPool();
 
-  RadosFsStat stat;
+  Stat stat;
   const std::string fileName("/test");
 
-  radosfs::RadosFsFile file(&radosFs, fileName);
+  radosfs::File file(&radosFs, fileName);
 
   EXPECT_EQ(0, file.create());
 
@@ -1019,8 +1019,8 @@ TEST_F(RadosFsTest, FileTruncate)
 
   // Create a file and truncate it to the content's size
 
-  radosfs::RadosFsFile file(&radosFs, fileName,
-                            radosfs::RadosFsFile::MODE_WRITE);
+  radosfs::File file(&radosFs, fileName,
+                     radosfs::File::MODE_WRITE);
 
   EXPECT_EQ(0, file.create());
 
@@ -1036,8 +1036,8 @@ TEST_F(RadosFsTest, FileTruncate)
 
   // Create a new instance of the same file and check the size
 
-  radosfs::RadosFsFile sameFile(&radosFs, fileName,
-                                radosfs::RadosFsFile::MODE_READ);
+  radosfs::File sameFile(&radosFs, fileName,
+                         radosfs::File::MODE_READ);
 
   struct stat buff;
 
@@ -1103,8 +1103,8 @@ TEST_F(RadosFsTest, FileReadWrite)
   const std::string fileName("/test");
   const std::string contents("this is a test");
 
-  radosfs::RadosFsFile file(&radosFs, fileName,
-                            radosfs::RadosFsFile::MODE_READ_WRITE);
+  radosfs::File file(&radosFs, fileName,
+                     radosfs::File::MODE_READ_WRITE);
 
   EXPECT_EQ(0, file.create());
 
@@ -1129,8 +1129,8 @@ TEST_F(RadosFsTest, FileReadWrite)
 
   // Verify size with stat
 
-  radosfs::RadosFsFile sameFile(&radosFs, fileName,
-                                radosfs::RadosFsFile::MODE_READ);
+  radosfs::File sameFile(&radosFs, fileName,
+                         radosfs::File::MODE_READ);
 
   struct stat statBuff;
 
@@ -1220,7 +1220,7 @@ TEST_F(RadosFsTest, RenameFile)
   std::string originalPath("/my-file");
   std::string path("/moved-file");
 
-  radosfs::RadosFsFile file(&radosFs, originalPath);
+  radosfs::File file(&radosFs, originalPath);
 
   // Rename file that doesn't exist
 
@@ -1246,7 +1246,7 @@ TEST_F(RadosFsTest, RenameFile)
 
   // Create a user directory
 
-  radosfs::RadosFsDir userDir(&radosFs, "/user-dir");
+  radosfs::Dir userDir(&radosFs, "/user-dir");
 
   EXPECT_EQ(0, userDir.create(-1, false, TEST_UID, TEST_GID));
 
@@ -1272,7 +1272,7 @@ TEST_F(RadosFsTest, RenameFile)
 
   EXPECT_EQ(0, file.rename(path));
 
-  radosfs::RadosFsFile sameFile(&radosFs, path);
+  radosfs::File sameFile(&radosFs, path);
 
   EXPECT_TRUE(sameFile.exists());
 
@@ -1330,7 +1330,7 @@ typedef enum {
 
 struct FsActionInfo
 {
-  radosfs::RadosFs *fs;
+  radosfs::Fs *fs;
   FsActionType actionType;
   std::string path;
   std::string action;
@@ -1340,7 +1340,7 @@ struct FsActionInfo
   pthread_mutex_t *mutex;
   pthread_cond_t *cond;
 
-  FsActionInfo(radosfs::RadosFs *radosFs,
+  FsActionInfo(radosfs::Fs *radosFs,
                FsActionType actionType,
                const std::string &path,
                std::string action,
@@ -1364,14 +1364,14 @@ void
 runFileActionInThread(FsActionInfo *actionInfo)
 {
   bool useMutex = actionInfo->mutex != 0;
-  radosfs::RadosFs *fs = actionInfo->fs;
+  radosfs::Fs *fs = actionInfo->fs;
 
   if (useMutex)
     pthread_mutex_lock(actionInfo->mutex);
 
-  radosfs::RadosFsFile file(fs,
-                            actionInfo->path,
-                            radosfs::RadosFsFile::MODE_READ_WRITE);
+  radosfs::File file(fs,
+                     actionInfo->path,
+                     radosfs::File::MODE_READ_WRITE);
 
   actionInfo->started = true;
 
@@ -1395,12 +1395,12 @@ void
 runDirActionInThread(FsActionInfo *actionInfo)
 {
   bool useMutex = actionInfo->mutex != 0;
-  radosfs::RadosFs *fs = actionInfo->fs;
+  radosfs::Fs *fs = actionInfo->fs;
 
   if (useMutex)
     pthread_mutex_lock(actionInfo->mutex);
 
-  radosfs::RadosFsDir dir(fs, actionInfo->path);
+  radosfs::Dir dir(fs, actionInfo->path);
 
   actionInfo->started = true;
 
@@ -1461,7 +1461,7 @@ TEST_F(RadosFsTest, FileOpsMultipleClients)
   radosFs.addDataPool(TEST_POOL, "/", 50 * 1024);
   radosFs.addMetadataPool(TEST_POOL, "/");
 
-  radosfs::RadosFs otherClient;
+  radosfs::Fs otherClient;
   otherClient.init("", conf());
 
   otherClient.addDataPool(TEST_POOL, "/", 50 * 1024);
@@ -1476,9 +1476,9 @@ TEST_F(RadosFsTest, FileOpsMultipleClients)
 
   char *contents = new char[size];
 
-  radosfs::RadosFsFile file(&radosFs,
-                            "/file",
-                            radosfs::RadosFsFile::MODE_READ_WRITE);
+  radosfs::File file(&radosFs,
+                     "/file",
+                     radosfs::File::MODE_READ_WRITE);
 
   EXPECT_EQ(0, file.create());
 
@@ -1619,7 +1619,7 @@ TEST_F(RadosFsTest, DirOpsMultipleClients)
 
   // Create another RadosFs instance to be used as a different client
 
-  radosfs::RadosFs otherClient;
+  radosfs::Fs otherClient;
   otherClient.init("", conf());
 
   otherClient.addDataPool(TEST_POOL, "/", 50 * 1024);
@@ -1627,8 +1627,8 @@ TEST_F(RadosFsTest, DirOpsMultipleClients)
 
   // Create the same directory from both clients
 
-  radosfs::RadosFsDir cli1DirInst(&radosFs, "/dir");
-  radosfs::RadosFsDir cli2DirInst(&otherClient, "/dir");
+  radosfs::Dir cli1DirInst(&radosFs, "/dir");
+  radosfs::Dir cli2DirInst(&otherClient, "/dir");
 
   EXPECT_EQ(0, cli1DirInst.create());
   EXPECT_EQ(-EEXIST, cli2DirInst.create());
@@ -1738,7 +1738,7 @@ TEST_F(RadosFsTest, XAttrs)
 
   // Create a folder for the user
 
-  radosfs::RadosFsDir dir(&radosFs, "/user");
+  radosfs::Dir dir(&radosFs, "/user");
   EXPECT_EQ(0, dir.create((S_IRWXU | S_IRGRP | S_IROTH), false, TEST_UID, TEST_GID));
 
   const std::string &fileName(dir.path() + "file");
@@ -1747,8 +1747,8 @@ TEST_F(RadosFsTest, XAttrs)
 
   // Create a file for the xattrs
 
-  radosfs::RadosFsFile file(&radosFs, fileName,
-                            radosfs::RadosFsFile::MODE_READ_WRITE);
+  radosfs::File file(&radosFs, fileName,
+                     radosfs::File::MODE_READ_WRITE);
 
   EXPECT_EQ(0, file.create((S_IRWXU | S_IRGRP | S_IROTH)));
 
@@ -1833,7 +1833,7 @@ TEST_F(RadosFsTest, XAttrsInInfo)
 {
   AddPool();
 
-  radosfs::RadosFsDir dir(&radosFs, "/user");
+  radosfs::Dir dir(&radosFs, "/user");
 
   EXPECT_EQ(0, dir.create((S_IRWXU | S_IRGRP | S_IROTH),
                           false, TEST_UID, TEST_GID));
@@ -1844,8 +1844,8 @@ TEST_F(RadosFsTest, XAttrsInInfo)
 
   // Create a file for the xattrs
 
-  radosfs::RadosFsFile file(&radosFs, dir.path() + "file",
-                            radosfs::RadosFsFile::MODE_READ_WRITE);
+  radosfs::File file(&radosFs, dir.path() + "file",
+                     radosfs::File::MODE_READ_WRITE);
 
   EXPECT_EQ(0, file.create((S_IRWXU | S_IRGRP | S_IROTH)));
 
@@ -1868,7 +1868,7 @@ TEST_F(RadosFsTest, DirCache)
 
   // Instantiate a dir and check that the cache size stays the same
 
-  radosfs::RadosFsDir dir(&radosFs, "/dir");
+  radosfs::Dir dir(&radosFs, "/dir");
 
   EXPECT_EQ(0, radosFsPriv()->dirCache.size());
 
@@ -1887,7 +1887,7 @@ TEST_F(RadosFsTest, DirCache)
   // Instantiate another dir from the one before and verify the cache
   // stays the same
 
-  radosfs::RadosFsDir otherDir(dir);
+  radosfs::Dir otherDir(dir);
 
   EXPECT_EQ(1, radosFsPriv()->dirCache.size());
 
@@ -1906,7 +1906,7 @@ TEST_F(RadosFsTest, DirCache)
 
   // Create a sub directory and verify that the cache size increments
 
-  radosfs::RadosFsDir subdir(&radosFs, "/dir/subdir");
+  radosfs::Dir subdir(&radosFs, "/dir/subdir");
   EXPECT_EQ(0, subdir.create());
 
   EXPECT_EQ(3, radosFsPriv()->dirCache.size());
@@ -1964,7 +1964,7 @@ TEST_F(RadosFsTest, DirCache)
 
   radosFs.setDirCacheMaxSize(100);
 
-  radosfs::RadosFsDir notCachedDir(&radosFs, "/notcached", false);
+  radosfs::Dir notCachedDir(&radosFs, "/notcached", false);
   EXPECT_EQ(0, notCachedDir.create());
 
   notCachedDir.update();
@@ -1999,7 +1999,7 @@ TEST_F(RadosFsTest, CompactDir)
 
   radosFs.stat(dirPath, &statBefore);
 
-  radosfs::RadosFsDir dir(&radosFs, dirPath);
+  radosfs::Dir dir(&radosFs, dirPath);
   dir.update();
 
   radosFs.stat(dirPath, &statAfter);
@@ -2096,7 +2096,7 @@ TEST_F(RadosFsTest, RenameDir)
   std::string path("/moved-dir/");
   std::string userDirPath("/user-dir/");
 
-  radosfs::RadosFsDir dir(&radosFs, originalPath);
+  radosfs::Dir dir(&radosFs, originalPath);
 
   // Rename dir that doesn't exist
 
@@ -2110,7 +2110,7 @@ TEST_F(RadosFsTest, RenameDir)
 
   // Create a user directory
 
-  radosfs::RadosFsDir userDir(&radosFs, userDirPath);
+  radosfs::Dir userDir(&radosFs, userDirPath);
 
   EXPECT_EQ(0, userDir.create(-1, false, TEST_UID, TEST_GID));
 
@@ -2135,7 +2135,7 @@ TEST_F(RadosFsTest, RenameDir)
 
   EXPECT_EQ(0, dir.rename(path));
 
-  radosfs::RadosFsDir sameDir(&radosFs, path);
+  radosfs::Dir sameDir(&radosFs, path);
 
   EXPECT_TRUE(sameDir.exists());
 
@@ -2176,7 +2176,7 @@ TEST_F(RadosFsTest, RenameDir)
   dir.setPath(userDirPath);
 
   std::string fileName = "my-file";
-  radosfs::RadosFsFile file(&radosFs, dir.path() + fileName);
+  radosfs::File file(&radosFs, dir.path() + fileName);
 
   EXPECT_EQ(0, file.create());
 
@@ -2227,7 +2227,7 @@ TEST_F(RadosFsTest, RenameWithLinks)
 
   // Create a dir and a link to it
 
-  radosfs::RadosFsDir dir(&radosFs, dirPath);
+  radosfs::Dir dir(&radosFs, dirPath);
 
   EXPECT_EQ(0, dir.create());
 
@@ -2235,7 +2235,7 @@ TEST_F(RadosFsTest, RenameWithLinks)
 
   // Create a file and rename it to a path that includes the dir link
 
-  radosfs::RadosFsFile file(&radosFs, filePath);
+  radosfs::File file(&radosFs, filePath);
 
   EXPECT_EQ(0, file.create());
 
@@ -2249,7 +2249,7 @@ TEST_F(RadosFsTest, RenameWithLinks)
 
   EXPECT_EQ(-EPERM, dir.rename(linkPath));
 
-  radosfs::RadosFsDir linkDir(&radosFs, linkPath);
+  radosfs::Dir linkDir(&radosFs, linkPath);
 
   EXPECT_TRUE(linkDir.exists());
 
@@ -2276,7 +2276,7 @@ TEST_F(RadosFsTest, Metadata)
 
   const std::string &basePath = "f1";
 
-  radosfs::RadosFsDir dir(&radosFs, "/");
+  radosfs::Dir dir(&radosFs, "/");
 
   std::string key = "mykey", value = "myvalue";
 
@@ -2286,8 +2286,8 @@ TEST_F(RadosFsTest, Metadata)
 
   // Create the file and check again
 
-  radosfs::RadosFsFile file(&radosFs, "/" + basePath,
-                            radosfs::RadosFsFile::MODE_READ_WRITE);
+  radosfs::File file(&radosFs, "/" + basePath,
+                     radosfs::File::MODE_READ_WRITE);
 
   file.create();
 
@@ -2345,7 +2345,7 @@ TEST_F(RadosFsTest, LinkDir)
 
   const std::string &linkName("dirLink");
 
-  radosfs::RadosFsDir dir(&radosFs, "/dir");
+  radosfs::Dir dir(&radosFs, "/dir");
 
   // Create a link to a dir that doesn't exist
 
@@ -2359,7 +2359,7 @@ TEST_F(RadosFsTest, LinkDir)
 
   // Verify the link
 
-  radosfs::RadosFsDir dirLink(&radosFs, linkName);
+  radosfs::Dir dirLink(&radosFs, linkName);
 
   EXPECT_TRUE(dirLink.exists());
 
@@ -2377,9 +2377,9 @@ TEST_F(RadosFsTest, LinkDir)
 
   // Create a file in the original dir
 
-  radosfs::RadosFsFile file(&radosFs,
-                            dir.path() + "f1",
-                            radosfs::RadosFsFile::MODE_READ_WRITE);
+  radosfs::File file(&radosFs,
+                     dir.path() + "f1",
+                     radosfs::File::MODE_READ_WRITE);
 
   file.create();
 
@@ -2434,7 +2434,7 @@ TEST_F(RadosFsTest, LinkDir)
 
   // Create a dir using the link as parent
 
-  radosfs::RadosFsDir otherDir(&radosFs, dirLink.path() + "d2");
+  radosfs::Dir otherDir(&radosFs, dirLink.path() + "d2");
 
   otherDir.create();
 
@@ -2454,7 +2454,7 @@ TEST_F(RadosFsTest, LinkDir)
 
   EXPECT_EQ(0, dir.createLink("/dir/dirLink2"));
 
-  radosfs::RadosFsDir otherDirLink(&radosFs, dir.path() + "dirLink2");
+  radosfs::Dir otherDirLink(&radosFs, dir.path() + "dirLink2");
 
   EXPECT_TRUE(otherDirLink.isDir());
 
@@ -2511,8 +2511,8 @@ TEST_F(RadosFsTest, LinkFile)
 
   const std::string &linkName("fileLink");
 
-  radosfs::RadosFsFile file(&radosFs, "/file",
-                            radosfs::RadosFsFile::MODE_READ_WRITE);
+  radosfs::File file(&radosFs, "/file",
+                     radosfs::File::MODE_READ_WRITE);
 
   // Create a link to a file that doesn't exist
 
@@ -2524,8 +2524,8 @@ TEST_F(RadosFsTest, LinkFile)
 
   EXPECT_EQ(0, file.createLink(linkName));
 
-  radosfs::RadosFsFile fileLink(&radosFs, linkName,
-                                radosfs::RadosFsFile::MODE_READ_WRITE);
+  radosfs::File fileLink(&radosFs, linkName,
+                         radosfs::File::MODE_READ_WRITE);
 
   // Make a link of a link
 
@@ -2626,7 +2626,7 @@ TEST_F(RadosFsTest, LinkPermissions)
 
   // Create user dir
 
-  radosfs::RadosFsDir dir(&radosFs, "/user");
+  radosfs::Dir dir(&radosFs, "/user");
 
   EXPECT_EQ(0, dir.create(-1, false, TEST_UID, TEST_GID));
 
@@ -2646,7 +2646,7 @@ TEST_F(RadosFsTest, LinkPermissions)
 
   // Read the entries from the link as user
 
-  radosfs::RadosFsDir dirLink(&radosFs, linkName);
+  radosfs::Dir dirLink(&radosFs, linkName);
 
   std::set<std::string> entries;
 
@@ -2660,8 +2660,8 @@ TEST_F(RadosFsTest, LinkPermissions)
 
   // Create a file as root
 
-  radosfs::RadosFsFile file(&radosFs, "/file",
-                            radosfs::RadosFsFile::MODE_READ_WRITE);
+  radosfs::File file(&radosFs, "/file",
+                     radosfs::File::MODE_READ_WRITE);
 
   EXPECT_EQ(0, file.create(S_IWUSR));
 
@@ -2675,8 +2675,8 @@ TEST_F(RadosFsTest, LinkPermissions)
 
   // Read the file contents through the link as user
 
-  radosfs::RadosFsFile fileLink(&radosFs, linkName,
-                                radosfs::RadosFsFile::MODE_READ_WRITE);
+  radosfs::File fileLink(&radosFs, linkName,
+                         radosfs::File::MODE_READ_WRITE);
 
   char buff[] = {"X"};
   EXPECT_EQ(-EACCES, fileLink.read(buff, 0, 1));
@@ -2706,7 +2706,7 @@ TEST_F(RadosFsTest, Find)
 {
   AddPool();
 
-  radosfs::RadosFsDir dir(&radosFs, "/");
+  radosfs::Dir dir(&radosFs, "/");
 
   // Create files and directories
 
@@ -2779,8 +2779,8 @@ TEST_F(RadosFsTest, Find)
 
   EXPECT_EQ(numFiles + pow(numDirsPerLevel, levels), results.size());
 
-  radosfs::RadosFsFile f(&radosFs, "/d0/d0/f0",
-                         radosfs::RadosFsFile::MODE_READ_WRITE);
+  radosfs::File f(&radosFs, "/d0/d0/f0",
+                  radosfs::File::MODE_READ_WRITE);
 
   EXPECT_EQ(0, f.truncate(100));
 
@@ -2845,7 +2845,7 @@ TEST_F(RadosFsTest, PoolAlignment)
 
   radosFs.setFileStripeSize(stripeSize);
 
-  radosfs::RadosFsFile file(&radosFs, "/file");
+  radosfs::File file(&radosFs, "/file");
 
   // Pretend the file is in an aligned pool
 
@@ -2864,12 +2864,12 @@ TEST_F(RadosFsTest, PoolAlignment)
 
   EXPECT_EQ(0, file.writeSync(contents, 0, contentsSize));
 
-  RadosFsStat stat;
+  Stat stat;
   struct stat statBuff;
 
   EXPECT_EQ(0, radosFsPriv()->stat(file.path(), &stat));
 
-  radosfs::RadosFsIO *radosFsIO = radosFsFilePriv(file)->radosFsIO.get();
+  radosfs::FileIO *radosFsIO = radosFsFilePriv(file)->radosFsIO.get();
   size_t lastStripe = radosFsIO->getLastStripeIndex();
 
   u_int64_t size;
@@ -2928,7 +2928,7 @@ TEST_F(RadosFsTest, DirTimes)
   // Create a dir
 
   std::string dirPath = "/my-dir";
-  radosfs::RadosFsDir dir(&radosFs, dirPath);
+  radosfs::Dir dir(&radosFs, dirPath);
 
   ASSERT_EQ(0, dir.create());
 
@@ -2942,7 +2942,7 @@ TEST_F(RadosFsTest, DirTimes)
 
   EXPECT_EQ(statBuff.st_ctim.tv_sec, statBuff.st_mtim.tv_sec);
 
-  radosfs::RadosFsFile file(&radosFs, dir.path() + "file");
+  radosfs::File file(&radosFs, dir.path() + "file");
 
   // sleep for one sec before creating the file so the dir's mtime will be
   // significantly different
@@ -2974,7 +2974,7 @@ TEST_F(RadosFsTest, DirTimes)
 
   sleep(1);
 
-  radosfs::RadosFsDir subdir(&radosFs, dir.path() + "a/b/c");
+  radosfs::Dir subdir(&radosFs, dir.path() + "a/b/c");
 
   ASSERT_EQ(0, subdir.create(-1, true));
 
@@ -3083,7 +3083,7 @@ TEST_F(RadosFsTest, FileTimes)
 
   // Create a file
 
-  radosfs::RadosFsFile file(&radosFs, "/my-file");
+  radosfs::File file(&radosFs, "/my-file");
 
   ASSERT_EQ(0, file.create());
 

@@ -40,30 +40,30 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
-class RadosFsIO;
+class FileIO;
 
-typedef std::tr1::shared_ptr<RadosFsAsyncOp> RadosFsAsyncOpSP;
-typedef std::tr1::shared_ptr<RadosFsIO> RadosFsIOSP;
+typedef std::tr1::shared_ptr<AsyncOp> AsyncOpSP;
+typedef std::tr1::shared_ptr<FileIO> FileIOSP;
 
 struct OpsManager
 {
   boost::mutex opsMutex;
-  std::map<std::string, RadosFsAsyncOpSP> mOperations;
+  std::map<std::string, AsyncOpSP> mOperations;
 
   int sync(void);
   int sync(const std::string &opId, bool lock=true);
 
-  void addOperation(RadosFsAsyncOpSP op);
+  void addOperation(AsyncOpSP op);
 };
 
-class RadosFsIO
+class FileIO
 {
 public:
-  RadosFsIO(RadosFs *radosFs,
-            const RadosFsPoolSP pool,
-            const std::string &iNode,
-            size_t stripeSize);
-  ~RadosFsIO();
+  FileIO(Fs *radosFs,
+         const PoolSP pool,
+         const std::string &iNode,
+         size_t stripeSize);
+  ~FileIO();
 
   ssize_t read(char *buff, off_t offset, size_t blen);
   int write(const char *buff, off_t offset, size_t blen, std::string *opId = 0,
@@ -99,13 +99,13 @@ public:
 
   void manageIdleLock(double idleTimeout);
 
-  static bool hasSingleClient(const RadosFsIOSP &io);
+  static bool hasSingleClient(const FileIOSP &io);
 
   int sync(const std::string &opId) { return mOpManager.sync(opId); }
 
 private:
-  RadosFs *mRadosFs;
-  const RadosFsPoolSP mPool;
+  Fs *mRadosFs;
+  const PoolSP mPool;
   const std::string mInode;
   size_t mStripeSize;
   bool mLazyRemoval;
@@ -117,12 +117,12 @@ private:
 
   int verifyWriteParams(off_t offset, size_t length);
   int realWrite(char *buff, off_t offset, size_t blen, bool deleteBuffer,
-                RadosFsAsyncOpSP asyncOp);
+                AsyncOpSP asyncOp);
   int setSizeIfBigger(size_t size);
   int setSize(size_t size);
   void setCompletionDebugMsg(librados::AioCompletion *completion,
                              const std::string &message);
-  void syncAndResetLocker(RadosFsAsyncOpSP op);
+  void syncAndResetLocker(AsyncOpSP op);
 };
 
 RADOS_FS_END_NAMESPACE

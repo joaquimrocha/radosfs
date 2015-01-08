@@ -414,8 +414,8 @@ unescapeObjName(const std::string &obj)
   return str;
 }
 
-int indexObject(const RadosFsStat *parentStat,
-                const RadosFsStat *stat,
+int indexObject(const Stat *parentStat,
+                const Stat *stat,
                 char op)
 {
   std::string contents;
@@ -459,7 +459,7 @@ getObjectIndexLine(const std::string &obj, char op)
 }
 
 std::string
-getFileXAttrDirRecord(const RadosFsStat *stat)
+getFileXAttrDirRecord(const Stat *stat)
 {
   std::ostringstream stream;
 
@@ -944,7 +944,7 @@ getCurrentTimeStr()
 }
 
 int
-createDirAndInode(const RadosFsStat *stat)
+createDirAndInode(const Stat *stat)
 {
   int ret = createDirObject(stat);
 
@@ -975,7 +975,7 @@ createDirAndInode(const RadosFsStat *stat)
 }
 
 int
-createDirObject(const RadosFsStat *stat)
+createDirObject(const Stat *stat)
 {
   std::stringstream stream;
   librados::ObjectWriteOperation writeOp;
@@ -1007,7 +1007,7 @@ updateTimeAsyncCB(rados_completion_t comp, void *arg)
 }
 
 void
-updateTimeAsync(const RadosFsStat *stat, const char *timeXAttrKey,
+updateTimeAsync(const Stat *stat, const char *timeXAttrKey,
                 const std::string &time)
 {
   std::map<std::string, librados::bufferlist> omap;
@@ -1030,7 +1030,7 @@ updateTimeAsync(const RadosFsStat *stat, const char *timeXAttrKey,
 }
 
 int
-getTimeFromXAttr(const RadosFsStat *stat, const std::string &xattr,
+getTimeFromXAttr(const Stat *stat, const std::string &xattr,
                  timespec *spec, time_t *basicTime)
 {
   std::set<std::string> keys;

@@ -51,7 +51,7 @@ protected:
 
   void AddPool(int numExtraPools = 0);
 
-  void testXAttrInFsInfo(radosfs::RadosFsInfo &info);
+  void testXAttrInFsInfo(radosfs::Info &info);
 
   void createNFiles(size_t numFiles);
 
@@ -62,11 +62,11 @@ protected:
                                 size_t numFiles,
                                 ssize_t levels);
 
-  radosfs::RadosFs radosFs;
+  radosfs::Fs radosFs;
 
-  radosfs::RadosFsPriv *radosFsPriv(void) const { return radosFs.mPriv; }
-  radosfs::RadosFsFilePriv *radosFsFilePriv(radosfs::RadosFsFile &file);
-  radosfs::RadosFsDirPriv *radosFsDirPriv(radosfs::RadosFsDir &dir);
+  radosfs::FsPriv *radosFsPriv(void) const { return radosFs.mPriv; }
+  radosfs::FilePriv *radosFsFilePriv(radosfs::File &file);
+  radosfs::DirPriv *radosFsDirPriv(radosfs::Dir &dir);
 
   const char * conf(void) const { return mConf; }
 

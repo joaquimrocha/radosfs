@@ -26,7 +26,7 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
-DirCache::DirCache(const std::string &dirpath, RadosFsPoolSP pool)
+DirCache::DirCache(const std::string &dirpath, PoolSP pool)
   : mInode(dirpath),
     mPool(pool),
     mLastCachedSize(0),

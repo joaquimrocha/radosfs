@@ -39,12 +39,12 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
-class RadosFs;
+class Fs;
 
-typedef std::vector<RadosFsPoolSP> RadosFsPoolList;
+typedef std::vector<PoolSP> PoolList;
 
-typedef std::map<std::string, RadosFsPoolSP> RadosFsPoolMap;
-typedef std::map<std::string, RadosFsPoolList>  RadosFsPoolListMap;
+typedef std::map<std::string, PoolSP> PoolMap;
+typedef std::map<std::string, PoolList>  PoolListMap;
 
 typedef struct _LinkedList LinkedList;
 
@@ -57,7 +57,7 @@ struct _LinkedList
 };
 
 typedef struct {
-  RadosFsStat stat;
+  Stat stat;
   std::map<std::string, std::pair<int, struct stat> > entryStats;
   const std::vector<std::string> *entries;
   uint64_t psize;
@@ -92,11 +92,11 @@ public:
   size_t maxCacheSize;
 };
 
-class RadosFsPriv
+class FsPriv
 {
 public:
-  RadosFsPriv(RadosFs *radosFs);
-  ~RadosFsPriv();
+  FsPriv(Fs *radosFs);
+  ~FsPriv();
 
   int createCluster(const std::string &userName,
                     const std::string &confFile);
@@ -109,57 +109,57 @@ public:
 
   int addPool(const std::string &name,
               const std::string &prefix,
-              RadosFsPoolMap *map,
+              PoolMap *map,
               pthread_mutex_t *mutex,
               size_t size = 0);
 
-  int createPrefixDir(RadosFsPoolSP pool, const std::string &prefix);
+  int createPrefixDir(PoolSP pool, const std::string &prefix);
 
-  RadosFsPoolSP getPool(const std::string &path, RadosFsPoolMap *map,
-                        pthread_mutex_t *mutex);
+  PoolSP getPool(const std::string &path, PoolMap *map,
+                 pthread_mutex_t *mutex);
 
-  RadosFsPoolSP getMetadataPoolFromPath(const std::string &path);
+  PoolSP getMetadataPoolFromPath(const std::string &path);
 
-  RadosFsPoolSP getMtdPoolFromName(const std::string &name);
+  PoolSP getMtdPoolFromName(const std::string &name);
 
-  RadosFsPoolSP getDataPool(const std::string &path,
-                            const std::string &poolName = "");
+  PoolSP getDataPool(const std::string &path,
+                     const std::string &poolName = "");
 
-  RadosFsPoolList getDataPools(const std::string &path);
+  PoolList getDataPools(const std::string &path);
 
   std::string poolPrefix(const std::string &pool,
-                         RadosFsPoolMap *map,
+                         PoolMap *map,
                          pthread_mutex_t *mutex) const;
 
   int removePool(const std::string &name,
-                 RadosFsPoolMap *map,
+                 PoolMap *map,
                  pthread_mutex_t *mutex);
 
   std::string poolFromPrefix(const std::string &prefix,
-                             RadosFsPoolMap *map,
+                             PoolMap *map,
                              pthread_mutex_t *mutex) const;
 
-  std::vector<std::string> pools(RadosFsPoolMap *map,
+  std::vector<std::string> pools(PoolMap *map,
                                  pthread_mutex_t *mutex) const;
 
   const std::string getParentDir(const std::string &obj, int *pos);
 
   std::tr1::shared_ptr<DirCache> getDirInfo(const std::string &inode,
-                                            RadosFsPoolSP pool,
+                                            PoolSP pool,
                                             bool addToCache = true);
 
-  RadosFsIOSP getRadosFsIO(const std::string &path);
+  FileIOSP getRadosFsIO(const std::string &path);
 
-  RadosFsIOSP getOrCreateFsIO(const std::string &path, const RadosFsStat *stat);
+  FileIOSP getOrCreateFsIO(const std::string &path, const Stat *stat);
 
-  void setRadosFsIO(RadosFsIOSP sharedFsIO);
-  void removeRadosFsIO(RadosFsIOSP sharedFsIO);
+  void setRadosFsIO(FileIOSP sharedFsIO);
+  void removeRadosFsIO(FileIOSP sharedFsIO);
 
   void updateDirCache(std::tr1::shared_ptr<DirCache> &cache);
 
   void removeDirCache(std::tr1::shared_ptr<DirCache> &cache);
 
-  int stat(const std::string &path, RadosFsStat *stat);
+  int stat(const std::string &path, Stat *stat);
 
   void parallelStat(
       const std::map<std::string, std::vector<std::string> > &paths,
@@ -170,33 +170,33 @@ public:
   void statEntries(StatAsyncInfo *info,
                    std::map<std::string, std::string> &xattrs);
 
-  int statLink(RadosFsPoolSP mtdPool,
-               RadosFsStat *stat,
+  int statLink(PoolSP mtdPool,
+               Stat *stat,
                std::string &pool);
 
-  int statFile(RadosFsPoolSP mtdPool, RadosFsStat *stat);
+  int statFile(PoolSP mtdPool, Stat *stat);
 
-  int statDir(RadosFsPoolSP mtdPool, RadosFsStat *stat);
+  int statDir(PoolSP mtdPool, Stat *stat);
 
-  int getRealPath(const std::string &path, RadosFsStat *stat,
+  int getRealPath(const std::string &path, Stat *stat,
                   std::string &realPath);
 
   void updateDirInode(const std::string &oldPath, const std::string &newPath);
 
-  int getDirInode(const std::string &path, RadosFsInode &inode,
-                  RadosFsPoolSP &pool);
+  int getDirInode(const std::string &path, Inode &inode,
+                  PoolSP &pool);
 
-  void setDirInode(const std::string &path, const RadosFsInode &inode);
+  void setDirInode(const std::string &path, const Inode &inode);
 
   void removeDirInode(const std::string &path);
 
-  std::vector<RadosFsStat> getParentsForTMTimeUpdate(const std::string &path);
+  std::vector<Stat> getParentsForTMTimeUpdate(const std::string &path);
 
-  void updateTMTime(RadosFsStat *stat, timespec *spec = 0);
+  void updateTMTime(Stat *stat, timespec *spec = 0);
 
-  void updateDirTimes(RadosFsStat *stat, timespec *spec = 0);
+  void updateDirTimes(Stat *stat, timespec *spec = 0);
 
-  void statXAttrInThread(std::string path, std::string xattr, RadosFsStat *stat,
+  void statXAttrInThread(std::string path, std::string xattr, Stat *stat,
                          int *ret, boost::mutex *mutex,
                          boost::condition_variable *cond, int *numJobs);
 
@@ -212,24 +212,24 @@ public:
 
   boost::shared_ptr<boost::asio::io_service> getIoService();
 
-  RadosFs *radosFs;
+  Fs *radosFs;
   librados::Rados radosCluster;
   bool initialized;
   static __thread uid_t uid;
   static __thread gid_t gid;
   std::vector<rados_completion_t> completionList;
-  RadosFsPoolListMap poolMap;
+  PoolListMap poolMap;
   pthread_mutex_t poolMutex;
-  RadosFsPoolMap mtdPoolMap;
+  PoolMap mtdPoolMap;
   pthread_mutex_t mtdPoolMutex;
   PriorityCache dirCache;
   pthread_mutex_t dirCacheMutex;
-  std::map<std::string, std::tr1::shared_ptr<RadosFsIO> > operations;
+  std::map<std::string, std::tr1::shared_ptr<FileIO> > operations;
   boost::mutex operationsMutex;
-  std::map<std::string, RadosFsInode> dirPathInodeMap;
+  std::map<std::string, Inode> dirPathInodeMap;
   pthread_mutex_t dirPathInodeMutex;
   float dirCompactRatio;
-  RadosFsLogger logger;
+  Logger logger;
   size_t fileStripeSize;
   bool lockFiles;
   boost::shared_ptr<boost::asio::io_service> ioService;

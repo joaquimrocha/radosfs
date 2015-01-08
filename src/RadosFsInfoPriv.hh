@@ -28,14 +28,14 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
-class RadosFs;
-class RadosFsInfo;
+class Fs;
+class Info;
 
-class RadosFsInfoPriv
+class InfoPriv
 {
 public:
-  RadosFsInfoPriv(RadosFs *radosFs, const std::string &path);
-  ~RadosFsInfoPriv();
+  InfoPriv(Fs *radosFs, const std::string &path);
+  ~InfoPriv();
 
   void setPath(const std::string &path);
 
@@ -43,13 +43,13 @@ public:
 
   int makeRealPath(std::string &path);
 
-  RadosFsPriv * radosFsPriv(void) const { return radosFs->mPriv; }
+  FsPriv * radosFsPriv(void) const { return radosFs->mPriv; }
 
   std::string path;
-  RadosFs *radosFs;
+  Fs *radosFs;
   std::string target;
-  RadosFsStat stat;
-  RadosFsStat parentDirStat;
+  Stat stat;
+  Stat parentDirStat;
   bool exists;
 };
 

@@ -32,10 +32,10 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
-__thread uid_t RadosFsPriv::uid;
-__thread gid_t RadosFsPriv::gid;
+__thread uid_t FsPriv::uid;
+__thread gid_t FsPriv::gid;
 
-RadosFsPriv::RadosFsPriv(RadosFs *radosFs)
+FsPriv::FsPriv(Fs *radosFs)
   : radosFs(radosFs),
     initialized(false),
     dirCompactRatio(DEFAULT_DIR_COMPACT_RATIO),
@@ -43,7 +43,7 @@ RadosFsPriv::RadosFsPriv(RadosFs *radosFs)
     lockFiles(true),
     ioService(new boost::asio::io_service),
     asyncWork(new boost::asio::io_service::work(*ioService)),
-    fileOpsIdleChecker(boost::bind(&RadosFsPriv::checkFileLocks, this))
+    fileOpsIdleChecker(boost::bind(&FsPriv::checkFileLocks, this))
 {
   uid = 0;
   gid = 0;
@@ -55,7 +55,7 @@ RadosFsPriv::RadosFsPriv(RadosFs *radosFs)
   pthread_mutex_init(&dirPathInodeMutex, 0);
 }
 
-RadosFsPriv::~RadosFsPriv()
+FsPriv::~FsPriv()
 {
   fileOpsIdleChecker.interrupt();
   operationsMutex.lock();
@@ -235,8 +235,7 @@ PriorityCache::adjustCache()
 }
 
 int
-RadosFsPriv::createCluster(const std::string &userName,
-                           const std::string &confFile)
+FsPriv::createCluster(const std::string &userName, const std::string &confFile)
 {
   int ret;
   const char *user = 0;
@@ -265,9 +264,7 @@ RadosFsPriv::createCluster(const std::string &userName,
 }
 
 int
-RadosFsPriv::statLink(RadosFsPoolSP mtdPool,
-                      RadosFsStat *stat,
-                      std::string &pool)
+FsPriv::statLink(PoolSP mtdPool, Stat *stat, std::string &pool)
 {
   int ret = 0;
   const std::string &parentDir = getParentDir(stat->path, 0);
@@ -279,7 +276,7 @@ RadosFsPriv::statLink(RadosFsPoolSP mtdPool,
   if (mtdPool == 0)
     return -ENODEV;
 
-  RadosFsInode inode;
+  Inode inode;
   ret = getDirInode(parentDir, inode, mtdPool);
 
   if (ret != 0)
@@ -312,8 +309,7 @@ RadosFsPriv::statLink(RadosFsPoolSP mtdPool,
 }
 
 int
-RadosFsPriv::getRealPath(const std::string &path,  RadosFsStat *stat,
-                         std::string &realPath)
+FsPriv::getRealPath(const std::string &path,  Stat *stat, std::string &realPath)
 {
   int ret = -ENOENT;
   realPath = path;
@@ -367,9 +363,7 @@ RadosFsPriv::getRealPath(const std::string &path,  RadosFsStat *stat,
 }
 
 int
-RadosFsPriv::getDirInode(const std::string &path,
-                         RadosFsInode &inode,
-                         RadosFsPoolSP &mtdPool)
+FsPriv::getDirInode(const std::string &path, Inode &inode, PoolSP &mtdPool)
 {
   pthread_mutex_lock(&dirPathInodeMutex);
 
@@ -387,7 +381,7 @@ RadosFsPriv::getDirInode(const std::string &path,
     if (ret != 0)
       return ret;
 
-    RadosFsPoolSP pool = getMtdPoolFromName(poolName);
+    PoolSP pool = getMtdPoolFromName(poolName);
 
     if (!pool)
       return -ENODEV;
@@ -401,7 +395,7 @@ RadosFsPriv::getDirInode(const std::string &path,
 }
 
 void
-RadosFsPriv::setDirInode(const std::string &path, const RadosFsInode &inode)
+FsPriv::setDirInode(const std::string &path, const Inode &inode)
 {
   pthread_mutex_lock(&dirPathInodeMutex);
 
@@ -411,8 +405,8 @@ RadosFsPriv::setDirInode(const std::string &path, const RadosFsInode &inode)
 }
 
 void
-RadosFsPriv::updateDirInode(const std::string &oldPath,
-                            const std::string &newPath)
+FsPriv::updateDirInode(const std::string &oldPath,
+                       const std::string &newPath)
 {
   pthread_mutex_lock(&dirPathInodeMutex);
 
@@ -426,7 +420,7 @@ RadosFsPriv::updateDirInode(const std::string &oldPath,
 }
 
 void
-RadosFsPriv::removeDirInode(const std::string &path)
+FsPriv::removeDirInode(const std::string &path)
 {
   pthread_mutex_lock(&dirPathInodeMutex);
 
@@ -436,30 +430,30 @@ RadosFsPriv::removeDirInode(const std::string &path)
 }
 
 void
-RadosFsPriv::launchThreads(void)
+FsPriv::launchThreads(void)
 {
   size_t currentLaunchedThreads = generalWorkerThreads.size();
   size_t threadsToLaunch = DEFAULT_NUM_WORKER_THREADS - currentLaunchedThreads;
   while (threadsToLaunch-- > 0)
   {
     generalWorkerThreads.create_thread(
-          boost::bind(&RadosFsPriv::generalWorkerThread, this, ioService));
+          boost::bind(&FsPriv::generalWorkerThread, this, ioService));
   }
 }
 
 boost::shared_ptr<boost::asio::io_service>
-RadosFsPriv::getIoService()
+FsPriv::getIoService()
 {
   launchThreads();
   return ioService;
 }
 
 void
-RadosFsPriv::statXAttrInThread(std::string path, std::string xattr,
-                               RadosFsStat *stat, int *ret, boost::mutex *mutex,
-                               boost::condition_variable *cond, int *numJobs)
+FsPriv::statXAttrInThread(std::string path, std::string xattr, Stat *stat,
+                          int *ret, boost::mutex *mutex,
+                          boost::condition_variable *cond, int *numJobs)
 {
-  RadosFsPoolSP dataPool;
+  PoolSP dataPool;
   std::string pool;
   *ret = statFromXAttr(path, xattr, &stat->statBuff, stat->translatedPath,
                           pool, stat->extraData);
@@ -471,7 +465,7 @@ RadosFsPriv::statXAttrInThread(std::string path, std::string xattr,
 
   dataPool = getDataPool(path, pool);
   stat->pool = dataPool;
-  RadosFsIOSP radosFsIO = getOrCreateFsIO(stat->translatedPath, stat);
+  FileIOSP radosFsIO = getOrCreateFsIO(stat->translatedPath, stat);
   stat->statBuff.st_size = radosFsIO->getSize();
 
   bool notify = false;
@@ -487,17 +481,17 @@ RadosFsPriv::statXAttrInThread(std::string path, std::string xattr,
 }
 
 void
-RadosFsPriv::generalWorkerThread(
+FsPriv::generalWorkerThread(
     boost::shared_ptr<boost::asio::io_service> ioService)
 {
   ioService->run();
 }
 
 void
-RadosFsPriv::statEntries(StatAsyncInfo *info,
-                         std::map<std::string, std::string> &xattrs)
+FsPriv::statEntries(StatAsyncInfo *info,
+                    std::map<std::string, std::string> &xattrs)
 {
-  RadosFsStat *stats = new RadosFsStat[info->entries->size()];
+  Stat *stats = new Stat[info->entries->size()];
   int *rets = new int[info->entries->size()];
   boost::mutex mutex;
   boost::condition_variable cond;
@@ -517,7 +511,7 @@ RadosFsPriv::statEntries(StatAsyncInfo *info,
       continue;
     }
 
-    ioService->post(boost::bind(&RadosFsPriv::statXAttrInThread, this, path,
+    ioService->post(boost::bind(&FsPriv::statXAttrInThread, this, path,
                                 xattr, &stats[i], &rets[i], &mutex, &cond,
                                 &numJobs));
   }
@@ -543,7 +537,7 @@ RadosFsPriv::statEntries(StatAsyncInfo *info,
 }
 
 void
-RadosFsPriv::statAsync(StatAsyncInfo *info)
+FsPriv::statAsync(StatAsyncInfo *info)
 {
   std::map<std::string, std::string> xattrs;
   u_int64_t size;
@@ -573,14 +567,14 @@ RadosFsPriv::statAsync(StatAsyncInfo *info)
 }
 
 int
-RadosFsPriv::statAsyncInfoInThread(const std::string path, StatAsyncInfo *info,
-                                   boost::mutex *mutex,
-                                   boost::condition_variable *cond, int *numJobs)
+FsPriv::statAsyncInfoInThread(const std::string path, StatAsyncInfo *info,
+                              boost::mutex *mutex,
+                              boost::condition_variable *cond, int *numJobs)
 {
   int ret;
   info->stat.reset();
   info->stat.path = getDirPath(path);
-  RadosFsPoolSP mtdPool = getMetadataPoolFromPath(info->stat.path);
+  PoolSP mtdPool = getMetadataPoolFromPath(info->stat.path);
 
   if (!mtdPool.get())
   {
@@ -588,7 +582,7 @@ RadosFsPriv::statAsyncInfoInThread(const std::string path, StatAsyncInfo *info,
     return ret;
   }
 
-  RadosFsInode inode;
+  Inode inode;
   ret = getDirInode(info->stat.path, inode, mtdPool);
 
   if (ret == 0)
@@ -614,7 +608,7 @@ RadosFsPriv::statAsyncInfoInThread(const std::string path, StatAsyncInfo *info,
 }
 
 void
-RadosFsPriv::parallelStat(
+FsPriv::parallelStat(
     const std::map<std::string, std::vector<std::string> > &paths,
     std::map<std::string, std::pair<int, struct stat> > *stats)
 {
@@ -631,7 +625,7 @@ RadosFsPriv::parallelStat(
     StatAsyncInfo *info = &statInfoList[i];
     info->entries = &(*it).second;
 
-    getIoService()->post(boost::bind(&RadosFsPriv::statAsyncInfoInThread, this,
+    getIoService()->post(boost::bind(&FsPriv::statAsyncInfoInThread, this,
                                      dir, info, &mutex, &cond, &numJobs));
   }
 
@@ -670,10 +664,9 @@ RadosFsPriv::parallelStat(
 }
 
 int
-RadosFsPriv::stat(const std::string &path,
-                  RadosFsStat *stat)
+FsPriv::stat(const std::string &path, Stat *stat)
 {
-  RadosFsPoolSP mtdPool;
+  PoolSP mtdPool;
   int ret = -ENODEV;
   stat->reset();
   stat->path = getDirPath(path);
@@ -701,9 +694,9 @@ RadosFsPriv::stat(const std::string &path,
 }
 
 int
-RadosFsPriv::statDir(RadosFsPoolSP mtdPool, RadosFsStat *stat)
+FsPriv::statDir(PoolSP mtdPool, Stat *stat)
 {
-  RadosFsInode inode;
+  Inode inode;
   int ret = getDirInode(stat->path, inode, mtdPool);
 
   if (ret == 0)
@@ -718,10 +711,10 @@ RadosFsPriv::statDir(RadosFsPoolSP mtdPool, RadosFsStat *stat)
 }
 
 int
-RadosFsPriv::statFile(RadosFsPoolSP mtdPool, RadosFsStat *stat)
+FsPriv::statFile(PoolSP mtdPool, Stat *stat)
 {
   int ret;
-  RadosFsPoolSP dataPool;
+  PoolSP dataPool;
   std::string poolName("");
   stat->path = getFilePath(stat->path);
   ret = statLink(mtdPool, stat, poolName);
@@ -736,11 +729,11 @@ RadosFsPriv::statFile(RadosFsPoolSP mtdPool, RadosFsStat *stat)
   }
   else
   {
-    const RadosFsPoolList &pools = getDataPools(stat->path);
+    const PoolList &pools = getDataPools(stat->path);
     if (poolName != "")
     {
-      const RadosFsPoolList &pools = getDataPools(stat->path);
-      RadosFsPoolList::const_iterator it;
+      const PoolList &pools = getDataPools(stat->path);
+      PoolList::const_iterator it;
 
       for (it = pools.begin(); it != pools.end(); it++)
       {
@@ -763,13 +756,13 @@ RadosFsPriv::statFile(RadosFsPoolSP mtdPool, RadosFsStat *stat)
 }
 
 int
-RadosFsPriv::createPrefixDir(RadosFsPoolSP pool, const std::string &prefix)
+FsPriv::createPrefixDir(PoolSP pool, const std::string &prefix)
 {
   int ret = 0;
 
   if (pool->ioctx.stat(prefix, 0, 0) != 0)
   {
-    RadosFsStat stat;
+    Stat stat;
     stat.path = prefix;
     stat.translatedPath = generateUuid();
     stat.pool = pool;
@@ -784,11 +777,8 @@ RadosFsPriv::createPrefixDir(RadosFsPoolSP pool, const std::string &prefix)
 }
 
 int
-RadosFsPriv::addPool(const std::string &name,
-                     const std::string &prefix,
-                     RadosFsPoolMap *map,
-                     pthread_mutex_t *mutex,
-                     size_t size)
+FsPriv::addPool(const std::string &name, const std::string &prefix,
+                PoolMap *map, pthread_mutex_t *mutex, size_t size)
 {
   int ret = -ENODEV;
   const std::string &cleanPrefix = sanitizePath(prefix  + "/");
@@ -816,9 +806,9 @@ RadosFsPriv::addPool(const std::string &name,
   if (ret != 0)
     return ret;
 
-  RadosFsPool *pool = new RadosFsPool(name.c_str(), size * MEGABYTE_CONVERSION,
-                                      ioctx);
-  RadosFsPoolSP poolSP(pool);
+  Pool *pool = new Pool(name.c_str(), size * MEGABYTE_CONVERSION,
+                        ioctx);
+  PoolSP poolSP(pool);
 
   if (size == 0)
   {
@@ -830,7 +820,7 @@ RadosFsPriv::addPool(const std::string &name,
 
   pthread_mutex_lock(mutex);
 
-  std::pair<std::string, RadosFsPoolSP > entry(cleanPrefix, poolSP);
+  std::pair<std::string, PoolSP > entry(cleanPrefix, poolSP);
   map->insert(entry);
 
   pthread_mutex_unlock(mutex);
@@ -838,15 +828,15 @@ RadosFsPriv::addPool(const std::string &name,
   return ret;
 }
 
-RadosFsPoolSP
-RadosFsPriv::getDataPool(const std::string &path, const std::string &poolName)
+PoolSP
+FsPriv::getDataPool(const std::string &path, const std::string &poolName)
 {
-  RadosFsPoolSP pool;
+  PoolSP pool;
   size_t maxLength = 0;
 
   pthread_mutex_lock(&poolMutex);
 
-  RadosFsPoolListMap::const_iterator it;
+  PoolListMap::const_iterator it;
   for (it = poolMap.begin(); it != poolMap.end(); it++)
   {
     const std::string &prefix = (*it).first;
@@ -857,11 +847,11 @@ RadosFsPriv::getDataPool(const std::string &path, const std::string &poolName)
 
     if (path.compare(0, prefixLength, prefix) == 0)
     {
-      const RadosFsPoolList &pools = (*it).second;
+      const PoolList &pools = (*it).second;
 
       if (poolName != "")
       {
-        RadosFsPoolList::const_iterator poolIt;
+        PoolList::const_iterator poolIt;
         for (poolIt = pools.begin(); poolIt != pools.end(); poolIt++)
         {
           if ((*poolIt)->name == poolName)
@@ -889,14 +879,14 @@ RadosFsPriv::getDataPool(const std::string &path, const std::string &poolName)
   return pool;
 }
 
-RadosFsPoolSP
-RadosFsPriv::getMtdPoolFromName(const std::string &name)
+PoolSP
+FsPriv::getMtdPoolFromName(const std::string &name)
 {
-  RadosFsPoolSP pool;
+  PoolSP pool;
 
   pthread_mutex_lock(&mtdPoolMutex);
 
-  RadosFsPoolMap::const_iterator it;
+  PoolMap::const_iterator it;
   for (it = mtdPoolMap.begin(); it != mtdPoolMap.end(); it++)
   {
     pool = (*it).second;
@@ -910,23 +900,23 @@ RadosFsPriv::getMtdPoolFromName(const std::string &name)
   return pool;
 }
 
-RadosFsPoolSP
-RadosFsPriv::getMetadataPoolFromPath(const std::string &path)
+PoolSP
+FsPriv::getMetadataPoolFromPath(const std::string &path)
 {
   return getPool(path, &mtdPoolMap, &mtdPoolMutex);
 }
 
-RadosFsPoolSP
-RadosFsPriv::getPool(const std::string &path,
-                     RadosFsPoolMap *map,
-                     pthread_mutex_t *mutex)
+PoolSP
+FsPriv::getPool(const std::string &path,
+                PoolMap *map,
+                pthread_mutex_t *mutex)
 {
-  RadosFsPoolSP pool;
+  PoolSP pool;
   size_t maxLength = 0;
 
   pthread_mutex_lock(mutex);
 
-  RadosFsPoolMap::const_iterator it;
+  PoolMap::const_iterator it;
   for (it = map->begin(); it != map->end(); it++)
   {
     const std::string &prefix = (*it).first;
@@ -948,15 +938,14 @@ RadosFsPriv::getPool(const std::string &path,
 }
 
 std::string
-RadosFsPriv::poolPrefix(const std::string &pool,
-                        RadosFsPoolMap *map,
-                        pthread_mutex_t *mutex) const
+FsPriv::poolPrefix(const std::string &pool, PoolMap *map,
+                   pthread_mutex_t *mutex) const
 {
   std::string prefix("");
 
   pthread_mutex_lock(mutex);
 
-  RadosFsPoolMap::iterator it;
+  PoolMap::iterator it;
   for (it = map->begin(); it != map->end(); it++)
   {
     if ((*it).second->name == pool)
@@ -972,9 +961,8 @@ RadosFsPriv::poolPrefix(const std::string &pool,
 }
 
 int
-RadosFsPriv::removePool(const std::string &name,
-                        RadosFsPoolMap *map,
-                        pthread_mutex_t *mutex)
+FsPriv::removePool(const std::string &name, PoolMap *map,
+                   pthread_mutex_t *mutex)
 {
   int ret = -ENOENT;
   const std::string &prefix = poolPrefix(name, map, mutex);
@@ -993,9 +981,8 @@ RadosFsPriv::removePool(const std::string &name,
 }
 
 std::string
-RadosFsPriv::poolFromPrefix(const std::string &prefix,
-                            RadosFsPoolMap *map,
-                            pthread_mutex_t *mutex) const
+FsPriv::poolFromPrefix(const std::string &prefix, PoolMap *map,
+                       pthread_mutex_t *mutex) const
 {
   std::string pool("");
 
@@ -1010,14 +997,14 @@ RadosFsPriv::poolFromPrefix(const std::string &prefix,
 }
 
 std::vector<std::string>
-RadosFsPriv::pools(RadosFsPoolMap *map,
-                   pthread_mutex_t *mutex) const
+FsPriv::pools(PoolMap *map,
+              pthread_mutex_t *mutex) const
 {
   pthread_mutex_lock(mutex);
 
   std::vector<std::string> pools;
 
-  RadosFsPoolMap::iterator it;
+  PoolMap::iterator it;
   for (it = map->begin(); it != map->end(); it++)
   {
     pools.push_back((*it).second->name);
@@ -1028,16 +1015,16 @@ RadosFsPriv::pools(RadosFsPoolMap *map,
   return pools;
 }
 
-RadosFsPoolList
-RadosFsPriv::getDataPools(const std::string &path)
+PoolList
+FsPriv::getDataPools(const std::string &path)
 {
   size_t maxLength = 0;
   std::string prefixFound("");
-  RadosFsPoolList pools;
+  PoolList pools;
 
   pthread_mutex_lock(&poolMutex);
 
-  RadosFsPoolListMap::const_iterator it;
+  PoolListMap::const_iterator it;
   for (it = poolMap.begin(); it != poolMap.end(); it++)
   {
     const std::string &prefix = (*it).first;
@@ -1062,7 +1049,7 @@ RadosFsPriv::getDataPools(const std::string &path)
 }
 
 const std::string
-RadosFsPriv::getParentDir(const std::string &obj, int *pos)
+FsPriv::getParentDir(const std::string &obj, int *pos)
 {
   size_t length = obj.length();
   size_t index = obj.rfind(PATH_SEP, length - 2);
@@ -1079,7 +1066,7 @@ RadosFsPriv::getParentDir(const std::string &obj, int *pos)
 }
 
 void
-RadosFsPriv::updateDirCache(std::tr1::shared_ptr<DirCache> &cache)
+FsPriv::updateDirCache(std::tr1::shared_ptr<DirCache> &cache)
 {
   pthread_mutex_lock(&dirCacheMutex);
 
@@ -1089,7 +1076,7 @@ RadosFsPriv::updateDirCache(std::tr1::shared_ptr<DirCache> &cache)
 }
 
 void
-RadosFsPriv::removeDirCache(std::tr1::shared_ptr<DirCache> &cache)
+FsPriv::removeDirCache(std::tr1::shared_ptr<DirCache> &cache)
 {
   pthread_mutex_lock(&dirCacheMutex);
 
@@ -1099,8 +1086,8 @@ RadosFsPriv::removeDirCache(std::tr1::shared_ptr<DirCache> &cache)
 }
 
 std::tr1::shared_ptr<DirCache>
-RadosFsPriv::getDirInfo(const std::string &inode, RadosFsPoolSP pool,
-                        bool addToCache)
+FsPriv::getDirInfo(const std::string &inode, PoolSP pool,
+                   bool addToCache)
 {
   std::tr1::shared_ptr<DirCache> cache;
 
@@ -1127,10 +1114,10 @@ RadosFsPriv::getDirInfo(const std::string &inode, RadosFsPoolSP pool,
   return cache;
 }
 
-RadosFsIOSP
-RadosFsPriv::getRadosFsIO(const std::string &path)
+FileIOSP
+FsPriv::getRadosFsIO(const std::string &path)
 {
-  RadosFsIOSP fsIO;
+  FileIOSP fsIO;
   boost::unique_lock<boost::mutex> lock(operationsMutex);
 
   if (operations.count(path) != 0)
@@ -1139,10 +1126,10 @@ RadosFsPriv::getRadosFsIO(const std::string &path)
   return fsIO;
 }
 
-RadosFsIOSP
-RadosFsPriv::getOrCreateFsIO(const std::string &path, const RadosFsStat *stat)
+FileIOSP
+FsPriv::getOrCreateFsIO(const std::string &path, const Stat *stat)
 {
-  RadosFsIOSP fsIO = getRadosFsIO(path);
+  FileIOSP fsIO = getRadosFsIO(path);
 
   if (!fsIO)
   {
@@ -1157,8 +1144,8 @@ RadosFsPriv::getOrCreateFsIO(const std::string &path, const RadosFsStat *stat)
       stripeSize = alignStripeSize(radosFs->fileStripeSize(),
                                    stat->pool->alignment);
 
-    fsIO = RadosFsIOSP(new RadosFsIO(radosFs, stat->pool, stat->translatedPath,
-                                     stripeSize));
+    fsIO = FileIOSP(new FileIO(radosFs, stat->pool, stat->translatedPath,
+                               stripeSize));
 
     setRadosFsIO(fsIO);
   }
@@ -1167,7 +1154,7 @@ RadosFsPriv::getOrCreateFsIO(const std::string &path, const RadosFsStat *stat)
 }
 
 void
-RadosFsPriv::setRadosFsIO(RadosFsIOSP sharedFsIO)
+FsPriv::setRadosFsIO(FileIOSP sharedFsIO)
 {
   boost::unique_lock<boost::mutex> lock(operationsMutex);
 
@@ -1175,7 +1162,7 @@ RadosFsPriv::setRadosFsIO(RadosFsIOSP sharedFsIO)
 }
 
 void
-RadosFsPriv::removeRadosFsIO(RadosFsIOSP sharedFsIO)
+FsPriv::removeRadosFsIO(FileIOSP sharedFsIO)
 {
   boost::unique_lock<boost::mutex> lock(operationsMutex);
 
@@ -1183,15 +1170,15 @@ RadosFsPriv::removeRadosFsIO(RadosFsIOSP sharedFsIO)
     operations.erase(sharedFsIO->inode());
 }
 
-std::vector<RadosFsStat>
-RadosFsPriv::getParentsForTMTimeUpdate(const std::string &path)
+std::vector<Stat>
+FsPriv::getParentsForTMTimeUpdate(const std::string &path)
 {
-  std::vector<RadosFsStat> parents;
+  std::vector<Stat> parents;
   std::string currentPath = path;
 
   while ((currentPath = getParentDir(currentPath, 0)) != "")
   {
-    RadosFsStat parentStat;
+    Stat parentStat;
 
     int ret = stat(currentPath, &parentStat);
 
@@ -1212,10 +1199,10 @@ RadosFsPriv::getParentsForTMTimeUpdate(const std::string &path)
 }
 
 void
-RadosFsPriv::updateTMTime(RadosFsStat *stat, timespec *spec)
+FsPriv::updateTMTime(Stat *stat, timespec *spec)
 {
-  std::vector<RadosFsStat> parents = getParentsForTMTimeUpdate(stat->path);
-  std::vector<RadosFsStat>::iterator it;
+  std::vector<Stat> parents = getParentsForTMTimeUpdate(stat->path);
+  std::vector<Stat>::iterator it;
   std::string timeStr;
 
   if (spec)
@@ -1230,7 +1217,7 @@ RadosFsPriv::updateTMTime(RadosFsStat *stat, timespec *spec)
 }
 
 void
-RadosFsPriv::updateDirTimes(RadosFsStat *stat, timespec *spec)
+FsPriv::updateDirTimes(Stat *stat, timespec *spec)
 {
   std::string timeStr;
   timespec timeInfo;
@@ -1248,10 +1235,10 @@ RadosFsPriv::updateDirTimes(RadosFsStat *stat, timespec *spec)
 }
 
 void
-RadosFsPriv::checkFileLocks(void)
+FsPriv::checkFileLocks(void)
 {
   const boost::chrono::milliseconds sleepTime(FILE_OPS_IDLE_CHECKER_SLEEP);
-  std::map<std::string, std::tr1::shared_ptr<RadosFsIO> >::iterator it, oldIt;
+  std::map<std::string, std::tr1::shared_ptr<FileIO> >::iterator it, oldIt;
 
   while (true)
   {
@@ -1260,10 +1247,10 @@ RadosFsPriv::checkFileLocks(void)
     while (it != operations.end())
     {
       boost::this_thread::interruption_point();
-      RadosFsIOSP fsIO = (*it).second;
+      FileIOSP fsIO = (*it).second;
       if (fsIO)
       {
-        if (RadosFsIO::hasSingleClient(fsIO))
+        if (FileIO::hasSingleClient(fsIO))
         {
           oldIt = it;
           it++;
@@ -1281,18 +1268,18 @@ RadosFsPriv::checkFileLocks(void)
   }
 }
 
-RadosFs::RadosFs()
-  : mPriv(new RadosFsPriv(this))
+Fs::Fs()
+  : mPriv(new FsPriv(this))
 {
 }
 
-RadosFs::~RadosFs()
+Fs::~Fs()
 {
   delete mPriv;
 }
 
 int
-RadosFs::init(const std::string &userName, const std::string &configurationFile)
+Fs::init(const std::string &userName, const std::string &configurationFile)
 {
   int ret = mPriv->createCluster(userName, configurationFile);
 
@@ -1300,14 +1287,12 @@ RadosFs::init(const std::string &userName, const std::string &configurationFile)
 }
 
 int
-RadosFs::addDataPool(const std::string &name,
-                     const std::string &prefix,
-                     size_t size)
+Fs::addDataPool(const std::string &name, const std::string &prefix, size_t size)
 {
   librados::IoCtx ioctx;
-  RadosFsPool *pool;
-  RadosFsPoolList *pools = 0;
-  RadosFsPoolListMap *map;
+  Pool *pool;
+  PoolList *pools = 0;
+  PoolListMap *map;
   int ret = -EPERM;
   const std::string &cleanPrefix = sanitizePath(prefix  + "/");
 
@@ -1328,7 +1313,7 @@ RadosFs::addDataPool(const std::string &name,
   {
     pools = &map->at(cleanPrefix);
 
-    RadosFsPoolList::const_iterator it;
+    PoolList::const_iterator it;
 
     for (it = pools->begin(); it != pools->end(); it++)
     {
@@ -1347,18 +1332,18 @@ RadosFs::addDataPool(const std::string &name,
   if (ret != 0)
     goto unlockAndExit;
 
-  pool = new RadosFsPool(name.c_str(), size * MEGABYTE_CONVERSION, ioctx);
+  pool = new Pool(name.c_str(), size * MEGABYTE_CONVERSION, ioctx);
   pool->setAlignment(ioctx.pool_required_alignment());
 
   if (pools == 0)
   {
-    RadosFsPoolList poolList;
-    std::pair<std::string, RadosFsPoolList> entry(cleanPrefix, poolList);
+    PoolList poolList;
+    std::pair<std::string, PoolList> entry(cleanPrefix, poolList);
     map->insert(entry);
     pools = &map->at(cleanPrefix);
   }
 
-  pools->push_back(RadosFsPoolSP(pool));
+  pools->push_back(PoolSP(pool));
 
 unlockAndExit:
   pthread_mutex_unlock(&mPriv->poolMutex);
@@ -1367,19 +1352,19 @@ unlockAndExit:
 }
 
 int
-RadosFs::removeDataPool(const std::string &name)
+Fs::removeDataPool(const std::string &name)
 {
   int ret = -ENOENT;
-  RadosFsPoolListMap *map = &mPriv->poolMap;
+  PoolListMap *map = &mPriv->poolMap;
 
   pthread_mutex_lock(&mPriv->poolMutex);
 
-  RadosFsPoolListMap::iterator it;
+  PoolListMap::iterator it;
 
   for (it = map->begin(); it != map->end(); it++)
   {
-    RadosFsPoolList &pools = (*it).second;
-    RadosFsPoolList::iterator poolsIt;
+    PoolList &pools = (*it).second;
+    PoolList::iterator poolsIt;
 
     for (poolsIt = pools.begin(); poolsIt != pools.end(); poolsIt++)
     {
@@ -1407,7 +1392,7 @@ RadosFs::removeDataPool(const std::string &name)
 }
 
 std::vector<std::string>
-RadosFs::dataPools(const std::string &prefix) const
+Fs::dataPools(const std::string &prefix) const
 {
   std::vector<std::string> pools;
   const std::string &dirPrefix = getDirPath(prefix);
@@ -1416,8 +1401,8 @@ RadosFs::dataPools(const std::string &prefix) const
 
   if (mPriv->poolMap.count(dirPrefix) > 0)
   {
-    const RadosFsPoolList &poolList = mPriv->poolMap[dirPrefix];
-    RadosFsPoolList::const_iterator it;
+    const PoolList &poolList = mPriv->poolMap[dirPrefix];
+    PoolList::const_iterator it;
 
     for (it = poolList.begin(); it != poolList.end(); it++)
     {
@@ -1431,17 +1416,17 @@ RadosFs::dataPools(const std::string &prefix) const
 }
 
 std::string
-RadosFs::dataPoolPrefix(const std::string &pool) const
+Fs::dataPoolPrefix(const std::string &pool) const
 {
   std::string prefix("");
 
   pthread_mutex_lock(&mPriv->poolMutex);
 
-  RadosFsPoolListMap::const_iterator it;
+  PoolListMap::const_iterator it;
   for (it = mPriv->poolMap.begin(); it != mPriv->poolMap.end(); it++)
   {
-    const RadosFsPoolList &pools = (*it).second;
-    RadosFsPoolList::const_iterator poolIt;
+    const PoolList &pools = (*it).second;
+    PoolList::const_iterator poolIt;
 
     for (poolIt = pools.begin(); poolIt != pools.end(); poolIt++)
     {
@@ -1462,17 +1447,17 @@ RadosFs::dataPoolPrefix(const std::string &pool) const
 }
 
 int
-RadosFs::dataPoolSize(const std::string &pool) const
+Fs::dataPoolSize(const std::string &pool) const
 {
   int size = 0;
 
   pthread_mutex_lock(&mPriv->poolMutex);
 
-  RadosFsPoolListMap::const_iterator it;
+  PoolListMap::const_iterator it;
   for (it = mPriv->poolMap.begin(); it != mPriv->poolMap.end(); it++)
   {
-    const RadosFsPoolList &pools = (*it).second;
-    RadosFsPoolList::const_iterator poolIt;
+    const PoolList &pools = (*it).second;
+    PoolList::const_iterator poolIt;
 
     for (poolIt = pools.begin(); poolIt != pools.end(); poolIt++)
     {
@@ -1493,7 +1478,7 @@ RadosFs::dataPoolSize(const std::string &pool) const
 }
 
 int
-RadosFs::addMetadataPool(const std::string &name, const std::string &prefix)
+Fs::addMetadataPool(const std::string &name, const std::string &prefix)
 {
   return mPriv->addPool(name,
                         prefix,
@@ -1502,51 +1487,51 @@ RadosFs::addMetadataPool(const std::string &name, const std::string &prefix)
 }
 
 int
-RadosFs::removeMetadataPool(const std::string &name)
+Fs::removeMetadataPool(const std::string &name)
 {
   return mPriv->removePool(name, &mPriv->mtdPoolMap, &mPriv->mtdPoolMutex);
 }
 
 std::vector<std::string>
-RadosFs::metadataPools() const
+Fs::metadataPools() const
 {
   return mPriv->pools(&mPriv->mtdPoolMap, &mPriv->mtdPoolMutex);
 }
 
 std::string
-RadosFs::metadataPoolPrefix(const std::string &pool) const
+Fs::metadataPoolPrefix(const std::string &pool) const
 {
   return mPriv->poolPrefix(pool, &mPriv->mtdPoolMap, &mPriv->mtdPoolMutex);
 }
 
 std::string
-RadosFs::metadataPoolFromPrefix(const std::string &prefix) const
+Fs::metadataPoolFromPrefix(const std::string &prefix) const
 {
   return mPriv->poolFromPrefix(prefix, &mPriv->mtdPoolMap, &mPriv->mtdPoolMutex);
 }
 
 void
-RadosFs::setIds(uid_t uid, gid_t gid)
+Fs::setIds(uid_t uid, gid_t gid)
 {
   mPriv->setUid(uid);
   mPriv->setGid(gid);
 }
 
 void
-RadosFs::getIds(uid_t *uid, gid_t *gid) const
+Fs::getIds(uid_t *uid, gid_t *gid) const
 {
   *uid = mPriv->getUid();
   *gid = mPriv->getGid();
 }
 
 uid_t
-RadosFs::uid(void) const
+Fs::uid(void) const
 {
   return mPriv->uid;
 }
 
 uid_t
-RadosFs::gid(void) const
+Fs::gid(void) const
 {
   return mPriv->gid;
 }
@@ -1571,7 +1556,7 @@ gatherPathsByParentDir(const std::vector<std::string> &paths,
 }
 
 std::vector<std::pair<int, struct stat> >
-RadosFs::stat(const std::vector<std::string> &paths)
+Fs::stat(const std::vector<std::string> &paths)
 {
   std::map<std::string, std::pair<int, struct stat> > stats;
   std::map<std::string, std::vector<std::string> > entries;
@@ -1608,7 +1593,7 @@ RadosFs::stat(const std::vector<std::string> &paths)
 }
 
 int
-RadosFs::stat(const std::string &path, struct stat *buff)
+Fs::stat(const std::string &path, struct stat *buff)
 {
   int ret = -ENOENT;
 
@@ -1616,14 +1601,14 @@ RadosFs::stat(const std::string &path, struct stat *buff)
 
   if (isDirPath(sanitizedPath))
   {
-    RadosFsDir dir(this, sanitizedPath);
+    Dir dir(this, sanitizedPath);
 
     ret = dir.stat(buff);
   }
 
   if (ret != 0)
   {
-    RadosFsFile file(this, sanitizedPath, RadosFsFile::MODE_READ);
+    File file(this, sanitizedPath, File::MODE_READ);
 
     ret = file.stat(buff);
   }
@@ -1632,7 +1617,7 @@ RadosFs::stat(const std::string &path, struct stat *buff)
 }
 
 std::vector<std::string>
-RadosFs::allPoolsInCluster() const
+Fs::allPoolsInCluster() const
 {
   std::vector<std::string> poolVector;
   std::list<std::string> poolList;
@@ -1644,10 +1629,8 @@ RadosFs::allPoolsInCluster() const
 }
 
 int
-RadosFs::statCluster(uint64_t *totalSpaceKb,
-                     uint64_t *usedSpaceKb,
-                     uint64_t *availableSpaceKb,
-                     uint64_t *numberOfObjects)
+Fs::statCluster(uint64_t *totalSpaceKb, uint64_t *usedSpaceKb,
+                uint64_t *availableSpaceKb, uint64_t *numberOfObjects)
 {
   int ret;
   librados::cluster_stat_t clusterStat;
@@ -1673,11 +1656,10 @@ RadosFs::statCluster(uint64_t *totalSpaceKb,
 }
 
 int
-RadosFs::setXAttr(const std::string &path,
-                  const std::string &attrName,
-                  const std::string &value)
+Fs::setXAttr(const std::string &path, const std::string &attrName,
+             const std::string &value)
 {
-  RadosFsStat stat;
+  Stat stat;
 
   int ret = mPriv->stat(path, &stat);
 
@@ -1704,11 +1686,10 @@ RadosFs::setXAttr(const std::string &path,
 }
 
 int
-RadosFs::getXAttr(const std::string &path,
-                  const std::string &attrName,
-                  std::string &value)
+Fs::getXAttr(const std::string &path, const std::string &attrName,
+             std::string &value)
 {
-  RadosFsStat stat;
+  Stat stat;
 
   int ret = mPriv->stat(path, &stat);
 
@@ -1735,10 +1716,9 @@ RadosFs::getXAttr(const std::string &path,
 }
 
 int
-RadosFs::removeXAttr(const std::string &path,
-                     const std::string &attrName)
+Fs::removeXAttr(const std::string &path, const std::string &attrName)
 {
-  RadosFsStat stat;
+  Stat stat;
 
   int ret = mPriv->stat(path, &stat);
 
@@ -1765,10 +1745,10 @@ RadosFs::removeXAttr(const std::string &path,
 }
 
 int
-RadosFs::getXAttrsMap(const std::string &path,
-                      std::map<std::string, std::string> &map)
+Fs::getXAttrsMap(const std::string &path,
+                 std::map<std::string, std::string> &map)
 {
-  RadosFsStat stat;
+  Stat stat;
 
   int ret = mPriv->stat(path, &stat);
 
@@ -1795,44 +1775,44 @@ RadosFs::getXAttrsMap(const std::string &path,
 }
 
 void
-RadosFs::setDirCacheMaxSize(size_t size)
+Fs::setDirCacheMaxSize(size_t size)
 {
   mPriv->dirCache.maxCacheSize = size;
   mPriv->dirCache.adjustCache();
 }
 
 size_t
-RadosFs::dirCacheMaxSize(void) const
+Fs::dirCacheMaxSize(void) const
 {
   return mPriv->dirCache.maxCacheSize;
 }
 
 void
-RadosFs::setDirCompactRatio(float ratio)
+Fs::setDirCompactRatio(float ratio)
 {
   mPriv->dirCompactRatio = ratio;
 }
 
 float
-RadosFs::dirCompactRatio(void) const
+Fs::dirCompactRatio(void) const
 {
   return mPriv->dirCompactRatio;
 }
 
 void
-RadosFs::setLogLevel(const RadosFs::LogLevel level)
+Fs::setLogLevel(const Fs::LogLevel level)
 {
   mPriv->logger.setLogLevel(level);
 }
 
-RadosFs::LogLevel
-RadosFs::logLevel(void) const
+Fs::LogLevel
+Fs::logLevel(void) const
 {
   return mPriv->logger.logLevel();
 }
 
 void
-RadosFs::setFileStripeSize(const size_t size)
+Fs::setFileStripeSize(const size_t size)
 {
   size_t realSize = size;
 
@@ -1847,28 +1827,28 @@ RadosFs::setFileStripeSize(const size_t size)
 }
 
 size_t
-RadosFs::fileStripeSize(void) const
+Fs::fileStripeSize(void) const
 {
   return mPriv->fileStripeSize;
 }
 
 
 void
-RadosFs::setFileLocking(bool lock)
+Fs::setFileLocking(bool lock)
 {
   mPriv->lockFiles = lock;
 }
 
 bool
-RadosFs::fileLocking(void) const
+Fs::fileLocking(void) const
 {
   return mPriv->lockFiles;
 }
 
-RadosFsInfo *
-RadosFs::getFsInfo(const std::string &path)
+Info *
+Fs::getFsInfo(const std::string &path)
 {
-  RadosFsStat stat;
+  Stat stat;
 
   if (mPriv->stat(path, &stat) != 0)
   {
@@ -1877,21 +1857,21 @@ RadosFs::getFsInfo(const std::string &path)
 
   if (S_ISLNK(stat.statBuff.st_mode) && isDirPath(stat.translatedPath))
   {
-    return new RadosFsDir(this, stat.path);
+    return new Dir(this, stat.path);
   }
   else if (S_ISDIR(stat.statBuff.st_mode))
   {
-    return new RadosFsDir(this, stat.path);
+    return new Dir(this, stat.path);
   }
 
-  return new RadosFsFile(this, stat.path);
+  return new File(this, stat.path);
 }
 
 int
-RadosFs::getInodeAndPool(const std::string &path, std::string *inode,
-                         std::string *pool)
+Fs::getInodeAndPool(const std::string &path, std::string *inode,
+                    std::string *pool)
 {
-  RadosFsStat stat;
+  Stat stat;
   int ret = mPriv->stat(path, &stat);
 
   if (ret == 0)

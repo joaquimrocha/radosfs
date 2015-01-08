@@ -28,22 +28,22 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
-class RadosFsDirPriv;
+class DirPriv;
 
-class RadosFsDir : public RadosFsInfo
+class Dir : public Info
 {
 public:
-  RadosFsDir(RadosFs *radosFs, const std::string &path);
+  Dir(Fs *radosFs, const std::string &path);
 
-  RadosFsDir(RadosFs *radosFs, const std::string &path, bool cacheable);
+  Dir(Fs *radosFs, const std::string &path, bool cacheable);
 
-  RadosFsDir(const RadosFsDir &otherDir);
+  Dir(const Dir &otherDir);
 
-  RadosFsDir(const RadosFsDir *otherDir);
+  Dir(const Dir *otherDir);
 
-  virtual ~RadosFsDir();
+  virtual ~Dir();
 
-  RadosFsDir & operator=(const RadosFsDir &otherDir);
+  Dir & operator=(const Dir &otherDir);
 
   static std::string getParent(const std::string &path, int *pos=0);
 
@@ -93,10 +93,10 @@ public:
   bool usingTMTime(void);
 
 private:
-  std::auto_ptr<RadosFsDirPriv> mPriv;
+  std::auto_ptr<DirPriv> mPriv;
 
-friend class ::RadosFsTest;
-friend class RadosFsDirPriv;
+  friend class ::RadosFsTest;
+  friend class DirPriv;
 };
 
 RADOS_FS_END_NAMESPACE

@@ -35,14 +35,14 @@ class RadosFsChecker;
 
 RADOS_FS_BEGIN_NAMESPACE
 
-class RadosFsPriv;
-class RadosFsInfo;
+class FsPriv;
+class Info;
 
-class RadosFs
+class Fs
 {
 public:
-  RadosFs();
-  ~RadosFs();
+  Fs();
+  ~Fs();
 
   enum LogLevel
   {
@@ -125,20 +125,20 @@ public:
   void setFileLocking(bool lock);
   bool fileLocking(void) const;
 
-  RadosFsInfo * getFsInfo(const std::string &path);
+  Info * getFsInfo(const std::string &path);
 
   int getInodeAndPool(const std::string &path, std::string *inode,
                       std::string *pool);
 
 private:
-  RadosFsPriv *mPriv;
+  FsPriv *mPriv;
 
-friend class ::RadosFsTest;
-friend class ::RadosFsChecker;
-friend class RadosFsInfoPriv;
-friend class RadosFsFilePriv;
-friend class RadosFsDirPriv;
-friend class RadosFsIO;
+  friend class ::RadosFsTest;
+  friend class ::RadosFsChecker;
+  friend class InfoPriv;
+  friend class FilePriv;
+  friend class DirPriv;
+  friend class FileIO;
 };
 
 RADOS_FS_END_NAMESPACE

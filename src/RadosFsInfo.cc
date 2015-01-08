@@ -30,7 +30,7 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
-RadosFsInfoPriv::RadosFsInfoPriv(RadosFs *radosFs, const std::string &objPath)
+InfoPriv::InfoPriv(Fs *radosFs, const std::string &objPath)
   : radosFs(radosFs),
     target(""),
     exists(false)
@@ -38,14 +38,14 @@ RadosFsInfoPriv::RadosFsInfoPriv(RadosFs *radosFs, const std::string &objPath)
   setPath(objPath);
 }
 
-RadosFsInfoPriv::~RadosFsInfoPriv()
+InfoPriv::~InfoPriv()
 {}
 
 int
-RadosFsInfoPriv::makeRealPath(std::string &path)
+InfoPriv::makeRealPath(std::string &path)
 {
   std::string parent = getParentDir(path, 0);
-  RadosFsStat stat;
+  Stat stat;
 
   parentDirStat.reset();
 
@@ -85,7 +85,7 @@ RadosFsInfoPriv::makeRealPath(std::string &path)
 }
 
 void
-RadosFsInfoPriv::setPath(const std::string &path)
+InfoPriv::setPath(const std::string &path)
 {
   int ret;
   this->path = sanitizePath(path);
@@ -105,7 +105,7 @@ RadosFsInfoPriv::setPath(const std::string &path)
 }
 
 int
-RadosFsInfoPriv::makeLink(std::string &linkPath)
+InfoPriv::makeLink(std::string &linkPath)
 {
   int ret;
 
@@ -118,7 +118,7 @@ RadosFsInfoPriv::makeLink(std::string &linkPath)
     return -ENAMETOOLONG;
   }
 
-  const RadosFsPoolSP pool =
+  const PoolSP pool =
       radosFs->mPriv->getMetadataPoolFromPath(linkPath);
 
   if (!pool)
@@ -187,7 +187,7 @@ RadosFsInfoPriv::makeLink(std::string &linkPath)
     return ret;
   }
 
-  RadosFsStat linkStat = stat;
+  Stat linkStat = stat;
   linkStat.path = linkPath;
   linkStat.pool = pool;
   linkStat.translatedPath = this->path;
@@ -198,54 +198,54 @@ RadosFsInfoPriv::makeLink(std::string &linkPath)
   return indexObject(&parentDirStat, &linkStat, '+');
 }
 
-RadosFsInfo::RadosFsInfo(RadosFs *radosFs, const std::string &path)
-  : mPriv(new RadosFsInfoPriv(radosFs, path))
+Info::Info(Fs *radosFs, const std::string &path)
+  : mPriv(new InfoPriv(radosFs, path))
 {
   update();
 }
 
-RadosFsInfo::~RadosFsInfo()
+Info::~Info()
 {}
 
-RadosFsInfo::RadosFsInfo(const RadosFsInfo &otherInfo)
-  : mPriv(new RadosFsInfoPriv(otherInfo.filesystem(), otherInfo.path()))
+Info::Info(const Info &otherInfo)
+  : mPriv(new InfoPriv(otherInfo.filesystem(), otherInfo.path()))
 {
   update();
 }
 
 std::string
-RadosFsInfo::path() const
+Info::path() const
 {
   return mPriv->path;
 }
 
 void
-RadosFsInfo::setPath(const std::string &path)
+Info::setPath(const std::string &path)
 {
   mPriv->setPath(path);
   update();
 }
 
-RadosFs *
-RadosFsInfo::filesystem() const
+Fs *
+Info::filesystem() const
 {
   return mPriv->radosFs;
 }
 
 void
-RadosFsInfo::setFilesystem(RadosFs *radosFs)
+Info::setFilesystem(Fs *radosFs)
 {
   mPriv->radosFs = radosFs;
 }
 
 bool
-RadosFsInfo::isFile() const
+Info::isFile() const
 {
   return !isDir();
 }
 
 bool
-RadosFsInfo::isDir() const
+Info::isDir() const
 {
   if (!exists())
     return isDirPath(mPriv->path);
@@ -257,15 +257,15 @@ RadosFsInfo::isDir() const
 }
 
 bool
-RadosFsInfo::exists() const
+Info::exists() const
 {
   return mPriv->exists;
 }
 
 int
-RadosFsInfo::stat(struct stat *buff)
+Info::stat(struct stat *buff)
 {
-  RadosFsInfo::update();
+  Info::update();
 
   if (!isReadable())
     return -EPERM;
@@ -276,7 +276,7 @@ RadosFsInfo::stat(struct stat *buff)
 }
 
 void
-RadosFsInfo::update()
+Info::update()
 {
   mPriv->exists = false;
 
@@ -298,12 +298,11 @@ RadosFsInfo::update()
 }
 
 int
-RadosFsInfo::setXAttr(const std::string &attrName,
-                      const std::string &value)
+Info::setXAttr(const std::string &attrName, const std::string &value)
 {
   // We don't call the similar methods from RadosFs for avoiding extra stat calls
 
-  RadosFsPool *pool = mPriv->stat.pool.get();
+  Pool *pool = mPriv->stat.pool.get();
 
   if (!pool)
     return -ENOENT;
@@ -319,12 +318,11 @@ RadosFsInfo::setXAttr(const std::string &attrName,
 }
 
 int
-RadosFsInfo::getXAttr(const std::string &attrName,
-                      std::string &value)
+Info::getXAttr(const std::string &attrName, std::string &value)
 {
   // We don't call the similar methods from RadosFs for avoiding extra stat calls
 
-  RadosFsPool *pool = mPriv->stat.pool.get();
+  Pool *pool = mPriv->stat.pool.get();
 
   if (!pool)
     return -ENOENT;
@@ -340,11 +338,11 @@ RadosFsInfo::getXAttr(const std::string &attrName,
 }
 
 int
-RadosFsInfo::removeXAttr(const std::string &attrName)
+Info::removeXAttr(const std::string &attrName)
 {
   // We don't call the similar methods from RadosFs for avoiding extra stat calls
 
-  RadosFsPool *pool = mPriv->stat.pool.get();
+  Pool *pool = mPriv->stat.pool.get();
 
   if (!pool)
     return -ENOENT;
@@ -360,11 +358,11 @@ RadosFsInfo::removeXAttr(const std::string &attrName)
 }
 
 int
-RadosFsInfo::getXAttrsMap(std::map<std::string, std::string> &map)
+Info::getXAttrsMap(std::map<std::string, std::string> &map)
 {
   // We don't call the similar methods from RadosFs for avoiding extra stat calls
 
-  RadosFsPool *pool = mPriv->stat.pool.get();
+  Pool *pool = mPriv->stat.pool.get();
 
   if (!pool)
     return -ENOENT;
@@ -380,7 +378,7 @@ RadosFsInfo::getXAttrsMap(std::map<std::string, std::string> &map)
 }
 
 int
-RadosFsInfo::createLink(const std::string &linkName)
+Info::createLink(const std::string &linkName)
 {
   std::string absLinkName(linkName);
 
@@ -410,7 +408,7 @@ RadosFsInfo::createLink(const std::string &linkName)
 }
 
 bool
-RadosFsInfo::isLink() const
+Info::isLink() const
 {
   if (!exists())
     return false;
@@ -419,37 +417,37 @@ RadosFsInfo::isLink() const
 }
 
 std::string
-RadosFsInfo::targetPath() const
+Info::targetPath() const
 {
   return mPriv->target;
 }
 
 void *
-RadosFsInfo::fsStat(void)
+Info::fsStat(void)
 {
   return &mPriv->stat;
 }
 
 void
-RadosFsInfo::setFsStat(void *stat)
+Info::setFsStat(void *stat)
 {
-  mPriv->stat = *reinterpret_cast<RadosFsStat *>(stat);
+  mPriv->stat = *reinterpret_cast<Stat *>(stat);
 }
 
 void *
-RadosFsInfo::parentFsStat()
+Info::parentFsStat()
 {
   return &mPriv->parentDirStat;
 }
 
 int
-RadosFsInfo::chmod(long int permissions)
+Info::chmod(long int permissions)
 {
   return -EOPNOTSUPP;
 }
 
 int
-RadosFsInfo::rename(const std::string &newPath)
+Info::rename(const std::string &newPath)
 {
   return -EOPNOTSUPP;
 }

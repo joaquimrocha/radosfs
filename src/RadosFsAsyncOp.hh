@@ -32,13 +32,13 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
-class RadosFsAsyncOpPriv;
+class AyncOpPriv;
 
-class RadosFsAsyncOp
+class AsyncOp
 {
 public:
-  RadosFsAsyncOp(const std::string &id);
-  ~RadosFsAsyncOp(void);
+  AsyncOp(const std::string &id);
+  ~AsyncOp(void);
 
   std::string id(void);
   bool isFinished(void);
@@ -46,9 +46,9 @@ public:
   int waitForCompletion(void);
 
 private:
-  std::auto_ptr<RadosFsAsyncOpPriv> mPriv;
+  std::auto_ptr<AyncOpPriv> mPriv;
 
-friend class RadosFsIO;
+  friend class FileIO;
 };
 
 RADOS_FS_END_NAMESPACE

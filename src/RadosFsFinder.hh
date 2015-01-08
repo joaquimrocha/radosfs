@@ -24,11 +24,11 @@ typedef struct
 
 typedef struct _FinderData FinderData;
 
-class RadosFsFinder
+class Finder
 {
 public:
-  RadosFsFinder(RadosFs *radosFs);
-  ~RadosFsFinder(void);
+  Finder(Fs *radosFs);
+  ~Finder(void);
 
   enum FindOptions
   {
@@ -46,10 +46,10 @@ public:
 
   int checkEntrySize(FinderData *data,
                      const std::string &entry,
-                     const RadosFsDir &dir,
+                     const Dir &dir,
                      struct stat &buff);
 
-  RadosFs *radosFs;
+  Fs *radosFs;
 };
 
 struct _FinderData {
@@ -57,7 +57,7 @@ struct _FinderData {
   boost::mutex *mutex;
   boost::condition_variable *cond;
   std::string term;
-  const std::map<RadosFsFinder::FindOptions, FinderArg> *args;
+  const std::map<Finder::FindOptions, FinderArg> *args;
   std::set<std::string> dirEntries;
   std::set<std::string> results;
   int *numberRelatedJobs;

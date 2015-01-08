@@ -30,9 +30,9 @@ class RadosFsTest;
 
 RADOS_FS_BEGIN_NAMESPACE
 
-class RadosFsFilePriv;
+class FilePriv;
 
-class RadosFsFile : public RadosFsInfo
+class File : public Info
 {
 public:
   enum OpenMode
@@ -43,16 +43,15 @@ public:
     MODE_READ_WRITE = (MODE_READ | MODE_WRITE)
   };
 
-  RadosFsFile(RadosFs *radosFs, const std::string &path,
-              OpenMode mode = MODE_READ_WRITE);
+  File(Fs *radosFs, const std::string &path, OpenMode mode = MODE_READ_WRITE);
 
-  virtual ~RadosFsFile();
+  virtual ~File();
 
-  RadosFsFile(const RadosFsFile &otherFile);
+  File(const File &otherFile);
 
-  RadosFsFile(const RadosFsFile *otherFile);
+  File(const File *otherFile);
 
-  RadosFsFile & operator=(const RadosFsFile &otherFile);
+  File & operator=(const File &otherFile);
 
   OpenMode mode(void) const;
 
@@ -87,10 +86,10 @@ public:
   int sync(void);
 
 private:
-  std::auto_ptr<RadosFsFilePriv> mPriv;
+  std::auto_ptr<FilePriv> mPriv;
 
-friend class ::RadosFsTest;
-friend class RadosFsFilePriv;
+  friend class ::RadosFsTest;
+  friend class FilePriv;
 };
 
 RADOS_FS_END_NAMESPACE

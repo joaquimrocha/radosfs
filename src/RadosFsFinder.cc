@@ -31,11 +31,11 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
-RadosFsFinder::RadosFsFinder(RadosFs *fs)
+Finder::Finder(Fs *fs)
   : radosFs(fs)
 {}
 
-RadosFsFinder::~RadosFsFinder()
+Finder::~Finder()
 {}
 
 int
@@ -55,8 +55,7 @@ makeRegexFromExp(const std::string &expression,
 }
 
 int
-checkEntryNameRegex(FinderData *data,
-                    const RadosFsFinder::FindOptions option,
+checkEntryNameRegex(FinderData *data, const Finder::FindOptions option,
                     std::string &exp,
                     regex_t *regex)
 {
@@ -77,10 +76,8 @@ checkEntryNameRegex(FinderData *data,
 }
 
 int
-RadosFsFinder::checkEntrySize(FinderData *data,
-                              const std::string &entry,
-                              const RadosFsDir &dir,
-                              struct stat &buff)
+Finder::checkEntrySize(FinderData *data, const std::string &entry,
+                       const Dir &dir, struct stat &buff)
 {
   int ret = 0;
   const int sizeOptions[] = {FIND_SIZE_EQ,
@@ -148,13 +145,13 @@ RadosFsFinder::checkEntrySize(FinderData *data,
 }
 
 int
-RadosFsFinder::find(FinderData *data)
+Finder::find(FinderData *data)
 {
   int ret;
   std::string nameExpEQ = "", nameExpNE = "";
   regex_t nameRegexEQ, nameRegexNE;
   std::set<std::string> entries;
-  RadosFsDir dir(radosFs, data->dir);
+  Dir dir(radosFs, data->dir);
   std::set<std::string>::iterator it;
 
   dir.update();
