@@ -22,8 +22,8 @@
 
 #include "radosfsdefines.h"
 #include "radosfscommon.h"
-#include "RadosFsInfo.hh"
-#include "RadosFsInfoPriv.hh"
+#include "RadosFsObj.hh"
+#include "RadosFsObjPriv.hh"
 #include "RadosFsDir.hh"
 #include "RadosFsFile.hh"
 #include "RadosFsPriv.hh"

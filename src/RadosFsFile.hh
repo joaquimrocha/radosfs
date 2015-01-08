@@ -24,7 +24,7 @@
 #include <memory>
 
 #include "RadosFs.hh"
-#include "RadosFsInfo.hh"
+#include "RadosFsObj.hh"
 
 class RadosFsTest;
 

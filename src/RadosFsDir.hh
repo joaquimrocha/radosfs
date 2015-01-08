@@ -24,7 +24,7 @@
 #include <set>
 
 #include "RadosFs.hh"
-#include "RadosFsInfo.hh"
+#include "RadosFsObj.hh"
 
 RADOS_FS_BEGIN_NAMESPACE
 

@@ -17,8 +17,8 @@
  * for more details.
  */
 
-#ifndef RADOS_FS_INFO_HH
-#define RADOS_FS_INFO_HH
+#ifndef RADOS_FS_OBJ_HH
+#define RADOS_FS_OBJ_HH
 
 #include <cstdlib>
 #include <set>
@@ -93,4 +93,4 @@ private:
 
 RADOS_FS_END_NAMESPACE
 
-#endif /* RADOS_FS_INFO_HH */
+#endif /* RADOS_FS_OBJ_HH */

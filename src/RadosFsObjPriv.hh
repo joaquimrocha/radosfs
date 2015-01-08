@@ -17,8 +17,8 @@
  * for more details.
  */
 
-#ifndef RADOS_FS_INFO_IMPL_HH
-#define RADOS_FS_INFO_IMPL_HH
+#ifndef RADOS_FS_OBJ_IMPL_HH
+#define RADOS_FS_OBJ_IMPL_HH
 
 #include <tr1/memory>
 
@@ -55,4 +55,4 @@ public:
 
 RADOS_FS_END_NAMESPACE
 
-#endif /* RADOS_FS_INFO_IMPL_HH */
+#endif /* RADOS_FS_OBJ_IMPL_HH */

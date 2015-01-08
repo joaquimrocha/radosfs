@@ -46,7 +46,7 @@ add_library( radosfs SHARED
              hash64.c hash64.h
              RadosFsFile.cc RadosFsFile.hh RadosFsFilePriv.hh
              RadosFsDir.cc RadosFsDir.hh RadosFsDirPriv.hh
-             RadosFsInfo.cc RadosFsInfo.hh RadosFsInfoPriv.hh
+             RadosFsObj.cc RadosFsObj.hh RadosFsObjPriv.hh
              RadosFsFileIO.cc RadosFsFileIO.hh
              RadosFsLogger.cc RadosFsLogger.hh
              RadosFsFinder.cc RadosFsFinder.hh
