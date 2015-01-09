@@ -32,14 +32,10 @@ DirCache::DirCache(const std::string &dirpath, PoolSP pool)
     mLastCachedSize(0),
     mLastReadByte(0),
     mLogNrLines(0)
-{
-  pthread_mutex_init(&mContentsMutex, 0);
-}
+{}
 
 DirCache::~DirCache()
-{
-  pthread_mutex_destroy(&mContentsMutex);
-}
+{}
 
 int
 DirCache::getContentsSize(uint64_t *size) const
@@ -95,7 +91,7 @@ DirCache::parseContents(char *buff, int length)
       key = value = "";
     }
 
-    pthread_mutex_lock(&mContentsMutex);
+    boost::unique_lock<boost::mutex> lock(mContentsMutex);
 
     mLogNrLines++;
 
@@ -133,8 +129,6 @@ DirCache::parseContents(char *buff, int length)
       mContents[name] = entry;
       mEntryNames.insert(name);
     }
-
-    pthread_mutex_unlock(&mContentsMutex);
   }
 }
 
@@ -175,8 +169,7 @@ const std::string
 DirCache::getEntry(int index)
 {
   std::string entry("");
-
-  pthread_mutex_lock(&mContentsMutex);
+  boost::unique_lock<boost::mutex> lock(mContentsMutex);
 
   const int size = (int) mEntryNames.size();
 
@@ -187,8 +180,6 @@ DirCache::getEntry(int index)
 
     entry = *it;
   }
-
-  pthread_mutex_unlock(&mContentsMutex);
 
   return entry;
 }
@@ -266,11 +257,9 @@ bool
 DirCache::hasEntry(const std::string &entry)
 {
   bool entryExists(false);
-  pthread_mutex_lock(&mContentsMutex);
+  boost::unique_lock<boost::mutex> lock(mContentsMutex);
 
   entryExists = mContents.count(entry) > 0;
-
-  pthread_mutex_unlock(&mContentsMutex);
 
   return entryExists;
 }
@@ -281,7 +270,7 @@ DirCache::getMetadata(const std::string &entry,
                       std::string &value)
 {
   int ret = -ENOENT;
-  pthread_mutex_lock(&mContentsMutex);
+  boost::unique_lock<boost::mutex> lock(mContentsMutex);
 
   if (mContents.count(entry) > 0)
   {
@@ -293,8 +282,6 @@ DirCache::getMetadata(const std::string &entry,
       ret = 0;
     }
   }
-
-  pthread_mutex_unlock(&mContentsMutex);
 
   return ret;
 }

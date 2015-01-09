@@ -20,7 +20,7 @@
 #ifndef __DIR_INFO_HH__
 #define __DIR_INFO_HH__
 
-#include <pthread.h>
+#include <boost/thread.hpp>
 #include <set>
 #include <map>
 #include <string>
@@ -65,7 +65,7 @@ private:
   std::set<std::string> mEntryNames;
   uint64_t mLastCachedSize;
   int mLastReadByte;
-  pthread_mutex_t mContentsMutex;
+  boost::mutex mContentsMutex;
   size_t mLogNrLines;
 };
 
