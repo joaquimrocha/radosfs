@@ -19,7 +19,6 @@
 
 #include <cstdio>
 #include <cstdarg>
-#include <pthread.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -31,7 +30,7 @@ RADOS_FS_BEGIN_NAMESPACE
 
 Filesystem::LogLevel Logger::level = Filesystem::LOG_LEVEL_DEBUG;
 
-void *
+void
 readConfiguredLogLevel(void *fsLogger)
 {
   FILE *fp;
@@ -44,6 +43,8 @@ readConfiguredLogLevel(void *fsLogger)
 
   while (true)
   {
+    boost::this_thread::interruption_point();
+
     if (stat(LOG_LEVEL_CONF_FILE, &statBuff) != 0)
       break;
 
@@ -88,31 +89,19 @@ readConfiguredLogLevel(void *fsLogger)
       }
     }
 
-    sleep(2);
+    boost::this_thread::interruption_point();
+    boost::this_thread::sleep_for(boost::chrono::seconds(2));
   }
-
-  pthread_exit(0);
 }
 
 Logger::Logger()
-{
-  pthread_mutex_init(&mLevelMutex, 0);
-
-  int ret = pthread_create(&thread, 0, readConfiguredLogLevel, this);
-
-  if (ret != 0)
-  {
-    radosfs_debug("Could not create thread: %s", strerror(ret));
-    return;
-  }
-}
+  : thread(&readConfiguredLogLevel, this)
+{}
 
 Logger::~Logger()
 {
-  void *status;
-  pthread_cancel(thread);
-  pthread_join(thread, &status);
-  pthread_mutex_destroy(&mLevelMutex);
+  thread.interrupt();
+  thread.join();
 }
 
 void
@@ -156,23 +145,17 @@ Logger::log(const char *file, const int line, const Filesystem::LogLevel msgLeve
 void
 Logger::setLogLevel(const Filesystem::LogLevel newLevel)
 {
-  pthread_mutex_lock(levelMutex());
-
+  boost::unique_lock<boost::mutex> lock(mLevelMutex);
   level = newLevel;
-
-  pthread_mutex_unlock(levelMutex());
 }
 
 Filesystem::LogLevel
 Logger::logLevel()
 {
   Filesystem::LogLevel currentLevel;
-
-  pthread_mutex_lock(levelMutex());
+  boost::unique_lock<boost::mutex> lock(mLevelMutex);
 
   currentLevel = level;
-
-  pthread_mutex_unlock(levelMutex());
 
   return currentLevel;
 }

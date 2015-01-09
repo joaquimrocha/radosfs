@@ -1,6 +1,7 @@
 #ifndef __RADOS_FS_LOGGER_HH__
 #define __RADOS_FS_LOGGER_HH__
 
+#include <boost/thread.hpp>
 #include <string>
 
 #include "radosfsdefines.h"
@@ -27,15 +28,13 @@ public:
                   const char *msg,
                   ...);
 
-  pthread_mutex_t * levelMutex(void) { return &mLevelMutex; }
-
   void setLogLevel(const Filesystem::LogLevel level);
   Filesystem::LogLevel logLevel(void);
 
 private:
   static const int mBufferMaxSize = 1024;
-  pthread_t thread;
-  pthread_mutex_t mLevelMutex;
+  boost::thread thread;
+  boost::mutex mLevelMutex;
 };
 
 RADOS_FS_END_NAMESPACE
