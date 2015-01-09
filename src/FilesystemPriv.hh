@@ -22,7 +22,6 @@
 
 #include <boost/asio.hpp>
 #include <boost/thread.hpp>
-#include <pthread.h>
 #include <map>
 #include <vector>
 #include <set>
@@ -110,13 +109,12 @@ public:
   int addPool(const std::string &name,
               const std::string &prefix,
               PoolMap *map,
-              pthread_mutex_t *mutex,
+              boost::mutex &mutex,
               size_t size = 0);
 
   int createPrefixDir(PoolSP pool, const std::string &prefix);
 
-  PoolSP getPool(const std::string &path, PoolMap *map,
-                 pthread_mutex_t *mutex);
+  PoolSP getPool(const std::string &path, PoolMap *map, boost::mutex &mutex);
 
   PoolSP getMetadataPoolFromPath(const std::string &path);
 
@@ -129,18 +127,17 @@ public:
 
   std::string poolPrefix(const std::string &pool,
                          PoolMap *map,
-                         pthread_mutex_t *mutex) const;
+                         boost::mutex &mutex) const;
 
   int removePool(const std::string &name,
                  PoolMap *map,
-                 pthread_mutex_t *mutex);
+                 boost::mutex &mutex);
 
   std::string poolFromPrefix(const std::string &prefix,
                              PoolMap *map,
-                             pthread_mutex_t *mutex) const;
+                             boost::mutex &mutex) const;
 
-  std::vector<std::string> pools(PoolMap *map,
-                                 pthread_mutex_t *mutex) const;
+  std::vector<std::string> pools(PoolMap *map, boost::mutex &mutex) const;
 
   const std::string getParentDir(const std::string &obj, int *pos);
 
@@ -219,15 +216,15 @@ public:
   static __thread gid_t gid;
   std::vector<rados_completion_t> completionList;
   PoolListMap poolMap;
-  pthread_mutex_t poolMutex;
+  boost::mutex poolMutex;
   PoolMap mtdPoolMap;
-  pthread_mutex_t mtdPoolMutex;
+  boost::mutex mtdPoolMutex;
   PriorityCache dirCache;
-  pthread_mutex_t dirCacheMutex;
+  boost::mutex dirCacheMutex;
   std::map<std::string, std::tr1::shared_ptr<FileIO> > operations;
   boost::mutex operationsMutex;
   std::map<std::string, Inode> dirPathInodeMap;
-  pthread_mutex_t dirPathInodeMutex;
+  boost::mutex dirPathInodeMutex;
   float dirCompactRatio;
   Logger logger;
   size_t fileStripeSize;

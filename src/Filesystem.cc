@@ -48,11 +48,6 @@ FilesystemPriv::FilesystemPriv(Filesystem *radosFs)
   uid = 0;
   gid = 0;
   dirCache.maxCacheSize = DEFAULT_DIR_CACHE_MAX_SIZE;
-
-  pthread_mutex_init(&poolMutex, 0);
-  pthread_mutex_init(&mtdPoolMutex, 0);
-  pthread_mutex_init(&dirCacheMutex, 0);
-  pthread_mutex_init(&dirPathInodeMutex, 0);
 }
 
 FilesystemPriv::~FilesystemPriv()
@@ -69,14 +64,9 @@ FilesystemPriv::~FilesystemPriv()
   if (initialized)
     radosCluster.shutdown();
 
-  pthread_mutex_lock(&dirCacheMutex);
+  boost::unique_lock<boost::mutex> lock(dirCacheMutex);
 
   dirCache.cleanCache();
-
-  pthread_mutex_unlock(&dirCacheMutex);
-
-  pthread_mutex_destroy(&poolMutex);
-  pthread_mutex_destroy(&dirCacheMutex);
 }
 
 PriorityCache::PriorityCache()
@@ -368,12 +358,12 @@ int
 FilesystemPriv::getDirInode(const std::string &path, Inode &inode,
                             PoolSP &mtdPool)
 {
-  pthread_mutex_lock(&dirPathInodeMutex);
+  {
+    boost::unique_lock<boost::mutex> dirPathInodeMutex;
 
-  if (dirPathInodeMap.count(path) > 0)
-    inode = dirPathInodeMap[path];
-
-  pthread_mutex_unlock(&dirPathInodeMutex);
+    if (dirPathInodeMap.count(path) > 0)
+      inode = dirPathInodeMap[path];
+  }
 
   if (inode.inode == "")
   {
@@ -400,36 +390,28 @@ FilesystemPriv::getDirInode(const std::string &path, Inode &inode,
 void
 FilesystemPriv::setDirInode(const std::string &path, const Inode &inode)
 {
-  pthread_mutex_lock(&dirPathInodeMutex);
-
+  boost::unique_lock<boost::mutex> (dirPathInodeMutex);
   dirPathInodeMap[path] = inode;
-
-  pthread_mutex_unlock(&dirPathInodeMutex);
 }
 
 void
 FilesystemPriv::updateDirInode(const std::string &oldPath,
                                const std::string &newPath)
 {
-  pthread_mutex_lock(&dirPathInodeMutex);
+  boost::unique_lock<boost::mutex> (dirPathInodeMutex);
 
   if (dirPathInodeMap.count(oldPath) > 0)
   {
     dirPathInodeMap[newPath] = dirPathInodeMap[oldPath];
     dirPathInodeMap.erase(oldPath);
   }
-
-  pthread_mutex_unlock(&dirPathInodeMutex);
 }
 
 void
 FilesystemPriv::removeDirInode(const std::string &path)
 {
-  pthread_mutex_lock(&dirPathInodeMutex);
-
+  boost::unique_lock<boost::mutex> (dirPathInodeMutex);
   dirPathInodeMap.erase(path);
-
-  pthread_mutex_unlock(&dirPathInodeMutex);
 }
 
 void
@@ -782,7 +764,7 @@ FilesystemPriv::createPrefixDir(PoolSP pool, const std::string &prefix)
 
 int
 FilesystemPriv::addPool(const std::string &name, const std::string &prefix,
-                        PoolMap *map, pthread_mutex_t *mutex, size_t size)
+                        PoolMap *map, boost::mutex &mutex, size_t size)
 {
   int ret = -ENODEV;
   const std::string &cleanPrefix = sanitizePath(prefix  + "/");
@@ -822,12 +804,10 @@ FilesystemPriv::addPool(const std::string &name, const std::string &prefix,
       return ret;
   }
 
-  pthread_mutex_lock(mutex);
+  boost::unique_lock<boost::mutex> lock(mutex);
 
   std::pair<std::string, PoolSP > entry(cleanPrefix, poolSP);
   map->insert(entry);
-
-  pthread_mutex_unlock(mutex);
 
   return ret;
 }
@@ -837,8 +817,7 @@ FilesystemPriv::getDataPool(const std::string &path, const std::string &poolName
 {
   PoolSP pool;
   size_t maxLength = 0;
-
-  pthread_mutex_lock(&poolMutex);
+  boost::unique_lock<boost::mutex> lock(poolMutex);
 
   PoolListMap::const_iterator it;
   for (it = poolMap.begin(); it != poolMap.end(); it++)
@@ -878,8 +857,6 @@ FilesystemPriv::getDataPool(const std::string &path, const std::string &poolName
       break;
   }
 
-  pthread_mutex_unlock(&poolMutex);
-
   return pool;
 }
 
@@ -887,8 +864,7 @@ PoolSP
 FilesystemPriv::getMtdPoolFromName(const std::string &name)
 {
   PoolSP pool;
-
-  pthread_mutex_lock(&mtdPoolMutex);
+  boost::unique_lock<boost::mutex> lock(poolMutex);
 
   PoolMap::const_iterator it;
   for (it = mtdPoolMap.begin(); it != mtdPoolMap.end(); it++)
@@ -899,26 +875,23 @@ FilesystemPriv::getMtdPoolFromName(const std::string &name)
       break;
   }
 
-  pthread_mutex_unlock(&mtdPoolMutex);
-
   return pool;
 }
 
 PoolSP
 FilesystemPriv::getMetadataPoolFromPath(const std::string &path)
 {
-  return getPool(path, &mtdPoolMap, &mtdPoolMutex);
+  return getPool(path, &mtdPoolMap, mtdPoolMutex);
 }
 
 PoolSP
 FilesystemPriv::getPool(const std::string &path,
                         PoolMap *map,
-                        pthread_mutex_t *mutex)
+                        boost::mutex &mutex)
 {
   PoolSP pool;
   size_t maxLength = 0;
-
-  pthread_mutex_lock(mutex);
+  boost::unique_lock<boost::mutex> lock(mutex);
 
   PoolMap::const_iterator it;
   for (it = map->begin(); it != map->end(); it++)
@@ -936,18 +909,15 @@ FilesystemPriv::getPool(const std::string &path,
     }
   }
 
-  pthread_mutex_unlock(mutex);
-
   return pool;
 }
 
 std::string
 FilesystemPriv::poolPrefix(const std::string &pool, PoolMap *map,
-                           pthread_mutex_t *mutex) const
+                           boost::mutex &mutex) const
 {
   std::string prefix("");
-
-  pthread_mutex_lock(mutex);
+  boost::unique_lock<boost::mutex> lock(mutex);
 
   PoolMap::iterator it;
   for (it = map->begin(); it != map->end(); it++)
@@ -959,19 +929,16 @@ FilesystemPriv::poolPrefix(const std::string &pool, PoolMap *map,
     }
   }
 
-  pthread_mutex_unlock(mutex);
-
   return prefix;
 }
 
 int
 FilesystemPriv::removePool(const std::string &name, PoolMap *map,
-                           pthread_mutex_t *mutex)
+                           boost::mutex &mutex)
 {
   int ret = -ENOENT;
   const std::string &prefix = poolPrefix(name, map, mutex);
-
-  pthread_mutex_lock(mutex);
+  boost::unique_lock<boost::mutex> lock(mutex);
 
   if (map->count(prefix) > 0)
   {
@@ -979,33 +946,27 @@ FilesystemPriv::removePool(const std::string &name, PoolMap *map,
     ret = 0;
   }
 
-  pthread_mutex_unlock(mutex);
-
   return ret;
 }
 
 std::string
 FilesystemPriv::poolFromPrefix(const std::string &prefix, PoolMap *map,
-                               pthread_mutex_t *mutex) const
+                               boost::mutex &mutex) const
 {
   std::string pool("");
-
-  pthread_mutex_lock(mutex);
+  boost::unique_lock<boost::mutex> lock(mutex);
 
   if (map->count(prefix) > 0)
     pool = map->at(prefix)->name;
-
-  pthread_mutex_unlock(mutex);
 
   return pool;
 }
 
 std::vector<std::string>
 FilesystemPriv::pools(PoolMap *map,
-                      pthread_mutex_t *mutex) const
+                      boost::mutex &mutex) const
 {
-  pthread_mutex_lock(mutex);
-
+  boost::unique_lock<boost::mutex> lock(mutex);
   std::vector<std::string> pools;
 
   PoolMap::iterator it;
@@ -1013,8 +974,6 @@ FilesystemPriv::pools(PoolMap *map,
   {
     pools.push_back((*it).second->name);
   }
-
-  pthread_mutex_unlock(mutex);
 
   return pools;
 }
@@ -1025,8 +984,7 @@ FilesystemPriv::getDataPools(const std::string &path)
   size_t maxLength = 0;
   std::string prefixFound("");
   PoolList pools;
-
-  pthread_mutex_lock(&poolMutex);
+  boost::unique_lock<boost::mutex> lock(poolMutex);
 
   PoolListMap::const_iterator it;
   for (it = poolMap.begin(); it != poolMap.end(); it++)
@@ -1046,8 +1004,6 @@ FilesystemPriv::getDataPools(const std::string &path)
 
   if (prefixFound != "")
     pools = poolMap[prefixFound];
-
-  pthread_mutex_unlock(&poolMutex);
 
   return pools;
 }
@@ -1072,21 +1028,15 @@ FilesystemPriv::getParentDir(const std::string &obj, int *pos)
 void
 FilesystemPriv::updateDirCache(std::tr1::shared_ptr<DirCache> &cache)
 {
-  pthread_mutex_lock(&dirCacheMutex);
-
+  boost::unique_lock<boost::mutex> lock(dirCacheMutex);
   dirCache.update(cache);
-
-  pthread_mutex_unlock(&dirCacheMutex);
 }
 
 void
 FilesystemPriv::removeDirCache(std::tr1::shared_ptr<DirCache> &cache)
 {
-  pthread_mutex_lock(&dirCacheMutex);
-
+  boost::unique_lock<boost::mutex> lock(dirCacheMutex);
   dirCache.removeCache(cache->inode());
-
-  pthread_mutex_unlock(&dirCacheMutex);
 }
 
 std::tr1::shared_ptr<DirCache>
@@ -1094,8 +1044,7 @@ FilesystemPriv::getDirInfo(const std::string &inode, PoolSP pool,
                            bool addToCache)
 {
   std::tr1::shared_ptr<DirCache> cache;
-
-  pthread_mutex_lock(&dirCacheMutex);
+  boost::unique_lock<boost::mutex> lock(dirCacheMutex);
 
   if (dirCache.cacheMap.count(inode) == 0)
   {
@@ -1112,8 +1061,6 @@ FilesystemPriv::getDirInfo(const std::string &inode, PoolSP pool,
   }
   else
     cache = dirCache.cacheMap[inode]->cachePtr;
-
-  pthread_mutex_unlock(&dirCacheMutex);
 
   return cache;
 }
@@ -1161,7 +1108,6 @@ void
 FilesystemPriv::setFileIO(FileIOSP sharedFileIO)
 {
   boost::unique_lock<boost::mutex> lock(operationsMutex);
-
   operations[sharedFileIO->inode()] = sharedFileIO;
 }
 
@@ -1311,7 +1257,7 @@ Filesystem::addDataPool(const std::string &name, const std::string &prefix,
     return -EINVAL;
   }
 
-  pthread_mutex_lock(&mPriv->poolMutex);
+  boost::unique_lock<boost::mutex> lock(mPriv->poolMutex);
 
   map = &mPriv->poolMap;
 
@@ -1327,8 +1273,7 @@ Filesystem::addDataPool(const std::string &name, const std::string &prefix,
       {
         radosfs_debug("The pool %s is already associated with the prefix %s. "
                       "Not adding.", name.c_str(), cleanPrefix.c_str());
-        ret = -EEXIST;
-        goto unlockAndExit;
+        return -EEXIST;
       }
     }
   }
@@ -1336,7 +1281,7 @@ Filesystem::addDataPool(const std::string &name, const std::string &prefix,
   ret = mPriv->radosCluster.ioctx_create(name.c_str(), ioctx);
 
   if (ret != 0)
-    goto unlockAndExit;
+    return ret;
 
   pool = new Pool(name.c_str(), size * MEGABYTE_CONVERSION, ioctx);
   pool->setAlignment(ioctx.pool_required_alignment());
@@ -1351,9 +1296,6 @@ Filesystem::addDataPool(const std::string &name, const std::string &prefix,
 
   pools->push_back(PoolSP(pool));
 
-unlockAndExit:
-  pthread_mutex_unlock(&mPriv->poolMutex);
-
   return ret;
 }
 
@@ -1362,8 +1304,7 @@ Filesystem::removeDataPool(const std::string &name)
 {
   int ret = -ENOENT;
   PoolListMap *map = &mPriv->poolMap;
-
-  pthread_mutex_lock(&mPriv->poolMutex);
+  boost::unique_lock<boost::mutex> lock(mPriv->poolMutex);
 
   PoolListMap::iterator it;
 
@@ -1392,8 +1333,6 @@ Filesystem::removeDataPool(const std::string &name)
       break;
   }
 
-  pthread_mutex_unlock(&mPriv->poolMutex);
-
   return ret;
 }
 
@@ -1402,8 +1341,7 @@ Filesystem::dataPools(const std::string &prefix) const
 {
   std::vector<std::string> pools;
   const std::string &dirPrefix = getDirPath(prefix);
-
-  pthread_mutex_lock(&mPriv->poolMutex);
+  boost::unique_lock<boost::mutex> lock(mPriv->poolMutex);
 
   if (mPriv->poolMap.count(dirPrefix) > 0)
   {
@@ -1416,8 +1354,6 @@ Filesystem::dataPools(const std::string &prefix) const
     }
   }
 
-  pthread_mutex_unlock(&mPriv->poolMutex);
-
   return pools;
 }
 
@@ -1425,8 +1361,7 @@ std::string
 Filesystem::dataPoolPrefix(const std::string &pool) const
 {
   std::string prefix("");
-
-  pthread_mutex_lock(&mPriv->poolMutex);
+  boost::unique_lock<boost::mutex> lock(mPriv->poolMutex);
 
   PoolListMap::const_iterator it;
   for (it = mPriv->poolMap.begin(); it != mPriv->poolMap.end(); it++)
@@ -1447,8 +1382,6 @@ Filesystem::dataPoolPrefix(const std::string &pool) const
       break;
   }
 
-  pthread_mutex_unlock(&mPriv->poolMutex);
-
   return prefix;
 }
 
@@ -1456,8 +1389,7 @@ int
 Filesystem::dataPoolSize(const std::string &pool) const
 {
   int size = 0;
-
-  pthread_mutex_lock(&mPriv->poolMutex);
+  boost::unique_lock<boost::mutex> lock(mPriv->poolMutex);
 
   PoolListMap::const_iterator it;
   for (it = mPriv->poolMap.begin(); it != mPriv->poolMap.end(); it++)
@@ -1478,8 +1410,6 @@ Filesystem::dataPoolSize(const std::string &pool) const
       break;
   }
 
-  pthread_mutex_unlock(&mPriv->poolMutex);
-
   return size;
 }
 
@@ -1489,31 +1419,31 @@ Filesystem::addMetadataPool(const std::string &name, const std::string &prefix)
   return mPriv->addPool(name,
                         prefix,
                         &mPriv->mtdPoolMap,
-                        &mPriv->mtdPoolMutex);
+                        mPriv->mtdPoolMutex);
 }
 
 int
 Filesystem::removeMetadataPool(const std::string &name)
 {
-  return mPriv->removePool(name, &mPriv->mtdPoolMap, &mPriv->mtdPoolMutex);
+  return mPriv->removePool(name, &mPriv->mtdPoolMap, mPriv->mtdPoolMutex);
 }
 
 std::vector<std::string>
 Filesystem::metadataPools() const
 {
-  return mPriv->pools(&mPriv->mtdPoolMap, &mPriv->mtdPoolMutex);
+  return mPriv->pools(&mPriv->mtdPoolMap, mPriv->mtdPoolMutex);
 }
 
 std::string
 Filesystem::metadataPoolPrefix(const std::string &pool) const
 {
-  return mPriv->poolPrefix(pool, &mPriv->mtdPoolMap, &mPriv->mtdPoolMutex);
+  return mPriv->poolPrefix(pool, &mPriv->mtdPoolMap, mPriv->mtdPoolMutex);
 }
 
 std::string
 Filesystem::metadataPoolFromPrefix(const std::string &prefix) const
 {
-  return mPriv->poolFromPrefix(prefix, &mPriv->mtdPoolMap, &mPriv->mtdPoolMutex);
+  return mPriv->poolFromPrefix(prefix, &mPriv->mtdPoolMap, mPriv->mtdPoolMutex);
 }
 
 void
