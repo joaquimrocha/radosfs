@@ -57,7 +57,7 @@ include_directories( ${RADOS_INCLUDE_DIR} )
 
 add_definitions( -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 )
 
-target_link_libraries( radosfs ${RADOS_LIB} pthread ${UUID_LIB} ${Boost_LIBRARIES} )
+target_link_libraries( radosfs ${RADOS_LIB} ${UUID_LIB} ${Boost_LIBRARIES} )
 
 if( Linux )
   set_target_properties( radosfs PROPERTIES
