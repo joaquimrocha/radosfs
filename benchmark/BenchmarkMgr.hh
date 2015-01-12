@@ -1,7 +1,7 @@
 #ifndef __BENCHMARK_MGR_HH__
 #define __BENCHMARK_MGR_HH__
 
-#include <pthread.h>
+#include <boost/thread.hpp>
 #include <rados/librados.hpp>
 
 #include "Filesystem.hh"
@@ -30,7 +30,7 @@ private:
   const char *mConf;
   int mNumFiles;
   bool mCreateInDir;
-  pthread_mutex_t mNumFilesMutex;
+  boost::mutex mNumFilesMutex;
 };
 
 #endif // __BENCHMARK_MGR_HH__

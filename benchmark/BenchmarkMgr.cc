@@ -20,8 +20,6 @@ BenchmarkMgr::BenchmarkMgr(const char *conf)
   mCluster.shutdown();
 
   radosFs.init("", mConf);
-
-  pthread_mutex_init(&mNumFilesMutex, 0);
 }
 
 BenchmarkMgr::~BenchmarkMgr()
@@ -35,20 +33,15 @@ BenchmarkMgr::~BenchmarkMgr()
   mCluster.pool_delete(TEST_POOL_MTD);
 
   mCluster.shutdown();
-
-  pthread_mutex_destroy(&mNumFilesMutex);
 }
 
 int
 BenchmarkMgr::numFiles()
 {
   int nfiles;
-
-  pthread_mutex_lock(&mNumFilesMutex);
+  boost::unique_lock<boost::mutex> lock(mNumFilesMutex);
 
   nfiles = mNumFiles;
-
-  pthread_mutex_unlock(&mNumFilesMutex);
 
   return nfiles;
 }
@@ -56,19 +49,13 @@ BenchmarkMgr::numFiles()
 void
 BenchmarkMgr::setNumFiles(int numFiles)
 {
-  pthread_mutex_lock(&mNumFilesMutex);
-
+  boost::unique_lock<boost::mutex> lock(mNumFilesMutex);
   mNumFiles = numFiles;
-
-  pthread_mutex_unlock(&mNumFilesMutex);
 }
 
 void
 BenchmarkMgr::incFiles()
 {
-  pthread_mutex_lock(&mNumFilesMutex);
-
+  boost::unique_lock<boost::mutex> lock(mNumFilesMutex);
   mNumFiles++;
-
-  pthread_mutex_unlock(&mNumFilesMutex);
 }

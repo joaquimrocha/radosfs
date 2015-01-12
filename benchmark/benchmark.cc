@@ -17,10 +17,10 @@
  * for more details.
  */
 
+#include <boost/thread.hpp>
 #include <cstdio>
 #include <errno.h>
 #include <limits>
-#include <pthread.h>
 #include <sstream>
 #include <time.h>
 #include <unistd.h>
@@ -52,11 +52,10 @@ typedef struct
   bool exited;
 } BenchmarkInfo;
 
-void *
-createFiles(void *bInfo)
+void
+createFiles(BenchmarkInfo *benchmarkInfo)
 {
   char *buffer = 0;
-  BenchmarkInfo *benchmarkInfo = (BenchmarkInfo *) bInfo;
   int threadId = benchmarkInfo->threadId;
   BenchmarkMgr *benchmark = benchmarkInfo->benchmark;
   benchmarkInfo->minCreationTime = std::numeric_limits<float>::max();
@@ -141,8 +140,6 @@ createFiles(void *bInfo)
   exitThread:
 
   benchmarkInfo->exited = true;
-
-  pthread_exit(0);
 }
 
 static void
@@ -306,12 +303,8 @@ main(int argc, char **argv)
   benchmark.radosFs.addMetadataPool(TEST_POOL_MTD, "/");
   benchmark.setCreateInDir(createInDir);
 
-  pthread_attr_t attr;
-  pthread_t threads[numThreads];
+  boost::thread *threads[numThreads];
   BenchmarkInfo *infos[numThreads];
-
-  pthread_attr_init(&attr);
-  pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
 
   int i;
 
@@ -327,17 +320,8 @@ main(int argc, char **argv)
 
     infos[i] = info;
 
-    int ret = pthread_create(&threads[i], 0, createFiles, (void *) info);
-
-    if (ret != 0)
-    {
-      fprintf(stderr, "ERROR: %d : %s", ret, strerror(ret));
-      return ret;
-    }
-
+    threads[i] = new boost::thread(&createFiles, info);
   }
-
-  pthread_attr_destroy(&attr);
 
   time_t initialTime, currentTime;
   time(&initialTime);
@@ -386,9 +370,8 @@ main(int argc, char **argv)
 
   for(i = 0; i < numThreads; i++)
   {
-    void *status;
     infos[i]->shouldExit = true;
-    int ret = pthread_join(threads[i], &status);
+    threads[i]->join();
 
     if (infos[i]->minCreationTime < minCreationTime)
       minCreationTime = infos[i]->minCreationTime;
@@ -405,8 +388,6 @@ main(int argc, char **argv)
 
   fprintf(stdout, "\tMin creation time:    %10.2f sec\n", minCreationTime);
   fprintf(stdout, "\tMax creation time:    %10.2f sec\n", maxCreationTime);
-
-  pthread_exit(0);
 
   return 0;
 }
