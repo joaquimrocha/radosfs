@@ -17,6 +17,7 @@
  * for more details.
  */
 
+#include <boost/thread.hpp>
 #include <algorithm>
 #include <gtest/gtest.h>
 #include <errno.h>
@@ -1337,8 +1338,8 @@ struct FsActionInfo
   const char *contents;
   const size_t length;
   bool started;
-  pthread_mutex_t *mutex;
-  pthread_cond_t *cond;
+  boost::mutex *mutex;
+  boost::condition_variable *cond;
 
   FsActionInfo(radosfs::Filesystem *radosFs,
                FsActionType actionType,
@@ -1346,8 +1347,8 @@ struct FsActionInfo
                std::string action,
                const char *contents,
                const size_t length,
-               pthread_mutex_t *mutex,
-               pthread_cond_t *cond)
+               boost::mutex *mutex,
+               boost::condition_variable *cond)
     : fs(radosFs),
       actionType(actionType),
       path(path),
@@ -1367,7 +1368,7 @@ runFileActionInThread(FsActionInfo *actionInfo)
   radosfs::Filesystem *fs = actionInfo->fs;
 
   if (useMutex)
-    pthread_mutex_lock(actionInfo->mutex);
+    actionInfo->mutex->lock();
 
   radosfs::File file(fs,
                      actionInfo->path,
@@ -1377,8 +1378,8 @@ runFileActionInThread(FsActionInfo *actionInfo)
 
   if (useMutex)
   {
-    pthread_cond_signal(actionInfo->cond);
-    pthread_mutex_unlock(actionInfo->mutex);
+    actionInfo->cond->notify_all();
+    actionInfo->mutex->unlock();
   }
 
   if (actionInfo->action == "create")
@@ -1398,7 +1399,7 @@ runDirActionInThread(FsActionInfo *actionInfo)
   radosfs::Filesystem *fs = actionInfo->fs;
 
   if (useMutex)
-    pthread_mutex_lock(actionInfo->mutex);
+    actionInfo->mutex->lock();
 
   radosfs::Dir dir(fs, actionInfo->path);
 
@@ -1406,15 +1407,15 @@ runDirActionInThread(FsActionInfo *actionInfo)
 
   if (useMutex)
   {
-    pthread_cond_signal(actionInfo->cond);
-    pthread_mutex_unlock(actionInfo->mutex);
+    actionInfo->cond->notify_all();
+    actionInfo->mutex->lock();
   }
 
   if (actionInfo->action == "create")
     EXPECT_EQ(0, dir.create());
 }
 
-void *
+void
 runInThread(void *contents)
 {
   FsActionInfo *actionInfo = reinterpret_cast<FsActionInfo *>(contents);
@@ -1425,8 +1426,6 @@ runInThread(void *contents)
     runDirActionInThread(actionInfo);
   else
     fprintf(stderr, "FS action type is unknown in 'runInThread' function!\n");
-
-  pthread_exit(0);
 }
 
 bool
@@ -1482,12 +1481,8 @@ TEST_F(RadosFsTest, FileOpsMultipleClients)
 
   EXPECT_EQ(0, file.create());
 
-  pthread_t t1, t2;
-  pthread_mutex_t mutex;
-  pthread_cond_t cond;
-
-  pthread_mutex_init(&mutex, 0);
-  pthread_cond_init(&cond, 0);
+  boost::mutex mutex;
+  boost::condition_variable cond;
 
   // Call truncate on a file from a different thread
   // when a write is taking place
@@ -1500,27 +1495,28 @@ TEST_F(RadosFsTest, FileOpsMultipleClients)
   FsActionInfo c2(&otherClient, FS_ACTION_TYPE_FILE, file.path(), "truncate",
                   0, 0, &mutex, &cond);
 
-  pthread_create(&t1, 0, runInThread, &c1);
+  {
+    boost::thread t1(&runInThread, &c1);
 
-  pthread_mutex_lock(&mutex);
+    boost::unique_lock<boost::mutex> lock(mutex);
 
-  if (!c1.started)
-    pthread_cond_wait(&cond, &mutex);
+    if (!c1.started)
+      cond.wait(lock);
 
-  pthread_mutex_unlock(&mutex);
+    lock.unlock();
 
-  pthread_create(&t2, 0, runInThread, &c2);
+    boost::thread t2(&runInThread, &c2);
 
-  void *status;
-  pthread_join(t1, &status);
-  pthread_join(t2, &status);
+    t1.join();
+    t2.join();
 
-  std::string inode = radosFsFilePriv(file)->fileIO->inode();
-  librados::IoCtx ioctx = radosFsFilePriv(file)->dataPool->ioctx;
+    std::string inode = radosFsFilePriv(file)->fileIO->inode();
+    librados::IoCtx ioctx = radosFsFilePriv(file)->dataPool->ioctx;
 
-  EXPECT_TRUE(checkStripesExistence(ioctx, inode, 0, 0, true));
+    EXPECT_TRUE(checkStripesExistence(ioctx, inode, 0, 0, true));
 
-  EXPECT_TRUE(checkStripesExistence(ioctx, inode, 1, numStripes, false));
+    EXPECT_TRUE(checkStripesExistence(ioctx, inode, 1, numStripes, false));
+  }
 
   // Sleep to make sure that the lock on the previous operations has been
   // removed (because it has been idle)
@@ -1544,21 +1540,26 @@ TEST_F(RadosFsTest, FileOpsMultipleClients)
 
   c1.started = false;
 
-  pthread_create(&t1, 0, runInThread, &c1);
+  {
+    boost::thread t1(&runInThread, &c1);
 
-  pthread_mutex_lock(&mutex);
+    boost::unique_lock<boost::mutex> lock(mutex);
 
-  if (!c1.started)
-    pthread_cond_wait(&cond, &mutex);
+    if (!c1.started)
+      cond.wait(lock);
 
-  pthread_mutex_unlock(&mutex);
+    lock.unlock();
 
-  pthread_create(&t2, 0, runInThread, &c2);
+    boost::thread t2 = boost::thread(&runInThread, &c2);
 
-  pthread_join(t1, &status);
-  pthread_join(t2, &status);
+    t1.join();
+    t2.join();
 
-  EXPECT_TRUE(checkStripesExistence(ioctx, inode, 0, numStripes, false));
+    std::string inode = radosFsFilePriv(file)->fileIO->inode();
+    librados::IoCtx ioctx = radosFsFilePriv(file)->dataPool->ioctx;
+
+    EXPECT_TRUE(checkStripesExistence(ioctx, inode, 0, numStripes, false));
+  }
 
   // Sleep to make sure that the lock on the previous operations has been
   // removed (because it has been idle)
@@ -1575,8 +1576,6 @@ TEST_F(RadosFsTest, FileOpsMultipleClients)
 
   EXPECT_EQ(0, file.create());
 
-  inode = radosFsFilePriv(file)->fileIO->inode();
-
   buff.st_size = 1;
 
   EXPECT_EQ(0, file.stat(&buff));
@@ -1589,21 +1588,26 @@ TEST_F(RadosFsTest, FileOpsMultipleClients)
   c1.action = "truncate";
   c1.started = false;
 
-  pthread_create(&t1, 0, runInThread, &c1);
+  {
+    boost::thread t1(&runInThread, &c1);
 
-  pthread_mutex_lock(&mutex);
+    boost::unique_lock<boost::mutex> lock(mutex);
 
-  if (!c1.started)
-    pthread_cond_wait(&cond, &mutex);
+    if (!c1.started)
+      cond.wait(lock);
 
-  pthread_mutex_unlock(&mutex);
+    lock.unlock();
 
-  pthread_create(&t2, 0, runInThread, &c2);
+    boost::thread t2 = boost::thread(&runInThread, &c2);
 
-  pthread_join(t1, &status);
-  pthread_join(t2, &status);
+    t1.join();
+    t2.join();
 
-  EXPECT_TRUE(checkStripesExistence(ioctx, inode, 0, numStripes, false));
+    std::string inode = radosFsFilePriv(file)->fileIO->inode();
+    librados::IoCtx ioctx = radosFsFilePriv(file)->dataPool->ioctx;
+
+    EXPECT_TRUE(checkStripesExistence(ioctx, inode, 0, numStripes, false));
+  }
 
   // Verify the file has been removed
 
@@ -1637,7 +1641,7 @@ TEST_F(RadosFsTest, DirOpsMultipleClients)
   // directory
 
   const int numOps = 10;
-  pthread_t cli1Threads[numOps], cli2Threads[numOps];
+  boost::thread *cli1Threads[numOps], *cli2Threads[numOps];
   FsActionInfo *cli1ActionInfos[numOps];
   FsActionInfo *cli2ActionInfos[numOps];
 
@@ -1660,8 +1664,7 @@ TEST_F(RadosFsTest, DirOpsMultipleClients)
 
     cli1ActionInfos[i] = new FsActionInfo(&radosFs, actionType, stream.str(),
                                           "create", "", 0, 0, 0);
-
-    pthread_create(&cli1Threads[i], 0, runInThread, cli1ActionInfos[i]);
+    cli1Threads[i] = new boost::thread(&runInThread, cli1ActionInfos[i]);
   }
 
   for (int i = 0; i < numOps; i++)
@@ -1684,18 +1687,19 @@ TEST_F(RadosFsTest, DirOpsMultipleClients)
     cli2ActionInfos[i] = new FsActionInfo(&radosFs, actionType, stream.str(),
                                           "create", "", 0, 0, 0);
 
-    pthread_create(&cli2Threads[i], 0, runInThread, cli2ActionInfos[i]);
+    cli2Threads[i] = new boost::thread(&runInThread, cli2ActionInfos[i]);
   }
 
   sleep(3);
 
   for (int i = 0; i < numOps; i++)
   {
-    void *status;
-    pthread_join(cli1Threads[i], &status);
-    pthread_join(cli2Threads[i], &status);
+    cli1Threads[i]->join();
+    cli2Threads[i]->join();
 
+    delete cli1Threads[i];
     delete cli1ActionInfos[i];
+    delete cli2Threads[i];
     delete cli2ActionInfos[i];
   }
 
