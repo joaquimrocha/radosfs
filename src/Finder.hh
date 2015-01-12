@@ -1,7 +1,6 @@
 #ifndef __RADOS_FS_FINDER_HH__
 #define __RADOS_FS_FINDER_HH__
 
-#include <pthread.h>
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/condition_variable.hpp>
 #include <list>
