@@ -1324,110 +1324,6 @@ TEST_F(RadosFsTest, RenameFile)
   EXPECT_FALSE(sameFile.exists());
 }
 
-typedef enum {
-  FS_ACTION_TYPE_FILE,
-  FS_ACTION_TYPE_DIR
-} FsActionType;
-
-struct FsActionInfo
-{
-  radosfs::Filesystem *fs;
-  FsActionType actionType;
-  std::string path;
-  std::string action;
-  const char *contents;
-  const size_t length;
-  bool started;
-  boost::mutex *mutex;
-  boost::condition_variable *cond;
-
-  FsActionInfo(radosfs::Filesystem *radosFs,
-               FsActionType actionType,
-               const std::string &path,
-               std::string action,
-               const char *contents,
-               const size_t length,
-               boost::mutex *mutex,
-               boost::condition_variable *cond)
-    : fs(radosFs),
-      actionType(actionType),
-      path(path),
-      action(action),
-      contents(contents),
-      length(length),
-      started(false),
-      mutex(mutex),
-      cond(cond)
-  {}
-};
-
-void
-runFileActionInThread(FsActionInfo *actionInfo)
-{
-  bool useMutex = actionInfo->mutex != 0;
-  radosfs::Filesystem *fs = actionInfo->fs;
-
-  if (useMutex)
-    actionInfo->mutex->lock();
-
-  radosfs::File file(fs,
-                     actionInfo->path,
-                     radosfs::File::MODE_READ_WRITE);
-
-  actionInfo->started = true;
-
-  if (useMutex)
-  {
-    actionInfo->cond->notify_all();
-    actionInfo->mutex->unlock();
-  }
-
-  if (actionInfo->action == "create")
-    EXPECT_EQ(0, file.create());
-  else if (actionInfo->action == "write")
-    EXPECT_EQ(0, file.write(actionInfo->contents, 0, actionInfo->length));
-  else if (actionInfo->action == "truncate")
-    EXPECT_EQ(0, file.truncate(actionInfo->length));
-  else if (actionInfo->action == "remove")
-    EXPECT_EQ(0, file.remove());
-}
-
-void
-runDirActionInThread(FsActionInfo *actionInfo)
-{
-  bool useMutex = actionInfo->mutex != 0;
-  radosfs::Filesystem *fs = actionInfo->fs;
-
-  if (useMutex)
-    actionInfo->mutex->lock();
-
-  radosfs::Dir dir(fs, actionInfo->path);
-
-  actionInfo->started = true;
-
-  if (useMutex)
-  {
-    actionInfo->cond->notify_all();
-    actionInfo->mutex->lock();
-  }
-
-  if (actionInfo->action == "create")
-    EXPECT_EQ(0, dir.create());
-}
-
-void
-runInThread(void *contents)
-{
-  FsActionInfo *actionInfo = reinterpret_cast<FsActionInfo *>(contents);
-
-  if (actionInfo->actionType == FS_ACTION_TYPE_FILE)
-    runFileActionInThread(actionInfo);
-  else if (actionInfo->actionType == FS_ACTION_TYPE_DIR)
-    runDirActionInThread(actionInfo);
-  else
-    fprintf(stderr, "FS action type is unknown in 'runInThread' function!\n");
-}
-
 bool
 checkStripesExistence(librados::IoCtx ioctx, const std::string &baseName,
                       size_t firstStripe, size_t lastStripe, bool shouldExist)
@@ -1455,165 +1351,75 @@ checkStripesExistence(librados::IoCtx ioctx, const std::string &baseName,
   return checkResult;
 }
 
-TEST_F(RadosFsTest, FileOpsMultipleClients)
+TEST_F(RadosFsTest, FileOpsMultClientsWriteTruncate)
 {
-  radosFs.addDataPool(TEST_POOL, "/", 50 * 1024);
-  radosFs.addMetadataPool(TEST_POOL, "/");
+    const size_t size = pow(1024, 3);
+    const size_t numStripes = 30;
+    const size_t stripeSize = size / numStripes;
+    char *contents = new char[size];
+    const std::string fileName("/file");
+    FsActionInfo c1(0, FS_ACTION_TYPE_FILE, fileName, "write",
+                    contents, size, 0, 0);
+    FsActionInfo c2(0, FS_ACTION_TYPE_FILE, fileName, "truncate",
+                    0, 0, 0, 0);
 
-  radosfs::Filesystem otherClient;
-  otherClient.init("", conf());
+    radosfs::File *file = launchFileOpsMultipleClients(stripeSize, fileName,
+                                                       &c1, &c2);
 
-  otherClient.addDataPool(TEST_POOL, "/", 50 * 1024);
-  otherClient.addMetadataPool(TEST_POOL, "/");
-
-  const size_t size = pow(1024, 3);
-
-  const size_t numStripes = 30;
-  const size_t stripeSize = size / numStripes;
-  radosFs.setFileStripeSize(stripeSize);
-  otherClient.setFileStripeSize(stripeSize);
-
-  char *contents = new char[size];
-
-  radosfs::File file(&radosFs,
-                     "/file",
-                     radosfs::File::MODE_READ_WRITE);
-
-  EXPECT_EQ(0, file.create());
-
-  boost::mutex mutex;
-  boost::condition_variable cond;
-
-  // Call truncate on a file from a different thread
-  // when a write is taking place
-
-  fprintf(stderr, "\n\n------- Beggining writing and truncation ------- \n");
-
-  FsActionInfo c1(&radosFs, FS_ACTION_TYPE_FILE, file.path(), "write",
-                  contents, size, &mutex, &cond);
-
-  FsActionInfo c2(&otherClient, FS_ACTION_TYPE_FILE, file.path(), "truncate",
-                  0, 0, &mutex, &cond);
-
-  {
-    boost::thread t1(&runInThread, &c1);
-
-    boost::unique_lock<boost::mutex> lock(mutex);
-
-    if (!c1.started)
-      cond.wait(lock);
-
-    lock.unlock();
-
-    boost::thread t2(&runInThread, &c2);
-
-    t1.join();
-    t2.join();
-
-    std::string inode = radosFsFilePriv(file)->fileIO->inode();
-    librados::IoCtx ioctx = radosFsFilePriv(file)->dataPool->ioctx;
+    std::string inode = radosFsFilePriv(*file)->fileIO->inode();
+    librados::IoCtx ioctx = radosFsFilePriv(*file)->dataPool->ioctx;
 
     EXPECT_TRUE(checkStripesExistence(ioctx, inode, 0, 0, true));
 
     EXPECT_TRUE(checkStripesExistence(ioctx, inode, 1, numStripes, false));
-  }
 
-  // Sleep to make sure that the lock on the previous operations has been
-  // removed (because it has been idle)
-  sleep(0.5);
+    delete file;
+}
 
-  fprintf(stderr, "\n\n------- Beggining writing and removal ------- \n");
+TEST_F(RadosFsTest, FileOpsMultClientsWriteRemove)
+{
+    const size_t size = pow(1024, 3);
+    const size_t numStripes = 30;
+    const size_t stripeSize = size / numStripes;
+    char *contents = new char[size];
+    const std::string fileName("/file");
+    FsActionInfo c1(0, FS_ACTION_TYPE_FILE, fileName, "write",
+                    contents, size, 0, 0);
+    FsActionInfo c2(0, FS_ACTION_TYPE_FILE, fileName, "remove",
+                    0, 0, 0, 0);
 
-  // Verify that the object has been correctly truncated
+    radosfs::File *file = launchFileOpsMultipleClients(stripeSize, fileName,
+                                                       &c1, &c2);
 
-  struct stat buff;
-  buff.st_size = 1;
-
-  EXPECT_EQ(0, file.stat(&buff));
-
-  EXPECT_EQ(0, buff.st_size);
-
-  // Call truncate on a file from a different thread
-  // when a write is taking place
-
-  c2.action = "remove";
-
-  c1.started = false;
-
-  {
-    boost::thread t1(&runInThread, &c1);
-
-    boost::unique_lock<boost::mutex> lock(mutex);
-
-    if (!c1.started)
-      cond.wait(lock);
-
-    lock.unlock();
-
-    boost::thread t2 = boost::thread(&runInThread, &c2);
-
-    t1.join();
-    t2.join();
-
-    std::string inode = radosFsFilePriv(file)->fileIO->inode();
-    librados::IoCtx ioctx = radosFsFilePriv(file)->dataPool->ioctx;
+    std::string inode = radosFsFilePriv(*file)->fileIO->inode();
+    librados::IoCtx ioctx = radosFsFilePriv(*file)->dataPool->ioctx;
 
     EXPECT_TRUE(checkStripesExistence(ioctx, inode, 0, numStripes, false));
-  }
 
-  // Sleep to make sure that the lock on the previous operations has been
-  // removed (because it has been idle)
-  sleep(0.5);
+    delete file;
+}
 
-  fprintf(stderr, "\n\n------- Beggining truncating and removal ------- \n");
+TEST_F(RadosFsTest, FileOpsMultClientsTruncateRemove)
+{
+    const size_t size = pow(1024, 3);
+    const size_t numStripes = 30;
+    const size_t stripeSize = size / numStripes;
+    char *contents = new char[size];
+    const std::string fileName("/file");
+    FsActionInfo c1(0, FS_ACTION_TYPE_FILE, fileName, "truncate",
+                    contents, size, 0, 0);
+    FsActionInfo c2(0, FS_ACTION_TYPE_FILE, fileName, "remove",
+                    0, 0, 0, 0);
 
-  // Verify the file has been removed
+    radosfs::File *file = launchFileOpsMultipleClients(stripeSize, fileName,
+                                                       &c1, &c2);
 
-  EXPECT_EQ(-ENOENT, file.stat(&buff));
-
-  // Create the file again and verify that the size is 0 (no stripes
-  // mistakenly left over)
-
-  EXPECT_EQ(0, file.create());
-
-  buff.st_size = 1;
-
-  EXPECT_EQ(0, file.stat(&buff));
-
-  EXPECT_EQ(0, buff.st_size);
-
-  // Call remove on a file from a different thread
-  // when a truncate is taking place
-
-  c1.action = "truncate";
-  c1.started = false;
-
-  {
-    boost::thread t1(&runInThread, &c1);
-
-    boost::unique_lock<boost::mutex> lock(mutex);
-
-    if (!c1.started)
-      cond.wait(lock);
-
-    lock.unlock();
-
-    boost::thread t2 = boost::thread(&runInThread, &c2);
-
-    t1.join();
-    t2.join();
-
-    std::string inode = radosFsFilePriv(file)->fileIO->inode();
-    librados::IoCtx ioctx = radosFsFilePriv(file)->dataPool->ioctx;
+    std::string inode = radosFsFilePriv(*file)->fileIO->inode();
+    librados::IoCtx ioctx = radosFsFilePriv(*file)->dataPool->ioctx;
 
     EXPECT_TRUE(checkStripesExistence(ioctx, inode, 0, numStripes, false));
-  }
 
-  // Verify the file has been removed
-
-  EXPECT_EQ(-ENOENT, file.stat(&buff));
-
-  delete[] contents;
+    delete file;
 }
 
 TEST_F(RadosFsTest, DirOpsMultipleClients)
@@ -1664,7 +1470,8 @@ TEST_F(RadosFsTest, DirOpsMultipleClients)
 
     cli1ActionInfos[i] = new FsActionInfo(&radosFs, actionType, stream.str(),
                                           "create", "", 0, 0, 0);
-    cli1Threads[i] = new boost::thread(&runInThread, cli1ActionInfos[i]);
+    cli1Threads[i] = new boost::thread(&RadosFsTest::runInThread,
+                                       cli1ActionInfos[i]);
   }
 
   for (int i = 0; i < numOps; i++)
@@ -1687,7 +1494,8 @@ TEST_F(RadosFsTest, DirOpsMultipleClients)
     cli2ActionInfos[i] = new FsActionInfo(&radosFs, actionType, stream.str(),
                                           "create", "", 0, 0, 0);
 
-    cli2Threads[i] = new boost::thread(&runInThread, cli2ActionInfos[i]);
+    cli2Threads[i] = new boost::thread(&RadosFsTest::runInThread,
+                                       cli2ActionInfos[i]);
   }
 
   sleep(3);

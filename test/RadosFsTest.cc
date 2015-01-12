@@ -278,3 +278,123 @@ RadosFsTest::testXAttrInFsInfo(radosfs::FsObj &info)
   EXPECT_EQ(map[attr], value);
 
 }
+
+void
+runFileActionInThread(FsActionInfo *actionInfo)
+{
+  bool useMutex = actionInfo->mutex != 0;
+  radosfs::Filesystem *fs = actionInfo->fs;
+
+  if (useMutex)
+    actionInfo->mutex->lock();
+
+  radosfs::File file(fs,
+                     actionInfo->path,
+                     radosfs::File::MODE_READ_WRITE);
+
+  actionInfo->started = true;
+
+  if (useMutex)
+  {
+    actionInfo->cond->notify_all();
+    actionInfo->mutex->unlock();
+  }
+
+  if (actionInfo->action == "create")
+    EXPECT_EQ(0, file.create());
+  else if (actionInfo->action == "write")
+    EXPECT_EQ(0, file.write(actionInfo->contents, 0, actionInfo->length));
+  else if (actionInfo->action == "truncate")
+    EXPECT_EQ(0, file.truncate(actionInfo->length));
+  else if (actionInfo->action == "remove")
+    EXPECT_EQ(0, file.remove());
+}
+
+void
+runDirActionInThread(FsActionInfo *actionInfo)
+{
+  bool useMutex = actionInfo->mutex != 0;
+  radosfs::Filesystem *fs = actionInfo->fs;
+
+  if (useMutex)
+    actionInfo->mutex->lock();
+
+  radosfs::Dir dir(fs, actionInfo->path);
+
+  actionInfo->started = true;
+
+  if (useMutex)
+  {
+    actionInfo->cond->notify_all();
+    actionInfo->mutex->lock();
+  }
+
+  if (actionInfo->action == "create")
+    EXPECT_EQ(0, dir.create());
+}
+
+void
+RadosFsTest::runInThread(void *contents)
+{
+  FsActionInfo *actionInfo = reinterpret_cast<FsActionInfo *>(contents);
+
+  if (actionInfo->actionType == FS_ACTION_TYPE_FILE)
+    runFileActionInThread(actionInfo);
+  else if (actionInfo->actionType == FS_ACTION_TYPE_DIR)
+    runDirActionInThread(actionInfo);
+  else
+  {
+    fprintf(stderr, "FS action type is unknown in 'runInThread' function!\n");
+    exit(-1);
+  }
+}
+
+radosfs::File *
+RadosFsTest::launchFileOpsMultipleClients(const size_t stripeSize,
+                                          const std::string &fileName,
+                                          FsActionInfo *client1Action,
+                                          FsActionInfo *client2Action)
+{
+  radosFs.addDataPool(TEST_POOL, "/", 50 * 1024);
+  radosFs.addMetadataPool(TEST_POOL, "/");
+
+  radosfs::Filesystem otherClient;
+  otherClient.init("", conf());
+
+  otherClient.addDataPool(TEST_POOL, "/", 50 * 1024);
+  otherClient.addMetadataPool(TEST_POOL, "/");
+
+  radosFs.setFileStripeSize(stripeSize);
+  otherClient.setFileStripeSize(stripeSize);
+
+  radosfs::File *file = new radosfs::File(&radosFs, fileName);
+
+  EXPECT_EQ(0, file->create());
+
+  boost::mutex mutex;
+  boost::condition_variable cond;
+
+  client1Action->fs = &radosFs;
+  client1Action->mutex = &mutex;
+  client1Action->cond = &cond;
+
+  client2Action->fs = &otherClient;
+  client2Action->mutex = &mutex;
+  client2Action->cond = &cond;
+
+  boost::thread t1(&RadosFsTest::runInThread, client1Action);
+
+  boost::unique_lock<boost::mutex> lock(mutex);
+
+  if (!client1Action->started)
+    cond.wait(lock);
+
+  lock.unlock();
+
+  boost::thread t2(&RadosFsTest::runInThread, client2Action);
+
+  t1.join();
+  t2.join();
+
+  return file;
+}

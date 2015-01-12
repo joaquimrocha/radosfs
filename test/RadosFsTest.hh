@@ -38,6 +38,43 @@
 #define TEST_POOL "radosfs-unit-tests-pool-data"
 #define TEST_POOL_MTD "radosfs-unit-tests-pool-mtd"
 
+typedef enum {
+  FS_ACTION_TYPE_FILE,
+  FS_ACTION_TYPE_DIR
+} FsActionType;
+
+struct FsActionInfo
+{
+  radosfs::Filesystem *fs;
+  FsActionType actionType;
+  std::string path;
+  std::string action;
+  const char *contents;
+  const size_t length;
+  bool started;
+  boost::mutex *mutex;
+  boost::condition_variable *cond;
+
+  FsActionInfo(radosfs::Filesystem *radosFs,
+               FsActionType actionType,
+               const std::string &path,
+               std::string action,
+               const char *contents,
+               const size_t length,
+               boost::mutex *mutex,
+               boost::condition_variable *cond)
+    : fs(radosFs),
+      actionType(actionType),
+      path(path),
+      action(action),
+      contents(contents),
+      length(length),
+      started(false),
+      mutex(mutex),
+      cond(cond)
+  {}
+};
+
 class RadosFsTest : public testing::Test
 {
 
@@ -67,6 +104,11 @@ protected:
   radosfs::FilesystemPriv *radosFsPriv(void) const { return radosFs.mPriv; }
   radosfs::FilePriv *radosFsFilePriv(radosfs::File &file);
   radosfs::DirPriv *radosFsDirPriv(radosfs::Dir &dir);
+  radosfs::File *launchFileOpsMultipleClients(const size_t stripeSize,
+                                              const std::string &fileName,
+                                              FsActionInfo *client1Action,
+                                              FsActionInfo *client2Action);
+  static void runInThread(void *contents);
 
   const char * conf(void) const { return mConf; }
 
