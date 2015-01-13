@@ -20,8 +20,8 @@
 #ifndef RADOS_FS_FILE_HH
 #define RADOS_FS_FILE_HH
 
+#include <boost/scoped_ptr.hpp>
 #include <cstdlib>
-#include <memory>
 
 #include "Filesystem.hh"
 #include "FsObj.hh"
@@ -86,7 +86,7 @@ public:
   int sync(void);
 
 private:
-  std::auto_ptr<FilePriv> mPriv;
+  boost::scoped_ptr<FilePriv> mPriv;
 
   friend class ::RadosFsTest;
   friend class FilePriv;

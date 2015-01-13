@@ -20,6 +20,7 @@
 #ifndef __RADOS_FS_ASYNC_OP_HH__
 #define __RADOS_FS_ASYNC_OP_HH__
 
+#include <boost/scoped_ptr.hpp>
 #include <map>
 #include <string>
 #include <sys/types.h>
@@ -46,7 +47,7 @@ public:
   int waitForCompletion(void);
 
 private:
-  std::auto_ptr<AyncOpPriv> mPriv;
+  boost::scoped_ptr<AyncOpPriv> mPriv;
 
   friend class FileIO;
 };

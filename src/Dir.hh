@@ -20,6 +20,7 @@
 #ifndef RADOS_FS_DIR_HH
 #define RADOS_FS_DIR_HH
 
+#include <boost/scoped_ptr.hpp>
 #include <cstdlib>
 #include <set>
 
@@ -93,7 +94,7 @@ public:
   bool usingTMTime(void);
 
 private:
-  std::auto_ptr<DirPriv> mPriv;
+  boost::scoped_ptr<DirPriv> mPriv;
 
   friend class ::RadosFsTest;
   friend class DirPriv;
