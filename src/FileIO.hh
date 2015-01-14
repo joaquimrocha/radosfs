@@ -103,6 +103,8 @@ public:
 
   int sync(const std::string &opId) { return mOpManager.sync(opId); }
 
+  PoolSP pool(void) const { return mPool; }
+
 private:
   Filesystem *mRadosFs;
   const PoolSP mPool;

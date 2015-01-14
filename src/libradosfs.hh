@@ -23,5 +23,6 @@
 #include <radosfs/Filesystem.hh>
 #include <radosfs/Dir.hh>
 #include <radosfs/File.hh>
+#include <radosfs/FileInode.hh>
 
 #endif // __LIB_RADOS_FS_HH__

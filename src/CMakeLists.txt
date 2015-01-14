@@ -51,6 +51,7 @@ add_library( radosfs SHARED
              Logger.cc Logger.hh
              Finder.cc Finder.hh
              AsyncOp.cc AsyncOp.cc AsyncOpPriv.hh
+             FileInode.cc FileInode.hh FileInodePriv.hh
 )
 
 include_directories( ${RADOS_INCLUDE_DIR} )
@@ -69,7 +70,7 @@ endif( Linux )
 
 install( TARGETS radosfs LIBRARY DESTINATION ${LIB_INSTALL_DIR} )
 install( FILES
-         Filesystem.hh Dir.hh File.hh FsObj.hh
+         Filesystem.hh Dir.hh File.hh FsObj.hh FileInode.hh
          DESTINATION include/radosfs )
 install( FILES
          libradosfs.hh

@@ -36,6 +36,7 @@ class RadosFsChecker;
 RADOS_FS_BEGIN_NAMESPACE
 
 class FilesystemPriv;
+class FileInodePriv;
 class FsObj;
 
 class Filesystem
@@ -139,6 +140,7 @@ private:
   friend class FilePriv;
   friend class DirPriv;
   friend class FileIO;
+  friend class FileInodePriv;
 };
 
 RADOS_FS_END_NAMESPACE

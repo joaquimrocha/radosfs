@@ -123,6 +123,8 @@ public:
   PoolSP getDataPool(const std::string &path,
                      const std::string &poolName = "");
 
+  PoolSP getDataPoolFromName(const std::string &poolName);
+
   PoolList getDataPools(const std::string &path);
 
   std::string poolPrefix(const std::string &pool,

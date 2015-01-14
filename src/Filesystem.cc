@@ -861,6 +861,39 @@ FilesystemPriv::getDataPool(const std::string &path, const std::string &poolName
 }
 
 PoolSP
+FilesystemPriv::getDataPoolFromName(const std::string &poolName)
+{
+  PoolSP pool;
+  boost::unique_lock<boost::mutex> lock(poolMutex);
+
+  PoolListMap::const_iterator it;
+  for (it = poolMap.begin(); it != poolMap.end(); it++)
+  {
+    const PoolList &pools = (*it).second;
+
+    if (poolName != "")
+    {
+      PoolList::const_iterator poolIt;
+      for (poolIt = pools.begin(); poolIt != pools.end(); poolIt++)
+      {
+        if ((*poolIt)->name == poolName)
+        {
+          pool = *poolIt;
+          break;
+        }
+      }
+    }
+    else
+    {
+      pool = pools.front();
+      break;
+    }
+  }
+
+  return pool;
+}
+
+PoolSP
 FilesystemPriv::getMtdPoolFromName(const std::string &name)
 {
   PoolSP pool;
