@@ -27,6 +27,7 @@
 #include <time.h>
 
 #include "FileIO.hh"
+#include "FileInode.hh"
 #include "RadosFsTest.hh"
 #include "radosfscommon.h"
 
@@ -1002,6 +1003,146 @@ TEST_F(RadosFsTest, FileInode)
   EXPECT_EQ(stat.translatedPath, inode);
 
   EXPECT_EQ(stat.pool->name, pool);
+}
+
+TEST_F(RadosFsTest, FileInodeDirect)
+{
+  AddPool();
+
+  // Create an inode with a given name
+
+  std::string inodeName(generateUuid());
+
+  radosfs::FileInode inode(&radosFs, inodeName, TEST_POOL);
+
+  EXPECT_EQ(inode.name(), inodeName);
+
+  // Create an inode with an automatic generated name
+
+  radosfs::FileInode otherInode(&radosFs, TEST_POOL);
+
+  EXPECT_NE(inode.name(), otherInode.name());
+
+  size_t contentsSize = 1024;
+
+  char buff[contentsSize];
+
+  // Read an inode that does not exist (doesn't have any stripes)
+
+  EXPECT_EQ(-ENOENT, inode.read(buff, 0, contentsSize));
+
+  // Write synchronously into an inode
+
+  char contents[contentsSize];
+  memset(contents, 'x', contentsSize);
+  contents[contentsSize - 1] = '\0';
+
+  ASSERT_EQ(0, inode.writeSync(contents, 0, contentsSize));
+
+  // Read its contents
+
+  ASSERT_GT(inode.read(buff, 0, contentsSize), 0);
+
+  EXPECT_EQ(0, strcmp(contents, buff));
+
+  memset(contents, 'y', contentsSize / 2);
+
+  // Write asynchronously into an inode
+
+  ASSERT_EQ(0, inode.write(contents, 0, contentsSize));
+
+  inode.sync();
+
+  // Read its contents
+
+  ASSERT_GT(inode.read(buff, 0, contentsSize), 0);
+
+  EXPECT_EQ(0, strcmp(contents, buff));
+
+  // Truncate the inode to half and read it again
+
+  ASSERT_EQ(0, inode.truncate(contentsSize / 2));
+
+  EXPECT_EQ(-EOVERFLOW, inode.read(buff, 0, contentsSize));
+
+  EXPECT_EQ(contentsSize / 2, inode.read(buff, 0, contentsSize / 2));
+
+  radosfs::File file(&radosFs, "/file");
+
+  EXPECT_FALSE(file.exists());
+
+  // Create a file
+
+  radosfs::File file1(&radosFs, "/file1");
+
+  ASSERT_EQ(0, file1.create());
+
+  // Register the inode with an invalid file path
+
+  ASSERT_EQ(-EISDIR, inode.registerFile("/", TEST_UID, TEST_GID, O_RDWR));
+
+  ASSERT_EQ(-EINVAL, inode.registerFile("", TEST_UID, TEST_GID, O_RDWR));
+
+  ASSERT_EQ(-EINVAL, inode.registerFile("no-slash-file", TEST_UID, TEST_GID,
+                                        O_RDWR));
+
+  ASSERT_EQ(-ENOENT, inode.registerFile("/nonexitent/file", TEST_UID, TEST_GID,
+                                        O_RDWR));
+
+  ASSERT_EQ(-EINVAL, inode.registerFile("/file1/file", TEST_UID, TEST_GID,
+                                        O_RDWR));
+
+  // Register the inode with an existing file path
+
+  ASSERT_EQ(-EEXIST, inode.registerFile(file1.path(), TEST_UID, TEST_GID,
+                                        O_RDWR));
+
+  radosfs::Dir dir(&radosFs, "/");
+
+  ASSERT_EQ(0, dir.createLink("/dir-link/"));
+
+  // Register the inode with a link path
+
+  ASSERT_EQ(-EINVAL, inode.registerFile("/dir-link/file", TEST_UID, TEST_GID,
+                                        O_RDWR));
+
+  // Register the inode with a new file path
+
+  ASSERT_EQ(0, inode.registerFile(file.path(), TEST_UID, TEST_GID, O_RDWR));
+
+  file.update();
+
+  // Verify the registered file exists
+
+  EXPECT_TRUE(file.exists());
+
+  // Read from the registered file
+
+  memset(buff, 0, contentsSize / 2);
+
+  ASSERT_EQ(contentsSize / 2, file.read(buff, 0, contentsSize / 2));
+
+  EXPECT_EQ(0, strcmp(contents, buff));
+
+  // Stat from the registered file and check it
+
+  Stat fileStat;
+
+  ASSERT_EQ(0, radosFsPriv()->stat(file.path(), &fileStat));
+
+  EXPECT_EQ(TEST_UID, fileStat.statBuff.st_uid);
+
+  EXPECT_EQ(TEST_GID, fileStat.statBuff.st_gid);
+
+  EXPECT_TRUE((fileStat.statBuff.st_mode & O_RDWR) != 0);
+
+  EXPECT_EQ(inode.name(), fileStat.translatedPath);
+
+  // Remove the inode and try to read it
+
+  ASSERT_EQ(0, inode.remove());
+
+  EXPECT_EQ(-ENOENT, inode.read(buff, 0, 1));
 }
 
 TEST_F(RadosFsTest, FileTruncate)
