@@ -79,9 +79,9 @@ public:
 
   size_t stripeSize(void) const { return mStripeSize; }
 
-  size_t getLastStripeIndexAndSize(uint64_t *size) const;
+  ssize_t getLastStripeIndexAndSize(uint64_t *size) const;
 
-  size_t getLastStripeIndex(void) const;
+  ssize_t getLastStripeIndex(void) const;
 
   size_t getSize(void) const;
 

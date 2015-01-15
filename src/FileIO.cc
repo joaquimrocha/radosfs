@@ -70,7 +70,12 @@ FileIO::read(char *buff, off_t offset, size_t blen)
     return -EINVAL;
   }
 
-  const size_t fileSize = getSize();
+
+  size_t fileSize = 0;
+  ssize_t ret = getLastStripeIndexAndSize(&fileSize);
+
+  if (ret < 0)
+    return ret;
 
   if ((offset + blen) > fileSize)
   {
@@ -393,7 +398,14 @@ FileIO::remove()
   lockExclusive(opId);
 
   int ret = 0;
-  size_t lastStripe = getLastStripeIndex();
+  ssize_t lastStripe = getLastStripeIndex();
+
+  if (lastStripe < 0)
+  {
+    radosfs_debug("Error trying to remove inode '%s' (retcode=%d): %s",
+                  inode().c_str(), lastStripe, strerror(abs(lastStripe)));
+    return lastStripe;
+  }
 
   radosfs_debug("Remove (op id='%s') inode '%s' affecting stripes 0-%lu",
                 opId.c_str(), inode().c_str(), 0, lastStripe);
@@ -403,7 +415,7 @@ FileIO::remove()
 
   // We start deleting from the base stripe onward because this will result
   // in other calls to the object eventually seeing the removal sooner
-  for (size_t i = 0; i <= lastStripe; i++)
+  for (size_t i = 0; i <= (size_t) lastStripe; i++)
   {
     lockExclusive(opId);
 
@@ -451,7 +463,16 @@ FileIO::truncate(size_t newSize)
   lockExclusive(opId);
 
   size_t currentSize;
-  size_t lastStripe = getLastStripeIndexAndSize(&currentSize);
+  ssize_t lastStripe = getLastStripeIndexAndSize(&currentSize);
+
+  if (lastStripe < 0)
+  {
+    if (lastStripe == -ENOENT)
+      lastStripe = 0;
+    else
+      return lastStripe;
+  }
+
   size_t newLastStripe = (newSize == 0) ? 0 : (newSize - 1) / stripeSize();
   bool truncateDown = currentSize > newSize;
   size_t totalStripes = 1;
@@ -526,7 +547,7 @@ FileIO::truncate(size_t newSize)
   return 0;
 }
 
-size_t
+ssize_t
 FileIO::getLastStripeIndex(void) const
 {
   return getLastStripeIndexAndSize(0);
@@ -568,18 +589,22 @@ getLastValid(int *retValues, size_t valuesSize)
   return i - 1;
 }
 
-size_t
+ssize_t
 FileIO::getLastStripeIndexAndSize(uint64_t *size) const
 {
   librados::ObjectReadOperation op;
   std::set<std::string> keys;
   std::map<std::string, librados::bufferlist> omap;
-  size_t fileSize(0);
+  ssize_t fileSize(0);
 
   keys.insert(XATTR_FILE_SIZE);
   op.omap_get_vals_by_keys(keys, &omap, 0);
   op.assert_exists();
-  mPool->ioctx.operate(inode(), &op, 0);
+
+  int ret = mPool->ioctx.operate(inode(), &op, 0);
+
+  if (ret < 0)
+    return ret;
 
   if (omap.count(XATTR_FILE_SIZE) > 0)
   {

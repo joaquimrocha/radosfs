@@ -18,6 +18,7 @@
  */
 
 #include <sys/stat.h>
+#include <sstream>
 
 #include "FileIO.hh"
 #include "FileInode.hh"

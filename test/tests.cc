@@ -2682,7 +2682,7 @@ TEST_F(RadosFsTest, PoolAlignment)
   EXPECT_EQ(0, radosFsPriv()->stat(file.path(), &stat));
 
   radosfs::FileIO *fileIO = radosFsFilePriv(file)->fileIO.get();
-  size_t lastStripe = fileIO->getLastStripeIndex();
+  ssize_t lastStripe = fileIO->getLastStripeIndex();
 
   u_int64_t size;
 

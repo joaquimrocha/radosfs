@@ -174,7 +174,14 @@ FilePriv::removeFile()
   if (!FileIO::hasSingleClient(fileIO))
     fileIO->setLazyRemoval(true);
   else
-    return fileIO->remove();
+  {
+    int ret = fileIO->remove();
+
+    // Ignore the fact that the inode might not exist because we're also dealing
+    // with the logical file name
+    if (ret == -ENOENT)
+      return 0;
+  }
 
   return 0;
 }
@@ -330,6 +337,15 @@ File::read(char *buff, off_t offset, size_t blen)
       return mPriv->target->read(buff, offset, blen);
 
     ret = mPriv->fileIO->read(buff, offset, blen);
+
+    // If there is no stripe, we treat the file as having a size of 0, so we
+    // to give a buffer overflow error instead
+    if (ret == -ENOENT)
+    {
+      radosfs_debug("Length for reading is greater than the file's current "
+                    "size: %lu > 0", (blen + offset));
+      ret = -EOVERFLOW;
+    }
   }
 
   return ret;
