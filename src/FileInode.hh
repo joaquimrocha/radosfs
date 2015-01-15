@@ -55,6 +55,8 @@ public:
 
   std::string name(void) const;
 
+  int registerFile(const std::string &path, uid_t uid, gid_t gid, int mode=-1);
+
 private:
   FileInodePriv *mPriv;
 };

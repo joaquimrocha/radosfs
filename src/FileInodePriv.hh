@@ -42,6 +42,8 @@ public:
 
   void setFileIO(FileIOSP fileIO);
 
+  int registerFile(const std::string &path, uid_t uid, gid_t gid, int mode);
+
   Filesystem *fs;
   std::string name;
   FileIOSP io;

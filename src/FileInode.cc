@@ -69,6 +69,89 @@ FileInodePriv::setFileIO(FileIOSP fileIO)
     name = io->inode();
 }
 
+int
+FileInodePriv::registerFile(const std::string &path, uid_t uid, gid_t gid,
+                            int mode)
+{
+  const std::string parentDir = getParentDir(path, 0);
+  std::string filePath = path;
+
+  if (parentDir == "")
+  {
+    radosfs_debug("Error registering inode %s with file path %s . The file "
+                  "path needs to be absolute (start with a '/').", name.c_str(),
+                  path.c_str());
+    return -EINVAL;
+  }
+
+  Stat parentStat;
+
+  int ret = fs->mPriv->stat(parentDir, &parentStat);
+
+  if (ret < 0)
+  {
+    if (ret == -EEXIST)
+      radosfs_debug("Cannot register inode %s in path %s: The parent directory "
+                    "does not exist. (Verify that the path is an absolute path "
+                    "without any links in it)", name.c_str(), filePath.c_str());
+    return ret;
+  }
+
+  if (S_ISLNK(parentStat.statBuff.st_mode))
+  {
+    radosfs_debug("Cannot register inode %s in path %s: Be sure to provide an "
+                  "existing absolute path containing no links.", name.c_str(),
+                  filePath.c_str());
+    return -EINVAL;
+  }
+
+  if (!S_ISDIR(parentStat.statBuff.st_mode))
+  {
+    radosfs_debug("Error registering inode %s with file path %s . The parent "
+                  "directory is a regular file.", name.c_str(),
+                  filePath.c_str());
+    return -EINVAL;
+  }
+
+  Stat fileStat;
+  ret = fs->mPriv->stat(filePath, &fileStat);
+
+  if (ret == 0)
+    return -EEXIST;
+
+  long int permOctal = DEFAULT_MODE_FILE;
+
+  if (mode >= 0)
+    permOctal = mode | S_IFREG;
+
+  timespec spec;
+  clock_gettime(CLOCK_REALTIME, &spec);
+
+  fileStat.path = filePath;
+  fileStat.translatedPath = io->inode();
+  fileStat.pool = io->pool();
+  fileStat.statBuff = parentStat.statBuff;
+  fileStat.statBuff.st_uid = uid;
+  fileStat.statBuff.st_gid = gid;
+  fileStat.statBuff.st_mode = permOctal;
+  fileStat.statBuff.st_ctim = spec;
+  fileStat.statBuff.st_ctime = spec.tv_sec;
+
+  std::stringstream stream;
+  stream << io->stripeSize();
+
+  fileStat.extraData[XATTR_FILE_STRIPE_SIZE] = stream.str();
+
+  ret = indexObject(&parentStat, &fileStat, '+');
+
+  if (ret == -ECANCELED)
+  {
+    return -EEXIST;
+  }
+
+  return ret;
+}
+
 FileInode::FileInode(Filesystem *fs, const std::string &pool)
   : mPriv(new FileInodePriv(fs, pool, generateUuid(), fs->fileStripeSize()))
 {}
@@ -197,6 +280,32 @@ FileInode::name() const
     return "";
 
   return mPriv->io->inode();
+}
+
+int
+FileInode::registerFile(const std::string &path, uid_t uid, gid_t gid, int mode)
+{
+  if (!mPriv->io)
+    return -ENODEV;
+
+  if (path == "")
+  {
+    radosfs_debug("Error: path for registering inode %s is empty",
+                  mPriv->name.c_str());
+    return -EINVAL;
+  }
+
+  if (isDirPath(path))
+  {
+    radosfs_debug("Error attempting to register inode %s with directory path "
+                  "%s. For registering an inode, it needs to be a file path "
+                  "(no '/' in the end of it).", mPriv->name.c_str(),
+                  path.c_str());
+
+    return -EISDIR;
+  }
+
+  return mPriv->registerFile(path, uid, gid, mode);
 }
 
 RADOS_FS_END_NAMESPACE
