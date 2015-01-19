@@ -120,6 +120,12 @@ RadosFsTest::radosFsDirPriv(radosfs::Dir &dir)
   return dir.mPriv.get();
 }
 
+radosfs::FileInodePriv *
+RadosFsTest::fileInodePriv(radosfs::FileInode &inode) const
+{
+  return inode.mPriv;
+}
+
 void
 RadosFsTest::createNFiles(size_t numFiles)
 {

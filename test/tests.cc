@@ -463,11 +463,11 @@ TEST_F(RadosFsTest, CreateFile)
 
   radosfs::FilePriv *filePriv = radosFsFilePriv(otherFile);
 
-  EXPECT_TRUE(radosfs::FileIO::hasSingleClient(filePriv->fileIO));
+  EXPECT_TRUE(radosfs::FileIO::hasSingleClient(fileInodePriv(*filePriv->inode)->io));
 
   file.setPath(otherFile.path());
 
-  EXPECT_FALSE(radosfs::FileIO::hasSingleClient(filePriv->fileIO));
+  EXPECT_FALSE(radosfs::FileIO::hasSingleClient(filePriv->getFileIO()));
 
   otherFile.setPath("/file-in-different-pool");
 
@@ -505,7 +505,7 @@ TEST_F(RadosFsTest, CreateFile)
 
   sameFile.setPath(newFile.path());
 
-  ASSERT_EQ(stripeSize, radosFsFilePriv(sameFile)->fileIO->stripeSize());
+  ASSERT_EQ(stripeSize, radosFsFilePriv(sameFile)->getFileIO()->stripeSize());
 }
 
 TEST_F(RadosFsTest, RemoveFile)
@@ -1507,7 +1507,7 @@ TEST_F(RadosFsTest, FileOpsMultClientsWriteTruncate)
     radosfs::File *file = launchFileOpsMultipleClients(stripeSize, fileName,
                                                        &c1, &c2);
 
-    std::string inode = radosFsFilePriv(*file)->fileIO->inode();
+    std::string inode = radosFsFilePriv(*file)->getFileIO()->inode();
     librados::IoCtx ioctx = radosFsFilePriv(*file)->dataPool->ioctx;
 
     EXPECT_TRUE(checkStripesExistence(ioctx, inode, 0, 0, true));
@@ -1532,7 +1532,7 @@ TEST_F(RadosFsTest, FileOpsMultClientsWriteRemove)
     radosfs::File *file = launchFileOpsMultipleClients(stripeSize, fileName,
                                                        &c1, &c2);
 
-    std::string inode = radosFsFilePriv(*file)->fileIO->inode();
+    std::string inode = radosFsFilePriv(*file)->getFileIO()->inode();
     librados::IoCtx ioctx = radosFsFilePriv(*file)->dataPool->ioctx;
 
     EXPECT_TRUE(checkStripesExistence(ioctx, inode, 0, numStripes, false));
@@ -1555,7 +1555,7 @@ TEST_F(RadosFsTest, FileOpsMultClientsTruncateRemove)
     radosfs::File *file = launchFileOpsMultipleClients(stripeSize, fileName,
                                                        &c1, &c2);
 
-    std::string inode = radosFsFilePriv(*file)->fileIO->inode();
+    std::string inode = radosFsFilePriv(*file)->getFileIO()->inode();
     librados::IoCtx ioctx = radosFsFilePriv(*file)->dataPool->ioctx;
 
     EXPECT_TRUE(checkStripesExistence(ioctx, inode, 0, numStripes, false));
@@ -2822,7 +2822,7 @@ TEST_F(RadosFsTest, PoolAlignment)
 
   EXPECT_EQ(0, radosFsPriv()->stat(file.path(), &stat));
 
-  radosfs::FileIO *fileIO = radosFsFilePriv(file)->fileIO.get();
+  radosfs::FileIO *fileIO = radosFsFilePriv(file)->getFileIO().get();
   ssize_t lastStripe = fileIO->getLastStripeIndex();
 
   u_int64_t size;

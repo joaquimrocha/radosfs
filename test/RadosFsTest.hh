@@ -104,6 +104,8 @@ protected:
   radosfs::FilesystemPriv *radosFsPriv(void) const { return radosFs.mPriv; }
   radosfs::FilePriv *radosFsFilePriv(radosfs::File &file);
   radosfs::DirPriv *radosFsDirPriv(radosfs::Dir &dir);
+  radosfs::FileInodePriv *fileInodePriv(radosfs::FileInode &inode) const;
+
   radosfs::File *launchFileOpsMultipleClients(const size_t stripeSize,
                                               const std::string &fileName,
                                               FsActionInfo *client1Action,

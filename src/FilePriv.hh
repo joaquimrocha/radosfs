@@ -23,11 +23,14 @@
 #include <tr1/memory>
 #include "radosfsdefines.h"
 #include "FileIO.hh"
+#include "FileInode.hh"
+#include "FileInodePriv.hh"
 
 RADOS_FS_BEGIN_NAMESPACE
 
 class Filesystem;
 class File;
+class FileInode;
 
 class FilePriv
 {
@@ -51,17 +54,18 @@ public:
 
   void updateDataPool(const std::string &pool);
 
+  void setInode(const size_t stripeSize);
+
+  FileIOSP getFileIO(void) const { return inode->mPriv->io; }
+
   File *fsFile;
   File *target;
+  FileInode *inode;
   PoolSP dataPool;
   PoolSP mtdPool;
-  std::string inode;
   std::string parentDir;
   File::OpenMode permissions;
   File::OpenMode mode;
-  std::tr1::shared_ptr<FileIO> fileIO;
-  std::vector<std::string> asyncOps;
-  boost::mutex asyncOpsMutex;
 };
 
 RADOS_FS_END_NAMESPACE

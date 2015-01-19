@@ -28,6 +28,7 @@
 RADOS_FS_BEGIN_NAMESPACE
 
 class FileInodePriv;
+class FilePriv;
 
 class FileInode
 {
@@ -58,7 +59,11 @@ public:
   int registerFile(const std::string &path, uid_t uid, gid_t gid, int mode=-1);
 
 private:
+  FileInode(FileInodePriv *priv);
   FileInodePriv *mPriv;
+
+  friend class FilePriv;
+  friend class ::RadosFsTest;
 };
 
 RADOS_FS_END_NAMESPACE

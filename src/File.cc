@@ -22,6 +22,8 @@
 #include "radosfsdefines.h"
 #include "radosfscommon.h"
 #include "File.hh"
+#include "FileInode.hh"
+#include "FileInodePriv.hh"
 #include "FilePriv.hh"
 #include "Dir.hh"
 #include "FilesystemPriv.hh"
@@ -34,6 +36,9 @@ FilePriv::FilePriv(File *fsFile, File::OpenMode mode)
     permissions(File::MODE_NONE),
     mode(mode)
 {
+  FileInodePriv *mPriv = new FileInodePriv(fsFile->filesystem(), FileIOSP());
+  inode = new FileInode(mPriv);
+
   updatePath();
 }
 
@@ -65,7 +70,7 @@ FilePriv::updatePath()
 
   updatePermissions();
 
-  fileIO.reset();
+  inode->mPriv->io.reset();
 
   if (!fsFile->exists())
   {
@@ -100,7 +105,8 @@ FilePriv::updatePath()
   }
   else if (stat && stat->translatedPath != "")
   {
-    fileIO = radosFs->mPriv->getOrCreateFileIO(stat->translatedPath, stat);
+    inode->mPriv->setFileIO(radosFs->mPriv->getOrCreateFileIO(stat->translatedPath,
+                                                              stat));
   }
 }
 
@@ -168,14 +174,14 @@ FilePriv::updatePermissions()
 int
 FilePriv::removeFile()
 {
-  if (!fileIO)
+  if (!getFileIO())
     return 0;
 
-  if (!FileIO::hasSingleClient(fileIO))
-    fileIO->setLazyRemoval(true);
+  if (!FileIO::hasSingleClient(inode->mPriv->io))
+    getFileIO()->setLazyRemoval(true);
   else
   {
-    int ret = fileIO->remove();
+    int ret = getFileIO()->remove();
 
     // Ignore the fact that the inode might not exist because we're also dealing
     // with the logical file name
@@ -286,6 +292,17 @@ FilePriv::rename(const std::string &destination)
   return ret;
 }
 
+void
+FilePriv::setInode(const size_t stripeSize)
+{
+  size_t stripe = alignStripeSize(stripeSize, dataPool->alignment);
+  FileIOSP fileIO = FileIOSP(new FileIO(fsFile->filesystem(),
+                                        dataPool,
+                                        generateUuid(),
+                                        stripe));
+  inode->mPriv->setFileIO(fileIO);
+}
+
 File::File(Filesystem *radosFs, const std::string &path, File::OpenMode mode)
   : FsObj(radosFs, getFilePath(path)),
     mPriv(new FilePriv(this, mode))
@@ -336,7 +353,7 @@ File::read(char *buff, off_t offset, size_t blen)
     if (isLink())
       return mPriv->target->read(buff, offset, blen);
 
-    ret = mPriv->fileIO->read(buff, offset, blen);
+    ret = mPriv->inode->read(buff, offset, blen);
 
     // If there is no stripe, we treat the file as having a size of 0, so we
     // to give a buffer overflow error instead
@@ -369,15 +386,7 @@ File::write(const char *buff, off_t offset, size_t blen, bool copyBuffer)
     if (isLink())
       return mPriv->target->write(buff, offset, blen, copyBuffer);
 
-    updateTimeAsync(mPriv->fsStat(), XATTR_MTIME);
-
-    std::string opId;
-    ret = mPriv->fileIO->write(buff, offset, blen, &opId, copyBuffer);
-
-    {
-      boost::unique_lock<boost::mutex> lock(mPriv->asyncOpsMutex);
-      mPriv->asyncOps.push_back(opId);
-    }
+    ret = mPriv->inode->write(buff, offset, blen, copyBuffer);
 
     return ret;
   }
@@ -397,9 +406,7 @@ File::writeSync(const char *buff, off_t offset, size_t blen)
     if (isLink())
       return mPriv->target->writeSync(buff, offset, blen);
 
-    updateTimeAsync(mPriv->fsStat(), XATTR_MTIME);
-
-    return mPriv->fileIO->writeSync(buff, offset, blen);
+    return mPriv->inode->writeSync(buff, offset, blen);
   }
 
   return -EACCES;
@@ -408,8 +415,6 @@ File::writeSync(const char *buff, off_t offset, size_t blen)
 int
 File::create(int mode, const std::string pool, size_t stripe)
 {
-  Stat *stat = reinterpret_cast<Stat *>(fsStat());
-  Stat *parentStat = reinterpret_cast<Stat *>(parentFsStat());
   int ret;
 
   if (pool != "")
@@ -426,9 +431,9 @@ File::create(int mode, const std::string pool, size_t stripe)
 
   if (exists())
   {
-    if (mPriv->fileIO && mPriv->fileIO->lazyRemoval())
+    if (mPriv->getFileIO() && mPriv->getFileIO()->lazyRemoval())
     {
-      mPriv->fileIO->setLazyRemoval(false);
+      mPriv->getFileIO()->setLazyRemoval(false);
     }
     else
     {
@@ -444,35 +449,11 @@ File::create(int mode, const std::string pool, size_t stripe)
 
   filesystem()->getIds(&uid, &gid);
 
-  long int permOctal = DEFAULT_MODE_FILE;
+  mPriv->setInode(stripe ? stripe : filesystem()->fileStripeSize());
+  ret = mPriv->inode->registerFile(path(), uid, gid, mode);
 
-  if (mode >= 0)
-    permOctal = mode | S_IFREG;
-
-  mPriv->inode = generateUuid();
-  stat->path = path();
-  stat->translatedPath = mPriv->inode;
-  stat->statBuff.st_mode = permOctal;
-  stat->statBuff.st_uid = uid;
-  stat->statBuff.st_gid = gid;
-  stat->pool = mPriv->dataPool;
-
-  timespec spec;
-  clock_gettime(CLOCK_REALTIME, &spec);
-
-  stat->statBuff.st_ctim = spec;
-  stat->statBuff.st_ctime = spec.tv_sec;
-
-  std::stringstream stream;
-  stream << alignStripeSize((stripe) ? stripe : filesystem()->fileStripeSize(),
-                            mPriv->dataPool->alignment);
-
-  stat->extraData[XATTR_FILE_STRIPE_SIZE] = stream.str();
-
-  ret = indexObject(parentStat, stat, '+');
-
-  if (ret == -ECANCELED)
-    return -EEXIST;
+  if (ret < 0)
+    return ret;
 
   update();
 
@@ -519,12 +500,7 @@ File::truncate(unsigned long long size)
   if (isLink())
     return mPriv->target->truncate(size);
 
-  if (mPriv->fileIO)
-  {
-    updateTimeAsync(mPriv->fsStat(), XATTR_MTIME);
-
-    return mPriv->fileIO->truncate(size);
-  }
+  return mPriv->inode->truncate(size);
 
   return -ENODEV;
 }
@@ -576,7 +552,7 @@ File::stat(struct stat *buff)
   if (isLink())
     return 0;
 
-  buff->st_size = mPriv->fileIO->getSize();
+  buff->st_size = mPriv->getFileIO()->getSize();
 
   return 0;
 }
@@ -641,16 +617,10 @@ File::rename(const std::string &newPath)
 int
 File::sync()
 {
-  int ret = 0;
-  boost::unique_lock<boost::mutex> lock(mPriv->asyncOpsMutex);
+  int ret = mPriv->inode->sync();
 
-  std::vector<std::string>::iterator it;
-  for (it = mPriv->asyncOps.begin(); it != mPriv->asyncOps.end(); it++)
-  {
-    ret = mPriv->fileIO->sync(*it);
-  }
-
-  mPriv->asyncOps.clear();
+  if (ret == -ENODEV)
+    ret = 0;
 
   return ret;
 }

@@ -171,6 +171,10 @@ FileInode::FileInode(Filesystem *fs, const std::string &pool,
   : mPriv(new FileInodePriv(fs, pool, generateUuid(), stripeSize))
 {}
 
+FileInode::FileInode(FileInodePriv *priv)
+  : mPriv(priv)
+{}
+
 FileInode::~FileInode()
 {
   delete mPriv;
