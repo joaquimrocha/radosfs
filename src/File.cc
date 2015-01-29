@@ -46,6 +46,8 @@ FilePriv::~FilePriv()
 {
   if (target)
     delete target;
+
+  delete inode;
 }
 
 void
