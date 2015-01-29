@@ -52,6 +52,7 @@ add_library( radosfs SHARED
              Finder.cc Finder.hh
              AsyncOp.cc AsyncOp.cc AsyncOpPriv.hh
              FileInode.cc FileInode.hh FileInodePriv.hh
+             FileInlineBuffer.cc FileInlineBuffer.hh
 )
 
 include_directories( ${RADOS_INCLUDE_DIR} )
