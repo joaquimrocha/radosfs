@@ -56,6 +56,13 @@ AyncOpPriv::waitForCompletion(void)
     radosfs_debug("Async op with id='%s' will now wait for completion...",
                   id.c_str());
 
+    if (mOperations.size() == 0)
+    {
+      radosfs_debug("Async op with id='%s' had no operations to complete. "
+                    "Setting as complete.", id.c_str());
+      returnCode = 0;
+    }
+
     CompletionList::iterator it = mOperations.begin();
     while(it != mOperations.end())
     {
