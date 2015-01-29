@@ -210,6 +210,10 @@ std::string getCurrentTimeStr(void);
 void updateTimeAsync(const Stat *stat, const char *timeXAttrKey,
                      const std::string &time = "");
 
+void updateTimeAsync2(const PoolSP &pool, const std::string &inode,
+                      const char *timeXAttrKey,
+                      const std::string &time = "");
+
 int getTimeFromXAttr(const Stat *stat, const std::string &xattr,
                      timespec *spec, time_t *basicTime);
 

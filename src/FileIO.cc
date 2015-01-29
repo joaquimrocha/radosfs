@@ -39,7 +39,8 @@ FileIO::FileIO(Filesystem *radosFs, const PoolSP pool, const std::string &iNode,
     mInode(iNode),
     mStripeSize(stripeSize),
     mLazyRemoval(false),
-    mLocker("")
+    mLocker(""),
+    mInlineBuffer(0)
 {
   assert(mStripeSize != 0);
 }
@@ -70,9 +71,37 @@ FileIO::read(char *buff, off_t offset, size_t blen)
     return -EINVAL;
   }
 
+  ssize_t ret = 0;
 
+  if (mInlineBuffer)
+  {
+    if ((size_t) offset < mInlineBuffer->capacity())
+    {
+      std::string contentsStr;
+      mInlineBuffer->read(0, &contentsStr);
+
+      ret = std::min(blen, contentsStr.length());
+
+      if (ret > 0)
+      {
+        memcpy(buff, contentsStr.c_str() + offset, ret);
+      }
+
+      offset += ret;
+      buff += ret;
+
+      assert((size_t) ret <= blen);
+
+      blen -= ret;
+
+      if (blen == 0)
+        return ret;
+    }
+  }
+
+  size_t bytesRead = ret;
   size_t fileSize = 0;
-  ssize_t ret = getLastStripeIndexAndSize(&fileSize);
+  ret = getLastStripeIndexAndSize(&fileSize);
 
   if (ret < 0)
     return ret;
@@ -86,7 +115,6 @@ FileIO::read(char *buff, off_t offset, size_t blen)
 
   off_t currentOffset =  offset % mStripeSize;
   size_t bytesToRead = blen;
-  size_t bytesRead = 0;
 
   while (bytesToRead  > 0)
   {
@@ -315,6 +343,40 @@ FileIO::realWrite(char *buff, off_t offset, size_t blen, bool deleteBuffer,
 {
   int ret = 0;
 
+  if (mInlineBuffer && mInlineBuffer->capacity() > 0)
+  {
+    size_t inlineContentsSize = 0;
+    ssize_t opResult = 0;
+
+    if ((size_t) offset < mInlineBuffer->capacity())
+    {
+      opResult = mInlineBuffer->write(buff, offset, blen);
+      inlineContentsSize = opResult;
+    }
+    else
+    {
+      opResult = mInlineBuffer->fillRemainingInlineBuffer();
+    }
+
+    if (opResult < 0)
+    {
+      asyncOp->mPriv->setReady();
+      return ret;
+    }
+
+    offset += (off_t) inlineContentsSize;
+    buff += inlineContentsSize;
+    blen -= (size_t) inlineContentsSize;
+
+    if (blen == 0)
+    {
+      asyncOp->mPriv->setReady();
+      return ret;
+    }
+  }
+
+  updateTimeAsync2(mPool, mInode, XATTR_MTIME);
+
   off_t currentOffset =  offset % mStripeSize;
   size_t bytesToWrite = blen;
   size_t firstStripe = offset / mStripeSize;
@@ -453,6 +515,13 @@ FileIO::truncate(size_t newSize)
   }
 
   mOpManager.sync();
+
+  if (mInlineBuffer)
+  {
+    mInlineBuffer->truncate(newSize);
+  }
+
+  updateTimeAsync2(mPool, mInode, XATTR_MTIME);
 
   const std::string &opId = generateUuid();
 
@@ -727,6 +796,44 @@ FileIO::hasSingleClient(const FileIOSP &io)
   // If there is only one client using an instance of the given FileIO, then
   // the use count is 2 because there is a reference hold in FsPriv's map.
   return io.use_count() == 2;
+}
+
+void
+FileIO::setInlineBuffer(const std::string path, size_t bufferSize)
+{
+
+  Stat parentStat;
+  std::string parentPath = getParentDir(path, 0);
+
+  if (parentPath == "")
+    return;
+
+  if (mInlineBuffer)
+  {
+    if ((mInlineBuffer->parentStat.path + mInlineBuffer->fileBaseName) == path)
+      return;
+
+    mInlineBuffer.reset();
+  }
+
+  if (mRadosFs->mPriv->stat(parentPath, &parentStat) != 0)
+    return;
+
+  mInlineBuffer.reset(new FileInlineBuffer(mRadosFs, &parentStat,
+                                           path.substr(parentPath.length()),
+                                           bufferSize));
+}
+
+void
+FileIO::setLazyRemoval(bool remove)
+{
+  mLazyRemoval = remove;
+
+  if (mInlineBuffer)
+  {
+    boost::unique_lock<boost::mutex> lock(mInlineMemBufferMutex);
+    mInlineBuffer->setMemoryBuffer(&mInlineMemBuffer, &mInlineMemBufferMutex);
+  }
 }
 
 int

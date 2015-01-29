@@ -29,6 +29,7 @@
 #include <tr1/memory>
 
 #include "Filesystem.hh"
+#include "FileInlineBuffer.hh"
 #include "AsyncOp.hh"
 #include "radosfscommon.h"
 
@@ -72,7 +73,7 @@ public:
 
   std::string inode(void) const { return mInode; }
 
-  void setLazyRemoval(bool remove) { mLazyRemoval = remove; }
+  void setLazyRemoval(bool remove);
   bool lazyRemoval(void) const { return mLazyRemoval; }
 
   std::string getStripePath(off_t offset) const;
@@ -105,6 +106,10 @@ public:
 
   PoolSP pool(void) const { return mPool; }
 
+  void setInlineBuffer(const std::string path, size_t bufferSize);
+
+  FileInlineBuffer *inlineBuffer(void) const { return mInlineBuffer.get(); }
+
 private:
   Filesystem *mRadosFs;
   const PoolSP mPool;
@@ -116,6 +121,9 @@ private:
   boost::mutex mLockMutex;
   std::string mLocker;
   OpsManager mOpManager;
+  boost::scoped_ptr<FileInlineBuffer> mInlineBuffer;
+  std::string mInlineMemBuffer;
+  boost::mutex mInlineMemBufferMutex;
 
   int verifyWriteParams(off_t offset, size_t length);
   int realWrite(char *buff, off_t offset, size_t blen, bool deleteBuffer,

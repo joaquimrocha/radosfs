@@ -205,8 +205,6 @@ FileInode::write(const char *buff, off_t offset, size_t blen, bool copyBuffer)
   stat.pool = mPriv->io->pool();
   stat.translatedPath = mPriv->io->inode();
 
-  updateTimeAsync(&stat, XATTR_MTIME);
-
   std::string opId;
   int ret = mPriv->io->write(buff, offset, blen, &opId, copyBuffer);
 
@@ -223,12 +221,6 @@ FileInode::writeSync(const char *buff, off_t offset, size_t blen)
 {
   if (!mPriv->io)
     return -ENODEV;
-
-  Stat stat;
-  stat.pool = mPriv->io->pool();
-  stat.translatedPath = mPriv->io->inode();
-
-  updateTimeAsync(&stat, XATTR_MTIME);
 
   return mPriv->io->writeSync(buff, offset, blen);
 }
@@ -247,12 +239,6 @@ FileInode::truncate(size_t size)
 {
   if (!mPriv->io)
     return -ENODEV;
-
-  Stat stat;
-  stat.pool = mPriv->io->pool();
-  stat.translatedPath = mPriv->io->inode();
-
-  updateTimeAsync(&stat, XATTR_MTIME);
 
   return mPriv->io->truncate(size);
 }
