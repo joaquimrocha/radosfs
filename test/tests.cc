@@ -533,11 +533,24 @@ TEST_F(RadosFsTest, RemoveFile)
 
   EXPECT_EQ(0, file1->create());
 
+  const size_t contentsLength = DEFAULT_FILE_INLINE_BUFFER_SIZE - 1;
+  char *inlineContents = new char[contentsLength];
+
+  memset(inlineContents, 'x', contentsLength);
+
+  file1->writeSync(inlineContents, 0, contentsLength);
+
   file2->update();
 
   EXPECT_TRUE(file2->exists());
 
   EXPECT_EQ(0, file1->remove());
+
+  char *inlineContents2 = new char[contentsLength];
+
+  file2->read(inlineContents2, 0, contentsLength);
+
+  EXPECT_TRUE(strncmp(inlineContents, inlineContents2, contentsLength));
 
   file2->update();
 
@@ -545,6 +558,8 @@ TEST_F(RadosFsTest, RemoveFile)
 
   delete file2;
   delete file1;
+  delete inlineContents;
+  delete inlineContents2;
 
   file.setPath("/testfile1");
 
