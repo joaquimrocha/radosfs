@@ -42,7 +42,8 @@ public:
 
   void setFileIO(FileIOSP fileIO);
 
-  int registerFile(const std::string &path, uid_t uid, gid_t gid, int mode);
+  int registerFile(const std::string &path, uid_t uid, gid_t gid, int mode,
+                   size_t inlineBufferSize=0);
 
   Filesystem *fs;
   std::string name;

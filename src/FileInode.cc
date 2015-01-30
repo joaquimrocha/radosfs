@@ -71,7 +71,7 @@ FileInodePriv::setFileIO(FileIOSP fileIO)
 
 int
 FileInodePriv::registerFile(const std::string &path, uid_t uid, gid_t gid,
-                            int mode)
+                            int mode, size_t inlineBufferSize)
 {
   const std::string parentDir = getParentDir(path, 0);
   std::string filePath = path;
@@ -141,6 +141,11 @@ FileInodePriv::registerFile(const std::string &path, uid_t uid, gid_t gid,
   stream << io->stripeSize();
 
   fileStat.extraData[XATTR_FILE_STRIPE_SIZE] = stream.str();
+
+  stream.str("");
+
+  stream << inlineBufferSize;
+  fileStat.extraData[XATTR_FILE_INLINE_BUFFER_SIZE] = stream.str();
 
   ret = indexObject(&parentStat, &fileStat, '+');
 

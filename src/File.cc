@@ -34,7 +34,8 @@ FilePriv::FilePriv(File *fsFile, File::OpenMode mode)
   : fsFile(fsFile),
     target(0),
     permissions(File::MODE_NONE),
-    mode(mode)
+    mode(mode),
+    inlineBufferSize(DEFAULT_FILE_INLINE_BUFFER_SIZE)
 {
   FileInodePriv *mPriv = new FileInodePriv(fsFile->filesystem(), FileIOSP());
   inode = new FileInode(mPriv);
@@ -90,6 +91,13 @@ FilePriv::updatePath()
     dataPool = stat->pool;
   }
 
+  if (stat->extraData.count(XATTR_FILE_INLINE_BUFFER_SIZE) > 0)
+  {
+    const std::string &bufferSize =
+        stat->extraData[XATTR_FILE_INLINE_BUFFER_SIZE];
+    inlineBufferSize = strtoul(bufferSize.c_str(), 0, 10);
+  }
+
   if (!dataPool)
     return;
 
@@ -109,6 +117,8 @@ FilePriv::updatePath()
   {
     inode->mPriv->setFileIO(radosFs->mPriv->getOrCreateFileIO(stat->translatedPath,
                                                               stat));
+    if (inlineBufferSize > 0)
+      inode->mPriv->io->setInlineBuffer(fsFile->path(), inlineBufferSize);
   }
 }
 
@@ -303,6 +313,18 @@ FilePriv::setInode(const size_t stripeSize)
                                         generateUuid(),
                                         stripe));
   inode->mPriv->setFileIO(fileIO);
+
+  if (inlineBufferSize > 0)
+    inode->mPriv->io->setInlineBuffer(fsFile->path(), inlineBufferSize);
+}
+
+int
+FilePriv::create(int mode, uid_t uid, gid_t gid, size_t stripe)
+{
+  setInode(stripe ? stripe : fsFile->filesystem()->fileStripeSize());
+
+  return inode->mPriv->registerFile(fsFile->path(), uid, gid, mode,
+                                    inlineBufferSize);
 }
 
 File::File(Filesystem *radosFs, const std::string &path, File::OpenMode mode)
@@ -451,8 +473,7 @@ File::create(int mode, const std::string pool, size_t stripe)
 
   filesystem()->getIds(&uid, &gid);
 
-  mPriv->setInode(stripe ? stripe : filesystem()->fileStripeSize());
-  ret = mPriv->inode->registerFile(path(), uid, gid, mode);
+  ret = mPriv->create(mode, uid, gid, stripe);
 
   if (ret < 0)
     return ret;
@@ -546,15 +567,42 @@ File::stat(struct stat *buff)
 
   stat = mPriv->fsStat();
 
-  getTimeFromXAttr(stat, XATTR_MTIME, &stat->statBuff.st_mtim,
-                   &stat->statBuff.st_mtime);
-
-  *buff = stat->statBuff;
 
   if (isLink())
-    return 0;
+  {
+    getTimeFromXAttr(stat, XATTR_MTIME, &stat->statBuff.st_mtim,
+                     &stat->statBuff.st_mtime);
+  }
+  else
+  {
+    // If there is an inline buffer and it is not fully filled, then it already
+    // gives us the size of the object, otherwise, we need to check the size set
+    // in the inode
 
-  buff->st_size = mPriv->getFileIO()->getSize();
+    std::string inlineContents;
+    FileInlineBuffer *inlineBuffer = mPriv->getFileIO()->inlineBuffer();
+
+    if (inlineBuffer)
+    {
+      inlineBuffer->read(&stat->statBuff.st_mtim, &inlineContents);
+
+      stat->statBuff.st_mtime = stat->statBuff.st_mtim.tv_sec;
+      stat->statBuff.st_size = inlineContents.length();
+    }
+
+    if (!inlineBuffer || inlineContents.length() == inlineBuffer->capacity())
+    {
+      size_t fileIOSize = mPriv->getFileIO()->getSize();
+
+      if (fileIOSize != 0)
+        stat->statBuff.st_size = fileIOSize;
+
+      getTimeFromXAttr(stat, XATTR_MTIME, &stat->statBuff.st_mtim,
+                       &stat->statBuff.st_mtime);
+    }
+  }
+
+  *buff = stat->statBuff;
 
   return 0;
 }
