@@ -437,7 +437,8 @@ File::writeSync(const char *buff, off_t offset, size_t blen)
 }
 
 int
-File::create(int mode, const std::string pool, size_t stripe)
+File::create(int mode, const std::string pool, size_t stripe,
+             ssize_t inlineBufferSize)
 {
   int ret;
 
@@ -468,10 +469,21 @@ File::create(int mode, const std::string pool, size_t stripe)
   if ((mPriv->permissions & File::MODE_WRITE) == 0)
     return -EACCES;
 
+  if (inlineBufferSize > MAX_FILE_INLINE_BUFFER_SIZE)
+  {
+    radosfs_debug("Error: Cannot create a file with an inline size > %u. The "
+                  "given size was %u.", MAX_FILE_INLINE_BUFFER_SIZE,
+                  inlineBufferSize);
+    return -EINVAL;
+  }
+
   uid_t uid;
   gid_t gid;
 
   filesystem()->getIds(&uid, &gid);
+
+  if (inlineBufferSize > -1)
+    mPriv->inlineBufferSize = inlineBufferSize;
 
   ret = mPriv->create(mode, uid, gid, stripe);
 
