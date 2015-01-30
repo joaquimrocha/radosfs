@@ -687,4 +687,10 @@ File::sync()
   return ret;
 }
 
+size_t
+File::inlineBufferSize(void) const
+{
+  return mPriv->inlineBufferSize;
+}
+
 RADOS_FS_END_NAMESPACE

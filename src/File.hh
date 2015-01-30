@@ -86,6 +86,8 @@ public:
 
   int sync(void);
 
+  size_t inlineBufferSize(void) const;
+
 private:
   boost::scoped_ptr<FilePriv> mPriv;
 
