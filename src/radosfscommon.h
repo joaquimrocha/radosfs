@@ -168,10 +168,9 @@ int splitToken(const std::string &line,
                std::string *op = 0);
 
 int writeContentsAtomically(librados::IoCtx &ioctx,
-                            const std::string &obj,
-                            const std::string &contents,
-                            const std::string &xattrKey = "",
-                            const std::string &xattrValue = "");
+              const std::string &obj,
+              const std::string &contents,
+              const std::map<std::string, librados::bufferlist> *xattrs = 0);
 
 std::string sanitizePath(const std::string &path);
 

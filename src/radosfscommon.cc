@@ -429,17 +429,21 @@ int indexObject(const Stat *parentStat,
 
   contents = getObjectIndexLine(baseName, op);
 
+  std::map<std::string, librados::bufferlist> xattrs;
+
   if ((stat->statBuff.st_mode & S_IFDIR) == 0)
   {
     xAttrKey = XATTR_FILE_PREFIX + baseName;
 
     if (op == '+')
       xAttrValue = getFileXAttrDirRecord(stat);
+
+    xattrs[xAttrKey].append(xAttrValue);
   }
 
   int ret =  writeContentsAtomically(parentStat->pool->ioctx,
                                      parentStat->translatedPath, contents,
-                                     xAttrKey, xAttrValue);
+                                     &xattrs);
 
   updateTimeAsync(parentStat, XATTR_MTIME);
 
@@ -521,48 +525,50 @@ indexObjectMetadata(librados::IoCtx &ioctx,
 
 int
 writeContentsAtomically(librados::IoCtx &ioctx,
-                        const std::string &obj,
-                        const std::string &contents,
-                        const std::string &xattrKey,
-                        const std::string &xattrValue)
+                      const std::string &obj,
+                      const std::string &contents,
+                      const std::map<std::string, librados::bufferlist> *xattrs)
 {
   librados::ObjectWriteOperation writeOp;
   std::map<std::string, librados::bufferlist> omap;
+  std::map<std::string, std::pair<librados::bufferlist, int> > omapCmp;
   librados::bufferlist contentsBuff;
 
   omap[DIR_LOG_UPDATED].append(DIR_LOG_UPDATED_TRUE);
-  writeOp.omap_set(omap);
 
   contentsBuff.append(contents);
   writeOp.append(contentsBuff);
 
-  if (xattrKey != "")
+  std::set<std::string> keysToRemove;
+
+  if (xattrs)
   {
-    if (xattrValue != "")
+    librados::bufferlist emptyStr;
+    emptyStr.append("");
+
+    std::pair<librados::bufferlist, int> cmp(emptyStr,
+                                             LIBRADOS_CMPXATTR_OP_EQ);
+
+    std::map<std::string, librados::bufferlist>::const_iterator it;
+    for (it = xattrs->begin(); it != xattrs->end(); it++)
     {
+      std::string xattrKey = (*it).first;
+      librados::bufferlist xattrValue = (*it).second;
 
-      std::map<std::string, librados::bufferlist> omap;
-      omap[xattrKey].append(xattrValue);
+      if (xattrValue.length() == 0)
+      {
+        keysToRemove.insert(xattrKey);
+        continue;
+      }
 
-      librados::bufferlist emptyStr;
-      std::map<std::string, std::pair<librados::bufferlist, int> > omapCmp;
-      emptyStr.append("");
-      writeOp.cmpxattr(xattrKey.c_str(), LIBRADOS_CMPXATTR_OP_EQ, emptyStr);
-
-      std::pair<librados::bufferlist, int> cmp(emptyStr,
-                                               LIBRADOS_CMPXATTR_OP_EQ);
+      omap[xattrKey] = xattrValue;
       omapCmp[xattrKey] = cmp;
-
-      writeOp.omap_cmp(omapCmp, 0);
-      writeOp.omap_set(omap);
-    }
-    else
-    {
-      std::set<std::string> keys;
-      keys.insert(xattrKey);
-      writeOp.omap_rm_keys(keys);
     }
   }
+
+  writeOp.omap_cmp(omapCmp, 0);
+  writeOp.omap_set(omap);
+  writeOp.omap_rm_keys(keysToRemove);
 
   int ret = ioctx.operate(obj, &writeOp);
 
