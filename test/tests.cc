@@ -995,7 +995,7 @@ TEST_F(RadosFsTest, FileInode)
 
   radosfs::File file(&radosFs, fileName);
 
-  EXPECT_EQ(0, file.create());
+  EXPECT_EQ(0, file.create(-1, "", 0, 0));
 
   EXPECT_EQ(0, radosFsPriv()->stat(file.path(), &stat));
 
@@ -1008,6 +1008,8 @@ TEST_F(RadosFsTest, FileInode)
   EXPECT_EQ(0, stat.pool->ioctx.remove(stat.translatedPath));
 
   EXPECT_EQ(0, file.write("X", 0, 1));
+
+  file.sync();
 
   EXPECT_EQ(0, stat.pool->ioctx.stat(stat.translatedPath, 0, 0));
 
