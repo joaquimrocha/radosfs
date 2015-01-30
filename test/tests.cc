@@ -2921,7 +2921,7 @@ TEST_F(RadosFsTest, PoolAlignment)
   // Create contents which should go into stripes with a size that is a multiple
   // of the alignment and less than the stripe size originally set
 
-  EXPECT_EQ(0, file.create());
+  EXPECT_EQ(0, file.create(-1, "", 0, 0));
 
   const size_t contentsSize(stripeSize * 3);
   char contents[contentsSize];
