@@ -1372,6 +1372,101 @@ TEST_F(RadosFsTest, FileReadWrite)
   delete[] blankContents;
 }
 
+TEST_F(RadosFsTest, FileInline)
+{
+  AddPool();
+
+  radosfs::File file(&radosFs, "/file");
+
+  // Create a file with an inline buffer size that is too big
+
+  ASSERT_EQ(-EINVAL, file.create(-1, "", 0, MAX_FILE_INLINE_BUFFER_SIZE + 1));
+
+  // Create a file with a custom inline buffer size
+
+  const size_t inlineBufferSize(512);
+
+  ASSERT_EQ(0, file.create(-1, "", 0, inlineBufferSize));
+
+  EXPECT_EQ(inlineBufferSize, file.inlineBufferSize());
+
+  // Write contents only in the inline buffer
+
+  char contents[inlineBufferSize * 2];
+  memset(contents, 'x', inlineBufferSize * 2);
+  contents[inlineBufferSize * 2 - 1] = '\0';
+
+  ASSERT_EQ(0, file.write(contents, 0, inlineBufferSize));
+
+  // Verify that the inode object was not created
+
+  std::string inodeObj = radosFsFilePriv(file)->inode->name();
+
+  Stat stat;
+  radosFsPriv()->stat(file.path(), &stat);
+
+  EXPECT_EQ(-ENOENT, stat.pool->ioctx.stat(inodeObj, 0, 0));
+
+  // Read the inline contetns
+
+  char contents2[inlineBufferSize * 2];
+
+  ASSERT_EQ(inlineBufferSize - 1, file.read(contents2, 0,
+                                            inlineBufferSize - 1));
+
+  EXPECT_TRUE(strncmp(contents2, contents, inlineBufferSize - 1) == 0);
+
+  // Write beyond than the inline buffer size and verify it creates the inode
+  // object
+
+  ASSERT_EQ(0, file.write(contents, inlineBufferSize, inlineBufferSize));
+
+  file.sync();
+
+  EXPECT_EQ(0, stat.pool->ioctx.stat(inodeObj, 0, 0));
+
+  // Read the full file length
+
+  bzero(contents2, inlineBufferSize);
+
+  ASSERT_EQ(inlineBufferSize * 2, file.read(contents2, 0, inlineBufferSize * 2));
+
+  contents2[inlineBufferSize * 2 - 1] = '\0';
+
+  EXPECT_TRUE(strcmp(contents2, contents) == 0);
+
+  // Truncate so contents only exist in the inline buffer
+
+  ASSERT_EQ(0, file.truncate(inlineBufferSize / 2));
+
+  // Verify that the size of the contents read match what was truncated
+
+  EXPECT_EQ(inlineBufferSize / 2, file.read(contents2, 0, inlineBufferSize / 2));
+
+  // Truncate to 0
+
+  ASSERT_EQ(0, file.truncate(0));
+
+  // Write beyond the inline buffer when it is not full and then only up to
+  // half of it
+
+  bzero(contents2, inlineBufferSize * 2);
+
+  ASSERT_EQ(0, file.write(contents, inlineBufferSize, inlineBufferSize));
+
+  ASSERT_EQ(0, file.write(contents, 0, inlineBufferSize / 2));
+
+  // Verify that all contents are read
+
+  EXPECT_EQ(inlineBufferSize * 2, file.read(contents2, 0, inlineBufferSize * 2));
+
+  char blankContents[inlineBufferSize / 2];
+  memset(blankContents, '\0', inlineBufferSize / 2);
+
+  EXPECT_TRUE(strncmp(contents2 + inlineBufferSize / 2, blankContents,
+                      inlineBufferSize / 2) == 0);
+}
+
 TEST_F(RadosFsTest, RenameFile)
 {
   AddPool();
