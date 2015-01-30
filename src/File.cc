@@ -410,9 +410,7 @@ File::write(const char *buff, off_t offset, size_t blen, bool copyBuffer)
     if (isLink())
       return mPriv->target->write(buff, offset, blen, copyBuffer);
 
-    ret = mPriv->inode->write(buff, offset, blen, copyBuffer);
-
-    return ret;
+    return mPriv->inode->write(buff, offset, blen, copyBuffer);
   }
 
   return -EACCES;
@@ -536,8 +534,6 @@ File::truncate(unsigned long long size)
     return mPriv->target->truncate(size);
 
   return mPriv->inode->truncate(size);
-
-  return -ENODEV;
 }
 
 bool
