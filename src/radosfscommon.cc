@@ -437,6 +437,8 @@ int indexObject(const Stat *parentStat,
 
     if (op == '+')
       xAttrValue = getFileXAttrDirRecord(stat);
+    else
+      xattrs[XATTR_FILE_INLINE_BUFFER + baseName].append("");
 
     xattrs[xAttrKey].append(xAttrValue);
   }
