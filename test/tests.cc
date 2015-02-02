@@ -1080,9 +1080,9 @@ TEST_F(RadosFsTest, FileInodeDirect)
 
   ASSERT_EQ(0, inode.truncate(contentsSize / 2));
 
-  EXPECT_EQ(-EOVERFLOW, inode.read(buff, 0, contentsSize));
+  EXPECT_EQ(contentsSize / 2, inode.read(buff, 0, contentsSize));
 
-  EXPECT_EQ(contentsSize / 2, inode.read(buff, 0, contentsSize / 2));
+  EXPECT_EQ(contentsSize / 3, inode.read(buff, 0, contentsSize / 3));
 
   radosfs::File file(&radosFs, "/file");
 
@@ -1271,7 +1271,7 @@ TEST_F(RadosFsTest, FileReadWrite)
 
   char *buff = new char[contents.length() + 1];
 
-  EXPECT_EQ(-EOVERFLOW, file.read(buff, 0, contents.length()));
+  EXPECT_EQ(0, file.read(buff, 0, contents.length()));
 
   delete[] buff;
 
@@ -1348,7 +1348,7 @@ TEST_F(RadosFsTest, FileReadWrite)
 
   // Read outside of the file's size (from the file size to 2x file size)
 
-  ASSERT_EQ(-EOVERFLOW, file.read(buff, statBuff.st_size, statBuff.st_size * 2));
+  ASSERT_EQ(0, file.read(buff, statBuff.st_size, statBuff.st_size * 2));
 
   // Increase the file size and read a region that doesn't have corresponding
   // stripes
