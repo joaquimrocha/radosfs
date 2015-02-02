@@ -72,7 +72,7 @@ FileIO::read(char *buff, off_t offset, size_t blen)
   }
 
   ssize_t ret = 0;
-  size_t fileSize = -1;
+  ssize_t fileSize = -1;
 
   if (mInlineBuffer)
   {
@@ -83,7 +83,7 @@ FileIO::read(char *buff, off_t offset, size_t blen)
 
       fileSize = contentsStr.length();
 
-      if ((size_t) offset < fileSize)
+      if ((ssize_t) offset < fileSize)
       {
         ret = std::min(blen, contentsStr.length());
 
@@ -109,20 +109,22 @@ FileIO::read(char *buff, off_t offset, size_t blen)
 
   if ((fileSize == -1) || (ret == fileSize))
   {
-    ret = getLastStripeIndexAndSize(&fileSize);
+    size_t currentSize;
+    ret = getLastStripeIndexAndSize(&currentSize);
+    fileSize = currentSize;
   }
 
   if (ret < 0)
     return ret;
 
-  if ((size_t) offset >= fileSize)
+  if ((ssize_t) offset >= fileSize)
   {
     // Nothing to read
     return 0;
   }
 
   off_t currentOffset =  offset % mStripeSize;
-  size_t bytesToRead = std::min(blen, fileSize);
+  size_t bytesToRead = std::min(blen, (size_t) fileSize);
 
   while (bytesToRead  > 0)
   {
