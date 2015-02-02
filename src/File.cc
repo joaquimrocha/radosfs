@@ -379,13 +379,11 @@ File::read(char *buff, off_t offset, size_t blen)
 
     ret = mPriv->inode->read(buff, offset, blen);
 
-    // If there is no stripe, we treat the file as having a size of 0, so we
-    // to give a buffer overflow error instead
+    // If there is no inode object, we treat the file as having a size of 0
+    // instead
     if (ret == -ENOENT)
     {
-      radosfs_debug("Length for reading is greater than the file's current "
-                    "size: %lu > 0", (blen + offset));
-      ret = -EOVERFLOW;
+      ret = 0;
     }
   }
 

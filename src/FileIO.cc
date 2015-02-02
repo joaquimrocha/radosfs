@@ -72,6 +72,7 @@ FileIO::read(char *buff, off_t offset, size_t blen)
   }
 
   ssize_t ret = 0;
+  size_t fileSize = -1;
 
   if (mInlineBuffer)
   {
@@ -80,41 +81,48 @@ FileIO::read(char *buff, off_t offset, size_t blen)
       std::string contentsStr;
       mInlineBuffer->read(0, &contentsStr);
 
-      ret = std::min(blen, contentsStr.length());
+      fileSize = contentsStr.length();
 
-      if (ret > 0)
+      if ((size_t) offset < fileSize)
       {
-        memcpy(buff, contentsStr.c_str() + offset, ret);
+        ret = std::min(blen, contentsStr.length());
+
+        if (ret > 0)
+        {
+          memcpy(buff, contentsStr.c_str() + offset, ret);
+        }
+
+        offset += ret;
+        buff += ret;
+
+        assert((size_t) ret <= blen);
+
+        blen -= ret;
+
+        if (blen == 0)
+          return ret;
       }
-
-      offset += ret;
-      buff += ret;
-
-      assert((size_t) ret <= blen);
-
-      blen -= ret;
-
-      if (blen == 0)
-        return ret;
     }
   }
 
   size_t bytesRead = ret;
-  size_t fileSize = 0;
-  ret = getLastStripeIndexAndSize(&fileSize);
+
+  if ((fileSize == -1) || (ret == fileSize))
+  {
+    ret = getLastStripeIndexAndSize(&fileSize);
+  }
 
   if (ret < 0)
     return ret;
 
-  if ((offset + blen) > fileSize)
+  if ((size_t) offset >= fileSize)
   {
-    radosfs_debug("Length for reading is greater than the file's current size: "
-                  "%lu > %lu", (blen + offset), fileSize);
-    return -EOVERFLOW;
+    // Nothing to read
+    return 0;
   }
 
   off_t currentOffset =  offset % mStripeSize;
-  size_t bytesToRead = blen;
+  size_t bytesToRead = std::min(blen, fileSize);
 
   while (bytesToRead  > 0)
   {
