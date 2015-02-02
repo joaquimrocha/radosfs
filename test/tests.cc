@@ -3169,6 +3169,8 @@ TEST_F(RadosFsTest, FileTimes)
 
   ASSERT_EQ(0, file.write(contents.c_str(), 0, contents.length()));
 
+  file.sync();
+
   ASSERT_EQ(0, file.stat(&newStatBuff));
 
   EXPECT_LT(statBuff.st_mtim.tv_sec, newStatBuff.st_mtim.tv_sec);
