@@ -755,6 +755,8 @@ FilesystemPriv::createPrefixDir(PoolSP pool, const std::string &prefix)
     stat.statBuff.st_uid = ROOT_UID;
     stat.statBuff.st_gid = ROOT_UID;
     stat.statBuff.st_mode = DEFAULT_MODE_DIR;
+    clock_gettime(CLOCK_REALTIME, &stat.statBuff.st_ctim);
+    clock_gettime(CLOCK_REALTIME, &stat.statBuff.st_mtim);
 
     ret = createDirAndInode(&stat);
   }
