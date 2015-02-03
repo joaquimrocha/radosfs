@@ -33,8 +33,8 @@ public:
 
 private:
   static const int mBufferMaxSize = 1024;
-  boost::thread thread;
   boost::mutex mLevelMutex;
+  boost::thread thread;
 };
 
 RADOS_FS_END_NAMESPACE
