@@ -22,7 +22,7 @@
 #include <errno.h>
 #include <getopt.h>
 
-#include "RadosFs.hh"
+#include "Filesystem.hh"
 #include "RadosFsChecker.hh"
 
 #define CONF_ENV_VAR "RADOSFS_CLUSTER_CONF"
