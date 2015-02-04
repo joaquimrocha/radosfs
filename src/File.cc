@@ -528,8 +528,24 @@ File::remove()
 int
 File::truncate(unsigned long long size)
 {
+  int ret;
+  if ((ret = mPriv->verifyExistanceAndType()) != 0)
+    return ret;
+
   if (isLink())
     return mPriv->target->truncate(size);
+
+  uid_t uid;
+  gid_t gid;
+  Stat *stat = mPriv->fsStat();
+
+  filesystem()->getIds(&uid, &gid);
+
+  if (!statBuffHasPermission(stat->statBuff, uid, gid,
+                             O_WRONLY | O_RDWR))
+  {
+    return -EACCES;
+  }
 
   return mPriv->inode->truncate(size);
 }
