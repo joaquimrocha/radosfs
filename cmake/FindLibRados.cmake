@@ -1,4 +1,4 @@
-FIND_PATH(RADOS_INCLUDE_DIR librados.h
+FIND_PATH(RADOS_INCLUDE_DIR librados.hpp
   HINTS
   $ENV{XROOTD_DIR}
   /usr
