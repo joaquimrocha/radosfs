@@ -812,11 +812,15 @@ TEST_F(RadosFsTest, FilePermissions)
 
   EXPECT_FALSE(file.isReadable());
 
+  EXPECT_EQ(-EACCES, file.truncate(100));
+
   radosFs.setIds(ROOT_UID, ROOT_UID);
 
   file.update();
 
   EXPECT_TRUE(file.isWritable());
+
+  EXPECT_EQ(0, file.truncate(100));
 
   EXPECT_EQ(0, file.chmod(S_IWRITE));
 
