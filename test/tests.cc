@@ -3213,8 +3213,10 @@ main(int argc, char **argv)
                1);
 
         confIsSet = true;
-
-        break;
+      }
+      else if (arg.find("--user=") == 0)
+      {
+	setenv(CONF_USR_VAR, arg.substr(arg.find('=') + 1).c_str(), 1);
       }
     }
   }

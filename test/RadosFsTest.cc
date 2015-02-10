@@ -26,14 +26,15 @@
 #include "radosfscommon.h"
 
 RadosFsTest::RadosFsTest()
-  : mConf(getenv(CONF_ENV_VAR))
+  : mConf(getenv(CONF_ENV_VAR)),
+    mUser(getenv(CONF_USR_VAR) ? getenv(CONF_USR_VAR) : "")
 {
   if (mConf == 0)
     throw std::invalid_argument("Please specify the " CONF_ENV_VAR
                                 "environment variable or use the --conf=... "
                                 "argument.");
 
-  mCluster.init(0);
+  mCluster.init(mUser.c_str());
 
   if (mCluster.conf_read_file(mConf) != 0)
     throw std::invalid_argument("Problem reading configuration file.");
@@ -48,12 +49,12 @@ RadosFsTest::RadosFsTest()
 
   mCluster.shutdown();
 
-  radosFs.init("", mConf);
+  radosFs.init(mUser.c_str(), mConf);
 }
 
 RadosFsTest::~RadosFsTest()
 {
-  mCluster.init(0);
+  mCluster.init(mUser.c_str());
   mCluster.conf_read_file(mConf);
   mCluster.connect();
 
@@ -365,7 +366,7 @@ RadosFsTest::launchFileOpsMultipleClients(const size_t stripeSize,
   radosFs.addMetadataPool(TEST_POOL, "/");
 
   radosfs::Filesystem otherClient;
-  otherClient.init("", conf());
+  otherClient.init(mUser.c_str(), conf());
 
   otherClient.addDataPool(TEST_POOL, "/", 50 * 1024);
   otherClient.addMetadataPool(TEST_POOL, "/");

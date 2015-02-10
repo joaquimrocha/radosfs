@@ -32,6 +32,7 @@
 #define RADOS_FS_TEST_HH
 
 #define CONF_ENV_VAR "RADOSFS_TEST_CLUSTER_CONF"
+#define CONF_USR_VAR "RADOSFS_TEST_USER"
 
 #define TEST_UID 1000
 #define TEST_GID 1000
@@ -117,6 +118,7 @@ protected:
 private:
   librados::Rados mCluster;
   const char *mConf;
+  std::string mUser;
   std::set<std::string> mPoolsCreated;
 };
 
