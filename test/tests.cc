@@ -1376,6 +1376,113 @@ TEST_F(RadosFsTest, FileReadWrite)
   delete[] blankContents;
 }
 
+TEST_F(RadosFsTest, FileVectorRead)
+{
+  AddPool();
+
+  // Set a small file stripe size so many stripes will be created
+
+  const size_t stripeSize = 64;
+  radosFs.setFileStripeSize(stripeSize);
+
+  // Write contents in file synchronously
+
+  const std::string fileName("/test");
+  std::stringstream sstream;
+  for (size_t i = 0; i < stripeSize * 1.5; i++)
+    sstream << i << ".";
+
+  const std::string contents(sstream.str());
+
+  radosfs::File file(&radosFs, fileName);
+
+  const size_t inlineSize = 8;
+  EXPECT_EQ(0, file.create(-1, "", 0, inlineSize));
+
+  // Write contents to file
+
+  EXPECT_EQ(0, file.writeSync(contents.c_str(), 0, contents.length()));
+
+  const size_t fileSize = contents.length() + contents.length() / 2;
+  EXPECT_EQ(0, file.truncate(fileSize));
+
+  // Read and verify the contents
+
+  char *buff = new char[fileSize + 1];
+  char *buff2 = new char[fileSize + 1];
+
+  memcpy(buff2, contents.c_str(), contents.length());
+  bzero(buff2 + contents.length(), fileSize - contents.length());
+
+  EXPECT_EQ(contents.length(), file.read(buff, 0, contents.length()));
+
+  EXPECT_EQ(0, strncmp(buff, contents.c_str(), contents.length()));
+
+  ssize_t retValue, retValue1, retValue2, retValue3;
+  size_t readLength = inlineSize / 2;
+  size_t readLength1 = inlineSize;
+  size_t readLength2 = fileSize * 2;
+
+  std::vector<radosfs::FileReadData> intervals;
+  intervals.push_back(radosfs::FileReadData(buff, 0, readLength, &retValue));
+  intervals.push_back(radosfs::FileReadData(buff + readLength, readLength,
+                                            readLength1, &retValue1));
+
+  intervals.push_back(radosfs::FileReadData(buff + readLength + readLength1,
+                                            readLength + readLength1,
+                                            readLength2, &retValue2));
+  intervals.push_back(radosfs::FileReadData(buff, fileSize + 2, 1,
+                                            &retValue3));
+  std::string opId;
+
+  memset(buff, 'x', fileSize + 1);
+
+  EXPECT_EQ(0, file.read(intervals, &opId));
+
+  file.sync();
+
+  EXPECT_EQ(readLength, retValue);
+  EXPECT_EQ(readLength1, retValue1);
+  EXPECT_EQ(fileSize - (readLength + readLength1), retValue2);
+  EXPECT_EQ(0, retValue3);
+  EXPECT_EQ(0, strncmp(buff, contents.c_str(), contents.length()));
+  EXPECT_EQ(0, strncmp(buff, buff2, fileSize));
+  EXPECT_EQ(0, strncmp(buff, contents.c_str(), readLength + readLength1));
+
+  radosfs::File otherFile(&radosFs, "/test1");
+
+  EXPECT_EQ(-ENOENT, otherFile.read(intervals, &opId));
+
+  EXPECT_EQ(0, otherFile.create(-1, "", 0, 0));
+
+  EXPECT_EQ(0, otherFile.read(intervals, &opId));
+
+  otherFile.sync();
+
+  EXPECT_EQ(0, retValue);
+  EXPECT_EQ(0, retValue1);
+  EXPECT_EQ(0, retValue2);
+  EXPECT_EQ(0, retValue3);
+
+  EXPECT_EQ(0, otherFile.truncate(readLength));
+
+  EXPECT_EQ(0, otherFile.read(intervals, &opId));
+
+  otherFile.sync();
+
+  bzero(buff2, readLength);
+
+  EXPECT_EQ(readLength, retValue);
+  EXPECT_EQ(0, strncmp(buff, buff2, readLength));
+  EXPECT_EQ(0, retValue1);
+  EXPECT_EQ(0, retValue2);
+  EXPECT_EQ(0, retValue3);
+
+
+  delete buff;
+  delete buff2;
+}
+
 TEST_F(RadosFsTest, FileInline)
 {
   AddPool();
