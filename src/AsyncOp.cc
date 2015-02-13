@@ -29,7 +29,7 @@ AyncOpPriv::AyncOpPriv(const std::string &id)
   : id(id),
     complete(false),
     returnCode(-EINPROGRESS),
-    ready(false)
+    ready(-1)
 {}
 
 AyncOpPriv::~AyncOpPriv()
@@ -49,10 +49,11 @@ AyncOpPriv::waitForCompletion(void)
 {
   while (returnCode == -EINPROGRESS)
   {
-    if (!ready)
+    boost::unique_lock<boost::mutex> lock(mOpMutex);
+
+    if (ready != 0)
       continue;
 
-    boost::unique_lock<boost::mutex> lock(mOpMutex);
     radosfs_debug("Async op with id='%s' will now wait for completion...",
                   id.c_str());
 
@@ -92,13 +93,26 @@ AyncOpPriv::addCompletion(librados::AioCompletion *comp)
 {
   boost::unique_lock<boost::mutex> lock(mOpMutex);
   mOperations.push_back(comp);
+
+  if (ready < 0)
+    ready = 1;
+  else
+    ready++;
 }
 
 void
 AyncOpPriv::setReady()
 {
   boost::unique_lock<boost::mutex> lock(mOpMutex);
-  ready = true;
+  ready = 0;
+}
+
+void
+AyncOpPriv::setPartialReady()
+{
+  boost::unique_lock<boost::mutex> lock(mOpMutex);
+  if (ready > 0)
+    ready--;
 }
 
 AsyncOp::AsyncOp(const std::string &id)

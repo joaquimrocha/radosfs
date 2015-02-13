@@ -38,11 +38,12 @@ public:
   int waitForCompletion(void);
   void addCompletion(librados::AioCompletion *comp);
   void setReady(void);
+  void setPartialReady(void);
 
   std::string id;
   bool complete;
   int returnCode;
-  bool ready;
+  int ready;
 
 private:
   boost::mutex mOpMutex;
