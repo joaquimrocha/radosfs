@@ -32,6 +32,47 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
+FileReadDataImp::FileReadDataImp(char *buff, off_t offset, size_t length,
+                                 ssize_t *retValue)
+  : FileReadData(buff, offset, length, retValue),
+    readOpMutex(new boost::shared_mutex),
+    buffList(new librados::bufferlist),
+    opResult(0)
+{}
+
+FileReadDataImp::FileReadDataImp(const FileReadDataImp &otherObj)
+  : FileReadData(otherObj.buff, otherObj.offset, otherObj.length,
+                 otherObj.retValue),
+    readOpMutex(otherObj.readOpMutex),
+    buffList(new librados::bufferlist),
+    opResult(otherObj.opResult)
+{}
+
+FileReadDataImp::FileReadDataImp(const FileReadData &readData)
+  : FileReadData(readData),
+    readOpMutex(new boost::shared_mutex),
+    buffList(new librados::bufferlist),
+    opResult(0)
+{}
+
+FileReadDataImp::~FileReadDataImp(void)
+{
+  delete buffList;
+}
+
+void
+FileReadDataImp::addReturnValue(int value)
+{
+  boost::unique_lock<boost::shared_mutex> lock(*readOpMutex);
+  if (!retValue)
+    return;
+
+  if (value >= 0)
+    *retValue = *retValue + value;
+  else if (*retValue == 0)
+    *retValue = value;
+}
+
 FileIO::FileIO(Filesystem *radosFs, const PoolSP pool, const std::string &iNode,
                size_t stripeSize)
   : mRadosFs(radosFs),
@@ -58,6 +99,325 @@ FileIO::~FileIO()
   boost::unique_lock<boost::mutex> lock(mLockMutex);
   unlockShared();
   unlockExclusive();
+}
+
+void
+FileIO::separateReadData(const FileReadDataImpSP &readData,
+                         FileReadDataImpSP &inlineData,
+                         FileReadDataImpSP &inodeData) const
+{
+  size_t oldLength = readData->length;
+
+  inlineData.reset(new FileReadDataImp(*readData));
+  inlineData->length = mInlineBuffer->capacity() - readData->offset;
+
+  inodeData.reset(new FileReadDataImp(*inlineData));
+  inodeData->buff = inlineData->buff + inlineData->length;
+  inodeData->offset += inlineData->length;
+  inodeData->length = oldLength - inlineData->length;
+}
+
+void
+FileIO::getInlineAndInodeReadData(const std::vector<FileReadData> &intervals,
+                                  std::vector<FileReadDataImpSP> *dataInline,
+                                  std::vector<FileReadDataImpSP> *dataInode)
+{
+  for (size_t i = 0; i < intervals.size(); i++)
+  {
+    FileReadDataImpSP readData(new FileReadDataImp(intervals[i]));
+
+    if (readData->retValue)
+      *readData->retValue = 0;
+
+    if (mInlineBuffer && ((size_t) readData->offset < mInlineBuffer->capacity()))
+    {
+      if ((readData->offset + readData->length) > mInlineBuffer->capacity())
+      {
+        FileReadDataImpSP inlineData, inodeData;
+        separateReadData(readData, inlineData, inodeData);
+        dataInline->push_back(inlineData);
+        dataInode->push_back(inodeData);
+      }
+      else
+      {
+        dataInline->push_back(readData);
+      }
+    }
+    else
+    {
+      dataInode->push_back(readData);
+    }
+  }
+}
+
+void
+FileIO::getReadDataPerStripe(const std::vector<FileReadDataImpSP> &intervals,
+                   std::map<size_t, std::vector<FileReadDataImpSP> > *inodeData)
+{
+  for (size_t i = 0; i < intervals.size(); i++)
+  {
+    FileReadDataImpSP readData(intervals[i]);
+    size_t stripeIndex =  readData->offset / mStripeSize;
+    off_t localOffset =  readData->offset % mStripeSize;
+    const size_t originalLength = readData->length;
+    size_t remainingLength = originalLength;
+
+    // Separate each FileReadData object that goes beyond one stripe in more
+    // objects so they can only fit one stripe
+    while (remainingLength > 0)
+    {
+      FileReadDataImpSP data(new FileReadDataImp(*readData));
+      data->opResult = -1;
+      data->buff = readData->buff + originalLength - remainingLength;
+      data->offset = localOffset;
+      data->length = std::min(mStripeSize - localOffset, remainingLength);
+      inodeData->operator[](stripeIndex++).push_back(data);
+      remainingLength -= data->length;
+      localOffset = 0;
+    }
+  }
+}
+
+static size_t
+assignInodeSize(ReadOpArgs *args)
+{
+  boost::unique_lock<boost::shared_mutex> lock(*args->readOpMutex);
+
+  if ((*args->inodeSize) == -1)
+  {
+    *args->inodeSize = args->fileIO->getSize();
+    radosfs_debug("Calculated file size for vector read request: size=%u",
+                  *args->inodeSize);
+  }
+
+  return *args->inodeSize;
+}
+
+static void
+assignRemainingReadData(FileReadDataImp *data, const size_t byteOffset,
+                        const size_t inodeSize, const size_t currentReadDataSize)
+{
+  // Sets null chars to the remaining (unset) length of the read data if the
+  // inode size covers the read data.
+  // This needs to be done for cases where the file is truncated to a greater
+  // size than the file's data, meaning that the read data should be null chars.
+  if (inodeSize > 0)
+  {
+    if (byteOffset < inodeSize)
+    {
+      size_t length = std::min(data->length - currentReadDataSize,
+                               inodeSize - byteOffset);
+      memset(data->buff + currentReadDataSize, '\0', length);
+      data->addReturnValue(length);
+
+      radosfs_debug("Setting %u null chars for vector read request: "
+                    "offset=%u; length=%u; size filled with real data: %u;"
+                    "filesize=%u", length, data->offset, data->length,
+                    currentReadDataSize, inodeSize);
+    }
+  }
+}
+
+void
+FileIO::onReadInlineBufferCompleted(rados_completion_t comp, void *arg)
+{
+  ReadInlineOpArgs *args = reinterpret_cast<ReadInlineOpArgs *>(arg);
+  std::map<std::string, librados::bufferlist>::iterator it;
+
+  if ((it = args->omap.find(args->fileBaseName)) != args->omap.end())
+  {
+    std::string contents;
+    librados::bufferlist buff = (*it).second;
+    FileInlineBuffer::readInlineBuffer(buff, 0, &contents);
+
+    radosfs_debug("Inline buffer read (size=%u).", contents.size());
+
+    for (size_t i = 0; i < args->readData.size(); i++)
+    {
+      FileReadDataImpSP data = args->readData[i];
+      char *buff = data->buff;
+      off_t offset = data->offset;
+      size_t length = data->length;
+
+      if (contents != "")
+      {
+        memcpy(buff, contents.c_str() + offset, length);
+        data->addReturnValue(length);
+
+        radosfs_debug("Setting %u bytes from inline buffer for vector read "
+                      "request: offset=%u; length=%u;", length, data->offset,
+                      data->length);
+      }
+      else
+      {
+        size_t inodeSize = assignInodeSize(args);
+        const size_t byteOffset = data->offset;
+
+        assignRemainingReadData(data.get(), byteOffset, inodeSize, 0);
+      }
+    }
+  }
+
+  args->asyncOp->mPriv->setPartialReady();
+
+  delete args;
+}
+
+void
+FileIO::onReadCompleted(rados_completion_t comp, void *arg)
+{
+  ReadStripeOpArgs *args = reinterpret_cast<ReadStripeOpArgs *>(arg);
+  const int ret = rados_aio_get_return_value(comp);
+
+  radosfs_debug("Reading inode's stripe #%u complete with retcode=%d (%s)",
+                args->fileStripe, ret, strerror(abs(ret)));
+
+  for (size_t i = 0; i < args->readData.size(); i++)
+  {
+    FileReadDataImpSP data = args->readData[i].first;
+    librados::bufferlist *buff = args->readData[i].second;
+
+    if (buff->length() > 0)
+    {
+      memcpy(data->buff, buff->c_str(), buff->length());
+      data->addReturnValue(buff->length());
+
+      radosfs_debug("Setting %u bytes from stripe #%d for vector read request: "
+                    "offset=%u; length=%u;", buff->length(), args->fileStripe,
+                    data->offset, data->length);
+    }
+
+    if (buff->length() < data->length)
+    {
+      size_t inodeSize = assignInodeSize(args);
+      const size_t byteOffset = args->fileStripe * args->fileIO->mStripeSize +
+                                data->offset;
+
+      assignRemainingReadData(data.get(), byteOffset, inodeSize, buff->length());
+    }
+
+    delete buff;
+  }
+
+  args->asyncOp->mPriv->setPartialReady();
+
+  delete args;
+}
+
+void
+FileIO::vectorReadInlineBuffer( const std::vector<FileReadDataImpSP> &readData,
+                             boost::shared_ptr<boost::shared_mutex> readOpMutex,
+                             AsyncOpSP asyncOp,
+                             boost::shared_ptr<ssize_t> inodeSize)
+{
+  ReadInlineOpArgs *args = new ReadInlineOpArgs;
+  args->fileBaseName = XATTR_FILE_INLINE_BUFFER + mInlineBuffer->fileBaseName;
+  args->readData = readData;
+  args->asyncOp = asyncOp;
+  args->readOpMutex = readOpMutex;
+  args->fileIO = this;
+  args->inodeSize = inodeSize;
+
+  std::set<std::string> keys;
+  keys.insert(args->fileBaseName);
+
+  librados::ObjectReadOperation readOp;
+  readOp.omap_get_vals_by_keys(keys, &args->omap, 0);
+
+  librados::AioCompletion *completion;
+  completion = librados::Rados::aio_create_completion();
+  completion->set_complete_callback(args, FileIO::onReadInlineBufferCompleted);
+  args->asyncOp->mPriv->addCompletion(completion);
+
+  Pool *pool = mInlineBuffer->parentStat.pool.get();
+  pool->ioctx.aio_operate(mInlineBuffer->parentStat.translatedPath, completion,
+                          &readOp, 0);
+}
+
+void
+FileIO::vectorReadStripe(size_t fileStripe,
+                         const std::vector<FileReadDataImpSP> &readDataVector,
+                         boost::shared_ptr<boost::shared_mutex> readOpMutex,
+                         AsyncOpSP asyncOp,
+                         boost::shared_ptr<ssize_t> inodeSize)
+{
+  ReadStripeOpArgs *readOp = new ReadStripeOpArgs;
+  readOp->fileStripe = fileStripe;
+  librados::ObjectReadOperation op;
+  const std::string stripeName = makeFileStripeName(mInode, fileStripe);
+
+  for (size_t i = 0; i < readDataVector.size(); i++)
+  {
+    FileReadDataImpSP readData(readDataVector[i]);
+    readOp->readOpMutex = readOpMutex;
+    readOp->asyncOp = asyncOp;
+    readOp->fileIO = this;
+    readOp->inodeSize = inodeSize;
+    librados::bufferlist *readBuff = new librados::bufferlist;
+    std::pair<FileReadDataImpSP, librados::bufferlist *> dataAndResult(readData,
+                                                                       readBuff);
+    readOp->readData.push_back(dataAndResult);
+
+    op.read(readData->offset, readData->length, readBuff, &readData->opResult);
+    radosfs_debug("Setting read op for the stripe %s . offset=%u; "
+                  "length=%u;", stripeName.c_str(), readData->offset,
+                  readData->length);
+  }
+
+  librados::AioCompletion *completion = librados::Rados::aio_create_completion();
+  completion->set_complete_callback(readOp, FileIO::onReadCompleted);
+  asyncOp->mPriv->addCompletion(completion);
+  mPool->ioctx.aio_operate(stripeName, completion, &op, 0);
+}
+
+int
+FileIO::read(const std::vector<FileReadData> &intervals, std::string *asyncOpId)
+{
+  mOpManager.sync();
+
+  if (intervals.size() == 0)
+  {
+    radosfs_debug("No FileReadData elements given for reading.");
+    return -EINVAL;
+  }
+
+  AsyncOpSP asyncOp(new AsyncOp(generateUuid()));
+  mOpManager.addOperation(asyncOp);
+
+  if (asyncOpId)
+    asyncOpId->assign(asyncOp->id());
+
+  std::vector<FileReadDataImpSP> inlineReadData, inodeReadData;
+  getInlineAndInodeReadData(intervals, &inlineReadData, &inodeReadData);
+  boost::shared_ptr<boost::shared_mutex> readOpMutex(new boost::shared_mutex);
+  boost::shared_ptr<ssize_t> inodeSize(new ssize_t);
+  *inodeSize = -1;
+
+  if (mInlineBuffer && inlineReadData.size() > 0)
+  {
+    radosfs_debug("Vector reading inline buffer. opId=%s",
+                  asyncOp->id().c_str());
+    vectorReadInlineBuffer(inlineReadData, readOpMutex, asyncOp, inodeSize);
+  }
+
+  std::map<size_t, std::vector<FileReadDataImpSP> > dataPerStripe;
+  getReadDataPerStripe(inodeReadData, &dataPerStripe);
+
+  if (dataPerStripe.size() > 0)
+  {
+    radosfs_debug("Vector reading stripes. opId=%s", asyncOp->id().c_str());
+    std::map<size_t, std::vector<FileReadDataImpSP> >::iterator it;
+    for (it = dataPerStripe.begin(); it != dataPerStripe.end(); it++)
+    {
+      size_t fileStripe = (*it).first;
+      const std::vector<FileReadDataImpSP> &readDataVector = (*it).second;
+
+      vectorReadStripe(fileStripe, readDataVector, readOpMutex, asyncOp,
+                       inodeSize);
+    }
+  }
+
+  return 0;
 }
 
 ssize_t

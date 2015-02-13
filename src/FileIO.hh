@@ -22,9 +22,11 @@
 
 #include <boost/chrono.hpp>
 #include <boost/thread/mutex.hpp>
+#include <boost/thread/shared_mutex.hpp>
 #include <cstdlib>
 #include <rados/librados.hpp>
 #include <string>
+#include <utility>
 #include <vector>
 #include <tr1/memory>
 
@@ -45,6 +47,47 @@ class FileIO;
 
 typedef std::tr1::shared_ptr<AsyncOp> AsyncOpSP;
 typedef std::tr1::shared_ptr<FileIO> FileIOSP;
+
+class FileReadDataImp : public FileReadData
+{
+public:
+  FileReadDataImp(char *buff, off_t offset, size_t length, ssize_t *retValue=0);
+
+  FileReadDataImp(const FileReadDataImp &otherFileReadData);
+
+  FileReadDataImp(const FileReadData &readData);
+
+  ~FileReadDataImp(void);
+
+  void addReturnValue(int value);
+
+  boost::shared_ptr<boost::shared_mutex> readOpMutex;
+  librados::bufferlist *buffList;
+  int opResult;
+};
+
+typedef boost::shared_ptr<FileReadDataImp> FileReadDataImpSP;
+
+struct ReadOpArgs
+{
+  AsyncOpSP asyncOp;
+  boost::shared_ptr<boost::shared_mutex> readOpMutex;
+  boost::shared_ptr<ssize_t> inodeSize;
+  FileIO *fileIO;
+};
+
+struct ReadInlineOpArgs : ReadOpArgs
+{
+  std::string fileBaseName;
+  std::map<std::string, librados::bufferlist> omap;
+  std::vector<FileReadDataImpSP> readData;
+};
+
+struct ReadStripeOpArgs : ReadOpArgs
+{
+  size_t fileStripe;
+  std::vector<std::pair<FileReadDataImpSP, librados::bufferlist *> > readData;
+};
 
 struct OpsManager
 {
@@ -67,6 +110,9 @@ public:
   ~FileIO();
 
   ssize_t read(char *buff, off_t offset, size_t blen);
+
+  int read(const std::vector<FileReadData> &intervals, std::string *asyncOpId=0);
+
   int write(const char *buff, off_t offset, size_t blen, std::string *opId = 0,
             bool copyBuffer=false);
   int writeSync(const char *buff, off_t offset, size_t blen);
@@ -133,6 +179,25 @@ private:
   void setCompletionDebugMsg(librados::AioCompletion *completion,
                              const std::string &message);
   void syncAndResetLocker(AsyncOpSP op);
+  void getInlineAndInodeReadData(const std::vector<FileReadData> &intervals,
+                                 std::vector<FileReadDataImpSP> *dataInline,
+                                 std::vector<FileReadDataImpSP> *dataInode);
+  void getReadDataPerStripe(const std::vector<FileReadDataImpSP> &intervals,
+                  std::map<size_t, std::vector<FileReadDataImpSP> > *inodeData);
+  static void onReadCompleted(rados_completion_t comp, void *arg);
+  static void onReadInlineBufferCompleted(rados_completion_t comp, void *arg);
+  void separateReadData(const FileReadDataImpSP &readData,
+                        FileReadDataImpSP &inlineData,
+                        FileReadDataImpSP &inodeData) const;
+  void vectorReadInlineBuffer(const std::vector<FileReadDataImpSP> &readData,
+                              boost::shared_ptr<boost::shared_mutex> readOpMutex,
+                              AsyncOpSP asyncOp,
+                             boost::shared_ptr<ssize_t> inodeSize);
+  void vectorReadStripe(size_t fileStripe,
+                        const std::vector<FileReadDataImpSP> &readDataVector,
+                        boost::shared_ptr<boost::shared_mutex> readOpMutex,
+                        AsyncOpSP asyncOp,
+                        boost::shared_ptr<ssize_t> inodeSize);
 };
 
 RADOS_FS_END_NAMESPACE

@@ -39,6 +39,21 @@ class FilesystemPriv;
 class FileInodePriv;
 class FsObj;
 
+struct FileReadData
+{
+  FileReadData(char *buff, off_t offset, size_t length, ssize_t *retValue=0)
+    : buff(buff),
+      offset(offset),
+      length(length),
+      retValue(retValue)
+  {}
+
+  char *buff;
+  off_t offset;
+  size_t length;
+  ssize_t *retValue;
+};
+
 class Filesystem
 {
 public:

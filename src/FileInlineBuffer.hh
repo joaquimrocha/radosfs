@@ -52,8 +52,8 @@ public:
 
   int fillRemainingInlineBuffer(void);
 
-  void readInlineBuffer(librados::bufferlist &buff, timespec *mtime,
-                          std::string *contents);
+  static void readInlineBuffer(librados::bufferlist &buff, timespec *mtime,
+                               std::string *contents);
 
   ssize_t write(const char *buff, off_t offset, size_t blen);
 

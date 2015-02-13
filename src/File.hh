@@ -57,6 +57,8 @@ public:
 
   ssize_t read(char *buff, off_t offset, size_t blen);
 
+  int read(const std::vector<FileReadData> &intervals, std::string *asyncOpId);
+
   int write(const char *buff, off_t offset, size_t blen);
 
   int write(const char *buff, off_t offset, size_t blen, bool copyBuffer);

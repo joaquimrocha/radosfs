@@ -391,6 +391,26 @@ File::read(char *buff, off_t offset, size_t blen)
 }
 
 int
+File::read(const std::vector<FileReadData> &intervals, std::string *asyncOpId)
+{
+  int ret;
+  if ((ret = mPriv->verifyExistanceAndType()) != 0)
+    return ret;
+
+  ret = -EACCES;
+
+  if (mPriv->permissions & File::MODE_READ)
+  {
+    if (isLink())
+      return mPriv->target->read(intervals, asyncOpId);
+
+    ret = mPriv->inode->read(intervals, asyncOpId);
+  }
+
+  return ret;
+}
+
+int
 File::write(const char *buff, off_t offset, size_t blen)
 {
   return write(buff, offset, blen, false);

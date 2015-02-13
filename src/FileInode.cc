@@ -195,6 +195,25 @@ FileInode::read(char *buff, off_t offset, size_t blen)
 }
 
 int
+FileInode::read(const std::vector<FileReadData> &intervals,
+                std::string *asyncOpId)
+{
+  std::string opId;
+
+  int ret = mPriv->io->read(intervals, &opId);
+
+  {
+    boost::unique_lock<boost::mutex> lock(mPriv->asyncOpsMutex);
+    mPriv->asyncOps.push_back(opId);
+  }
+
+  if (asyncOpId)
+    asyncOpId->assign(opId);
+
+  return ret;
+}
+
+int
 FileInode::write(const char *buff, off_t offset, size_t blen)
 {
   return write(buff, offset, blen, false);
