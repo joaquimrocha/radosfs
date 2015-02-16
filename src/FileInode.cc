@@ -154,7 +154,24 @@ FileInodePriv::registerFile(const std::string &path, uid_t uid, gid_t gid,
     return -EEXIST;
   }
 
+  ret = setHardLink(filePath);
+
+  if (ret < 0)
+  {
+    radosfs_debug("Could not set backlink '%s' on inode '%s': %s (retcode=%d) ",
+                  filePath.c_str(), name.c_str(), strerror(abs(ret)), ret);
+  }
+
   return ret;
+}
+
+int
+FileInodePriv::setHardLink(const std::string &hardLink)
+{
+  std::map<std::string, librados::bufferlist> omap;
+  omap[XATTR_INODE_HARD_LINK].append(hardLink);
+
+  return io->pool()->ioctx.omap_set(name, omap);
 }
 
 FileInode::FileInode(Filesystem *fs, const std::string &pool)
