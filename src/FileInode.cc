@@ -339,4 +339,23 @@ FileInode::registerFile(const std::string &path, uid_t uid, gid_t gid, int mode)
   return mPriv->registerFile(path, uid, gid, mode);
 }
 
+int
+FileInode::getHardLink(std::string *hardLink)
+{
+  std::set<std::string> keys;
+  std::map<std::string, librados::bufferlist> omap;
+
+  keys.insert(XATTR_INODE_HARD_LINK);
+
+  int ret = mPriv->io->pool()->ioctx.omap_get_vals_by_keys(name(), keys, &omap);
+
+  if (ret == 0 && omap.count(XATTR_INODE_HARD_LINK) > 0)
+  {
+    librados::bufferlist buff = omap[XATTR_INODE_HARD_LINK];
+    hardLink->assign(buff.c_str(), 0, buff.length());
+  }
+
+  return ret;
+}
+
 RADOS_FS_END_NAMESPACE
