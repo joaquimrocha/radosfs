@@ -712,6 +712,7 @@ FileIO::realWrite(char *buff, off_t offset, size_t blen, bool deleteBuffer,
                   AsyncOpSP asyncOp)
 {
   int ret = 0;
+  char *originalBuff = buff;
 
   if (mInlineBuffer && mInlineBuffer->capacity() > 0)
   {
@@ -741,6 +742,10 @@ FileIO::realWrite(char *buff, off_t offset, size_t blen, bool deleteBuffer,
     if (blen == 0)
     {
       asyncOp->mPriv->setReady();
+
+      if (deleteBuffer)
+        delete[] originalBuff;
+
       return ret;
     }
   }
@@ -812,7 +817,7 @@ FileIO::realWrite(char *buff, off_t offset, size_t blen, bool deleteBuffer,
   syncAndResetLocker(asyncOp);
 
   if (deleteBuffer)
-    delete buff;
+    delete[] originalBuff;
 
   return ret;
 }
