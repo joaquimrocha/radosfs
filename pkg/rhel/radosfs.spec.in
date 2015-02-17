@@ -13,6 +13,11 @@ BuildRoot:     %{_tmppath}/%{name}-root
 BuildRequires: cmake >= 2.6
 BuildRequires: librados2 ceph-devel libuuid-devel
 
+%if %{?_EXTRA_REQUIRES:1}%{!?_EXTRA_REQUIRES:0}
+BuildRequires: %{_EXTRA_REQUIRES}
+Requires:      %{_EXTRA_REQUIRES}
+%endif
+
 Requires:      librados2 libuuid
 
 %description
@@ -51,6 +56,11 @@ export CC=/usr/bin/gcc44 CXX=/usr/bin/g++44
 
 mkdir -p build
 cd build
+
+%if %{?_BOOST_ROOT:1}%{!?_BOOST_ROOT:0}
+export BOOST_ROOT=%{_BOOST_ROOT} Boost_NO_SYSTEM_PATHS=ON
+%endif
+
 cmake ../ -DRELEASE=%{release} -DCMAKE_BUILD_TYPE=RelWithDebInfo
 %{__make} %{_smp_mflags}
 
