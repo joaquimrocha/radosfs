@@ -1453,7 +1453,10 @@ TEST_F(RadosFsTest, FileVectorRead)
 
   EXPECT_EQ(0, file.read(intervals, &opId));
 
-  file.sync();
+  int ret = file.sync(opId);
+
+  // -ENOENT Because one of the operations goes beyond the file size
+  ASSERT_EQ(-ENOENT, ret);
 
   EXPECT_EQ(readLength, retValue);
   EXPECT_EQ(readLength1, retValue1);
@@ -1471,7 +1474,10 @@ TEST_F(RadosFsTest, FileVectorRead)
 
   EXPECT_EQ(0, otherFile.read(intervals, &opId));
 
-  otherFile.sync();
+  ret = otherFile.sync(opId);
+
+  // -ENOENT Because one of the operations goes beyond the file size
+  ASSERT_EQ(-ENOENT, ret);
 
   EXPECT_EQ(0, retValue);
   EXPECT_EQ(0, retValue1);
@@ -1482,7 +1488,10 @@ TEST_F(RadosFsTest, FileVectorRead)
 
   EXPECT_EQ(0, otherFile.read(intervals, &opId));
 
-  otherFile.sync();
+  ret = otherFile.sync(opId);
+
+  // -ENOENT Because one of the operations goes beyond the file size
+  ASSERT_EQ(-ENOENT, ret);
 
   bzero(buff2, readLength);
 
