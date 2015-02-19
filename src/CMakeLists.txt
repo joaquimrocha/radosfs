@@ -55,7 +55,7 @@ add_library( radosfs SHARED
              FileInlineBuffer.cc FileInlineBuffer.hh
 )
 
-include_directories( ${RADOS_INCLUDE_DIR} )
+include_directories( ${RADOS_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} )
 
 add_definitions( -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 )
 

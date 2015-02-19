@@ -18,9 +18,10 @@
 
 find_package( GTest )
 find_package( LibRados REQUIRED )
+find_package( Boost REQUIRED COMPONENTS thread )
 
 if (GTEST_FOUND)
-include_directories( ${PROJECT_SOURCE_DIR}/src ${GTEST_INCLUDE_DIRS} ${RADOS_INCLUDE_DIR} )
+include_directories( ${PROJECT_SOURCE_DIR}/src ${GTEST_INCLUDE_DIRS} ${RADOS_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} )
 
 add_executable( run-tests tests.cc RadosFsTest.cc RadosFsTest.hh )
 target_link_libraries( run-tests ${GTEST_LIBRARIES} ${RADOS_LIB} radosfs )
