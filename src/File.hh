@@ -86,7 +86,7 @@ public:
 
   int rename(const std::string &newPath);
 
-  int sync(void);
+  int sync(const std::string &opId="");
 
   size_t inlineBufferSize(void) const;
 

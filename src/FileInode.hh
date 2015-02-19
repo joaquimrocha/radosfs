@@ -54,7 +54,7 @@ public:
 
   int truncate(size_t size);
 
-  int sync(void);
+  int sync(const std::string &opId="");
 
   std::string name(void) const;
 

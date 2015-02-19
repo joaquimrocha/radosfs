@@ -707,9 +707,9 @@ File::rename(const std::string &newPath)
 }
 
 int
-File::sync()
+File::sync(const std::string &opId)
 {
-  int ret = mPriv->inode->sync();
+  int ret = mPriv->inode->sync(opId);
 
   if (ret == -ENODEV)
     ret = 0;

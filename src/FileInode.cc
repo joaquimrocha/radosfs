@@ -285,7 +285,7 @@ FileInode::truncate(size_t size)
 }
 
 int
-FileInode::sync()
+FileInode::sync(const std::string &opId)
 {
   if (!mPriv->io)
     return -ENODEV;
@@ -296,10 +296,26 @@ FileInode::sync()
   std::vector<std::string>::iterator it;
   for (it = mPriv->asyncOps.begin(); it != mPriv->asyncOps.end(); it++)
   {
-    ret = mPriv->io->sync(*it);
+    const std::string &currentOpId = *it;
+
+    // Single op sync
+    if (!opId.empty())
+    {
+      if (currentOpId == opId)
+      {
+        ret = mPriv->io->sync(currentOpId);
+        mPriv->asyncOps.erase(it);
+        break;
+      }
+
+      continue;
+    }
+
+    ret = mPriv->io->sync(currentOpId);
   }
 
-  mPriv->asyncOps.clear();
+  if (opId.empty())
+    mPriv->asyncOps.clear();
 
   return ret;
 }
