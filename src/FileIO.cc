@@ -343,16 +343,16 @@ FileIO::vectorReadStripe(size_t fileStripe,
 {
   ReadStripeOpArgs *readOp = new ReadStripeOpArgs;
   readOp->fileStripe = fileStripe;
+  readOp->readOpMutex = readOpMutex;
+  readOp->asyncOp = asyncOp;
+  readOp->fileIO = this;
+  readOp->inodeSize = inodeSize;
   librados::ObjectReadOperation op;
   const std::string stripeName = makeFileStripeName(mInode, fileStripe);
 
   for (size_t i = 0; i < readDataVector.size(); i++)
   {
     FileReadDataImpSP readData(readDataVector[i]);
-    readOp->readOpMutex = readOpMutex;
-    readOp->asyncOp = asyncOp;
-    readOp->fileIO = this;
-    readOp->inodeSize = inodeSize;
     librados::bufferlist *readBuff = new librados::bufferlist;
     std::pair<FileReadDataImpSP, librados::bufferlist *> dataAndResult(readData,
                                                                        readBuff);
