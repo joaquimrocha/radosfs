@@ -2175,6 +2175,12 @@ TEST_F(RadosFsTest, CompactDir)
 {
   AddPool();
 
+  radosfs::Filesystem otherClient;
+  otherClient.init("", conf());
+
+  otherClient.addDataPool(TEST_POOL, "/", 50 * 1024);
+  otherClient.addMetadataPool(TEST_POOL_MTD, "/");
+
   // Set a different compact ratio
   // (and a lower one as well, so it doesn't trigger compaction)
 
@@ -2212,6 +2218,19 @@ TEST_F(RadosFsTest, CompactDir)
   std::set<std::string> entriesBefore, entriesAfter;
   dir.entryList(entriesBefore);
 
+  // Instance the same dir from a different client
+
+  radosfs::Dir sameDir(&otherClient, dir.path());
+
+  sameDir.update();
+
+  std::set<std::string> otherClientEntries;
+  sameDir.entryList(otherClientEntries);
+
+  // Check that it gets the same number of entries for the same dir
+
+  EXPECT_EQ(entriesBefore.size(), otherClientEntries.size());
+
   // Set a hight compact ratio so it automatically compacts
   // when we update the dir
 
@@ -2246,6 +2265,16 @@ TEST_F(RadosFsTest, CompactDir)
   dir.entryList(entriesAfter);
 
   EXPECT_EQ(entriesBefore, entriesAfter);
+
+  // Check that the other client's dir instance also gets the same entries
+  // after it had been compacted from a different client
+
+  sameDir.update();
+
+  otherClientEntries.clear();
+  sameDir.entryList(otherClientEntries);
+
+  EXPECT_EQ(entriesAfter, otherClientEntries);
 
   // Compact when metadata exists
 
