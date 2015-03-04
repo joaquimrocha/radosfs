@@ -58,6 +58,7 @@ public:
 
 private:
   void parseContents(char *buff, int length);
+  void clear(void);
 
   std::string mInode;
   PoolSP mPool;

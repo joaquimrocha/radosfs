@@ -157,6 +157,7 @@ DirCache::update()
   }
   else
   {
+    clear();
     return ret;
   }
 
@@ -284,6 +285,18 @@ DirCache::getMetadata(const std::string &entry,
   }
 
   return ret;
+}
+
+void
+DirCache::clear(void)
+{
+  boost::unique_lock<boost::mutex> lock(mContentsMutex);
+
+  mEntryNames.clear();
+  mContents.clear();
+  mLastCachedSize = 0;
+  mLastReadByte = 0;
+  mLogNrLines = 0;
 }
 
 RADOS_FS_END_NAMESPACE
