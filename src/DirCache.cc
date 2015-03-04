@@ -142,10 +142,22 @@ DirCache::update()
   if (ret != 0)
     return ret;
 
-  if (size == mLastCachedSize)
-    return 0;
+  // If the dir has been compacted, we have to read it from scratch
+  if (size < mLastCachedSize)
+  {
+    clear();
+  }
 
   uint64_t buffLength = size - mLastCachedSize;
+
+  // If the contents' size is the same that was read before, then we do not read.
+  // This has to be changed to avoid the (not so common) case of compacting
+  // something and getting the same size that the contents had originally.
+  if (buffLength == 0)
+  {
+    return 0;
+  }
+
   librados::bufferlist buff;
 
   ret = ioctx().read(mInode, buff, buffLength, mLastReadByte);
