@@ -307,14 +307,8 @@ FsObj::setXAttr(const std::string &attrName, const std::string &value)
   if (!pool)
     return -ENOENT;
 
-  std::string &path = mPriv->stat.translatedPath;
-
-  if (path == "")
-    path = mPriv->stat.path;
-
-  return setXAttrFromPath(pool->ioctx, mPriv->stat.statBuff,
-                          mPriv->radosFs->uid(), mPriv->radosFs->gid(),
-                          path, attrName, value);
+  return setXAttrFromPath(mPriv->stat, mPriv->radosFs->uid(),
+                          mPriv->radosFs->gid(), attrName, value);
 }
 
 int

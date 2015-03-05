@@ -623,15 +623,11 @@ checkPermissionsForXAttr(const struct stat &statBuff,
 }
 
 int
-setXAttrFromPath(librados::IoCtx &ioctx,
-                 const struct stat &statBuff,
-                 uid_t uid,
-                 gid_t gid,
-                 const std::string &path,
-                 const std::string &attrName,
+setXAttrFromPath(Stat &stat, uid_t uid, gid_t gid, const std::string &attrName,
                  const std::string &value)
 {
-  int ret = checkPermissionsForXAttr(statBuff, attrName, uid, gid, O_WRONLY);
+  int ret = checkPermissionsForXAttr(stat.statBuff, attrName, uid, gid,
+                                     O_WRONLY);
 
   if (ret != 0)
     return ret;
@@ -639,7 +635,7 @@ setXAttrFromPath(librados::IoCtx &ioctx,
   std::map<std::string, librados::bufferlist> omap;
   omap[attrName].append(value);
 
-  return ioctx.omap_set(path, omap);
+  return stat.pool->ioctx.omap_set(stat.translatedPath, omap);
 }
 
 int

@@ -1643,8 +1643,7 @@ Filesystem::setXAttr(const std::string &path, const std::string &attrName,
   if (!stat.pool)
     return -ENODEV;
 
-  return setXAttrFromPath(stat.pool->ioctx, stat.statBuff, uid(), gid(),
-                          stat.translatedPath, attrName, value);
+  return setXAttrFromPath(stat, uid(), gid(), attrName, value);
 }
 
 int

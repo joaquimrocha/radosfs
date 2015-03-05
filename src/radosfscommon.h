@@ -131,13 +131,8 @@ std::string getDirPath(const std::string &path);
 
 std::string getFilePath(const std::string &path);
 
-int setXAttrFromPath(librados::IoCtx &ioctx,
-                     const struct stat &statBuff,
-                     uid_t uid,
-                     gid_t gid,
-                     const std::string &path,
-                     const std::string &attrName,
-                     const std::string &value);
+int setXAttrFromPath(Stat &stat, uid_t uid, gid_t gid,
+                     const std::string &attrName, const std::string &value);
 
 int getXAttrFromPath(librados::IoCtx &ioctx,
                      const struct stat &statBuff,
