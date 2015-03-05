@@ -1967,6 +1967,20 @@ TEST_F(RadosFsTest, XAttrs)
   const std::string value("value");
   EXPECT_EQ(0, radosFs.setXAttr(fileName, attr, value));
 
+  // Check if the attribute got into the file inode's omap
+
+  Stat stat;
+  ASSERT_EQ(0, radosFsPriv()->stat(fileName, &stat));
+
+  std::map<std::string, librados::bufferlist> omap;
+  std::set<std::string> omapKeys;
+
+  omapKeys.insert(attr);
+  ASSERT_EQ(0, stat.pool->ioctx.omap_get_vals(stat.translatedPath, "", UINT_MAX,
+                                              &omap));
+
+  ASSERT_TRUE(omap.find(attr) != omap.end());
+
   // Get the attribute set above
 
   EXPECT_EQ(value.length(), radosFs.getXAttr(fileName, attr, xAttrValue));
@@ -2026,6 +2040,25 @@ TEST_F(RadosFsTest, XAttrs)
   // Check the xattrs map's value
 
   EXPECT_EQ(map[attr], value);
+
+  // Set an attribute in a directory
+
+  const std::string dirAttr("usr.dir-attr");
+  EXPECT_EQ(0, radosFs.setXAttr(dir.path(), dirAttr, "check"));
+
+  // Check if the attribute got into the dir inode's omap
+
+  stat.reset();
+  ASSERT_EQ(0, radosFsPriv()->stat(dir.path(), &stat));
+
+  omap.clear();
+  omapKeys.clear();
+
+  omapKeys.insert(dirAttr);
+  ASSERT_EQ(0, stat.pool->ioctx.omap_get_vals(stat.translatedPath, "", UINT_MAX,
+                                              &omap));
+
+  ASSERT_TRUE(omap.find(dirAttr) != omap.end());
 }
 
 TEST_F(RadosFsTest, XAttrsInInfo)
