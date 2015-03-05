@@ -1643,17 +1643,8 @@ Filesystem::setXAttr(const std::string &path, const std::string &attrName,
   if (!stat.pool)
     return -ENODEV;
 
-  if (S_ISDIR(stat.statBuff.st_mode))
-    return setXAttrFromPath(stat.pool->ioctx, stat.statBuff, uid(), gid(),
-                            stat.path, attrName, value);
-
-  if (S_ISREG(stat.statBuff.st_mode))
-  {
-    return setXAttrFromPath(stat.pool->ioctx, stat.statBuff, uid(), gid(),
-                            stat.translatedPath, attrName, value);
-  }
-
-  return -EPERM;
+  return setXAttrFromPath(stat.pool->ioctx, stat.statBuff, uid(), gid(),
+                          stat.translatedPath, attrName, value);
 }
 
 int
@@ -1673,17 +1664,8 @@ Filesystem::getXAttr(const std::string &path, const std::string &attrName,
   if (!stat.pool)
     return -ENODEV;
 
-  if (S_ISDIR(stat.statBuff.st_mode))
-    return getXAttrFromPath(stat.pool->ioctx, stat.statBuff, uid(), gid(),
-                            stat.path, attrName, value);
-
-  if (S_ISREG(stat.statBuff.st_mode))
-  {
-    return getXAttrFromPath(stat.pool->ioctx, stat.statBuff, uid(), gid(),
-                            stat.translatedPath, attrName, value);
-  }
-
-  return -EPERM;
+  return getXAttrFromPath(stat.pool->ioctx, stat.statBuff, uid(), gid(),
+                          stat.translatedPath, attrName, value);
 }
 
 int
@@ -1702,17 +1684,8 @@ Filesystem::removeXAttr(const std::string &path, const std::string &attrName)
   if (!stat.pool)
     return -ENODEV;
 
-  if (S_ISDIR(stat.statBuff.st_mode))
-    return removeXAttrFromPath(stat.pool->ioctx, stat.statBuff, uid(), gid(),
-                               path, attrName);
-
-  if (S_ISREG(stat.statBuff.st_mode))
-  {
-    return removeXAttrFromPath(stat.pool->ioctx, stat.statBuff, uid(), gid(),
-                               stat.translatedPath, attrName);
-  }
-
-  return -EPERM;
+  return removeXAttrFromPath(stat.pool->ioctx, stat.statBuff, uid(), gid(),
+                             stat.translatedPath, attrName);
 }
 
 int
@@ -1732,17 +1705,8 @@ Filesystem::getXAttrsMap(const std::string &path,
   if (!stat.pool)
     return -ENODEV;
 
-  if (S_ISDIR(stat.statBuff.st_mode))
-    return getMapOfXAttrFromPath(stat.pool->ioctx, stat.statBuff, uid(), gid(),
-                                 stat.path, map);
-
-  if (S_ISREG(stat.statBuff.st_mode))
-  {
-    return getMapOfXAttrFromPath(stat.pool->ioctx, stat.statBuff, uid(), gid(),
-                                 stat.translatedPath, map);
-  }
-
-  return -EPERM;
+  return getMapOfXAttrFromPath(stat.pool->ioctx, stat.statBuff, uid(), gid(),
+                               stat.translatedPath, map);
 }
 
 void
