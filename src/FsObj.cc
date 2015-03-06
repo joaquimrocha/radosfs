@@ -309,7 +309,7 @@ FsObj::setXAttr(const std::string &attrName, const std::string &value)
   Pool *pool = mPriv->stat.pool.get();
 
   if (!pool)
-    return -ENOENT;
+    return -ENODEV;
 
   return setXAttrFromPath(mPriv->stat, mPriv->radosFs->uid(),
                           mPriv->radosFs->gid(), attrName, value);
@@ -327,7 +327,7 @@ FsObj::getXAttr(const std::string &attrName, std::string &value)
   Pool *pool = mPriv->stat.pool.get();
 
   if (!pool)
-    return -ENOENT;
+    return -ENODEV;
 
   return getXAttrFromPath(pool->ioctx, mPriv->stat.statBuff,
                           mPriv->radosFs->uid(), mPriv->radosFs->gid(),
@@ -346,7 +346,7 @@ FsObj::removeXAttr(const std::string &attrName)
   Pool *pool = mPriv->stat.pool.get();
 
   if (!pool)
-    return -ENOENT;
+    return -ENODEV;
 
   return removeXAttrFromPath(pool->ioctx, mPriv->stat.statBuff,
                              mPriv->radosFs->uid(), mPriv->radosFs->gid(),
