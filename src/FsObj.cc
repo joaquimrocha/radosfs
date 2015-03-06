@@ -329,14 +329,9 @@ FsObj::getXAttr(const std::string &attrName, std::string &value)
   if (!pool)
     return -ENOENT;
 
-  std::string &path = mPriv->stat.translatedPath;
-
-  if (path == "")
-    path = mPriv->stat.path;
-
   return getXAttrFromPath(pool->ioctx, mPriv->stat.statBuff,
                           mPriv->radosFs->uid(), mPriv->radosFs->gid(),
-                          path, attrName, value);
+                          mPriv->stat.translatedPath, attrName, value);
 }
 
 int
@@ -353,14 +348,9 @@ FsObj::removeXAttr(const std::string &attrName)
   if (!pool)
     return -ENOENT;
 
-  std::string &path = mPriv->stat.translatedPath;
-
-  if (path == "")
-    path = mPriv->stat.path;
-
   return removeXAttrFromPath(pool->ioctx, mPriv->stat.statBuff,
                              mPriv->radosFs->uid(), mPriv->radosFs->gid(),
-                             path, attrName);
+                             mPriv->stat.translatedPath, attrName);
 }
 
 int
@@ -377,14 +367,9 @@ FsObj::getXAttrsMap(std::map<std::string, std::string> &map)
   if (!pool)
     return -ENOENT;
 
-  std::string &path = mPriv->stat.translatedPath;
-
-  if (path == "")
-    path = mPriv->stat.path;
-
   return getMapOfXAttrFromPath(pool->ioctx, mPriv->stat.statBuff,
                                mPriv->radosFs->uid(), mPriv->radosFs->gid(),
-                               path, map);
+                               mPriv->stat.translatedPath, map);
 }
 
 int
