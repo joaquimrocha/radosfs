@@ -300,7 +300,11 @@ FsObj::update()
 int
 FsObj::setXAttr(const std::string &attrName, const std::string &value)
 {
-  // We don't call the similar methods from RadosFs for avoiding extra stat calls
+  // We don't call the similar methods from Filesystem for avoiding extra stat
+  // calls (except for links).
+
+  if (isLink())
+    return filesystem()->setXAttr(mPriv->target, attrName, value);
 
   Pool *pool = mPriv->stat.pool.get();
 
@@ -314,7 +318,11 @@ FsObj::setXAttr(const std::string &attrName, const std::string &value)
 int
 FsObj::getXAttr(const std::string &attrName, std::string &value)
 {
-  // We don't call the similar methods from RadosFs for avoiding extra stat calls
+  // We don't call the similar methods from Filesystem for avoiding extra stat
+  // calls (except for links).
+
+  if (isLink())
+    return filesystem()->getXAttr(mPriv->target, attrName, value);
 
   Pool *pool = mPriv->stat.pool.get();
 
@@ -334,7 +342,11 @@ FsObj::getXAttr(const std::string &attrName, std::string &value)
 int
 FsObj::removeXAttr(const std::string &attrName)
 {
-  // We don't call the similar methods from RadosFs for avoiding extra stat calls
+  // We don't call the similar methods from Filesystem for avoiding extra stat
+  // calls (except for links).
+
+  if (isLink())
+    return filesystem()->removeXAttr(mPriv->target, attrName);
 
   Pool *pool = mPriv->stat.pool.get();
 
@@ -354,7 +366,11 @@ FsObj::removeXAttr(const std::string &attrName)
 int
 FsObj::getXAttrsMap(std::map<std::string, std::string> &map)
 {
-  // We don't call the similar methods from RadosFs for avoiding extra stat calls
+  // We don't call the similar methods from Filesystem for avoiding extra stat
+  // calls (except for links).
+
+  if (isLink())
+    return filesystem()->getXAttrsMap(mPriv->target, map);
 
   Pool *pool = mPriv->stat.pool.get();
 
