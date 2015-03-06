@@ -154,14 +154,6 @@ FileInodePriv::registerFile(const std::string &path, uid_t uid, gid_t gid,
     return -EEXIST;
   }
 
-  ret = setHardLink(filePath);
-
-  if (ret < 0)
-  {
-    radosfs_debug("Could not set backlink '%s' on inode '%s': %s (retcode=%d) ",
-                  filePath.c_str(), name.c_str(), strerror(abs(ret)), ret);
-  }
-
   return ret;
 }
 
@@ -352,7 +344,25 @@ FileInode::registerFile(const std::string &path, uid_t uid, gid_t gid, int mode)
     return -EISDIR;
   }
 
-  return mPriv->registerFile(path, uid, gid, mode);
+  int ret = mPriv->registerFile(path, uid, gid, mode);
+
+  if (ret < 0)
+  {
+    radosfs_debug("Could register the file '%s' with inode '%s': %s (retcode=%d) ",
+                  path.c_str(), mPriv->name.c_str(), strerror(abs(ret)), ret);
+
+    return ret;
+  }
+
+  ret = mPriv->setHardLink(path);
+
+  if (ret < 0)
+  {
+    radosfs_debug("Could not set backlink '%s' on inode '%s': %s (retcode=%d) ",
+                  path.c_str(), mPriv->name.c_str(), strerror(abs(ret)), ret);
+  }
+
+  return ret;
 }
 
 int
