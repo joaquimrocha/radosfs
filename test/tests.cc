@@ -1639,6 +1639,14 @@ TEST_F(RadosFsTest, RenameFile)
 
   EXPECT_TRUE(file.exists());
 
+  // Make sure that renaming didn't create the inode
+
+  Stat stat;
+
+  EXPECT_EQ(0, radosFsPriv()->stat(file.path(), &stat));
+
+  EXPECT_EQ(-ENOENT, stat.pool->ioctx.stat(stat.translatedPath, 0, 0));
+
   file.setPath(originalPath);
 
   EXPECT_FALSE(file.exists());
