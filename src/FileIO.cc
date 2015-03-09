@@ -78,10 +78,12 @@ FileIO::FileIO(Filesystem *radosFs, const PoolSP pool, const std::string &iNode,
   : mRadosFs(radosFs),
     mPool(pool),
     mInode(iNode),
+    mPath(""),
     mStripeSize(stripeSize),
     mLazyRemoval(false),
     mLocker(""),
-    mInlineBuffer(0)
+    mInlineBuffer(0),
+    mHasBackLink(false)
 {
   assert(mStripeSize != 0);
 }

@@ -160,6 +160,7 @@ private:
   Filesystem *mRadosFs;
   const PoolSP mPool;
   const std::string mInode;
+  const std::string mPath;
   size_t mStripeSize;
   bool mLazyRemoval;
   std::vector<rados_completion_t> mCompletionList;
@@ -170,6 +171,8 @@ private:
   boost::scoped_ptr<FileInlineBuffer> mInlineBuffer;
   std::string mInlineMemBuffer;
   boost::mutex mInlineMemBufferMutex;
+  bool mHasBackLink;
+  boost::mutex mHasBackLinkMutex;
 
   int verifyWriteParams(off_t offset, size_t length);
   int realWrite(char *buff, off_t offset, size_t blen, bool deleteBuffer,
