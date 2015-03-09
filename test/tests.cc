@@ -1009,9 +1009,20 @@ TEST_F(RadosFsTest, FileInode)
 
   EXPECT_EQ(0, stat.pool->ioctx.stat(stat.translatedPath, 0, 0));
 
+  testFileInodeBackLink(file.path());
+
   EXPECT_EQ(0, stat.pool->ioctx.remove(stat.translatedPath));
 
+  // Override the hasBackLink var in the FileIO instance because it is not aware
+  // that the inode object has been removed
+
+  radosfs::FilePriv *filePriv = radosFsFilePriv(file);
+
+  fileInodePriv(*filePriv->inode)->io->setHasBackLink(false);
+
   EXPECT_EQ(0, file.write("X", 0, 1));
+
+  testFileInodeBackLink(file.path());
 
   file.sync();
 
@@ -1966,6 +1977,8 @@ TEST_F(RadosFsTest, XAttrs)
   const std::string attr("usr.attr");
   const std::string value("value");
   EXPECT_EQ(0, radosFs.setXAttr(fileName, attr, value));
+
+  testFileInodeBackLink(fileName);
 
   // Check if the attribute got into the file inode's omap
 

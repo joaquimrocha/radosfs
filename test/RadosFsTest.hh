@@ -115,6 +115,8 @@ protected:
 
   const char * conf(void) const { return mConf; }
 
+  void testFileInodeBackLink(const std::string &path);
+
 private:
   librados::Rados mCluster;
   const char *mConf;

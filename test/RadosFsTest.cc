@@ -405,3 +405,38 @@ RadosFsTest::launchFileOpsMultipleClients(const size_t stripeSize,
 
   return file;
 }
+
+void
+RadosFsTest::testFileInodeBackLink(const std::string &path)
+{
+  Stat stat;
+  int ret = radosFs.mPriv->stat(path, &stat);
+
+  if (ret != 0)
+    return;
+
+  radosfs::FileInode inode(&radosFs, stat.translatedPath, stat.pool->name);
+
+  std::string backLink;
+  ret = -ENOENT;
+
+  // Setting the inode backlink is an asynchronous op which might not yet be
+  // finished so we try to get it several times.
+  int nrTries(2);
+  while (true)
+  {
+    ret = inode.getHardLink(&backLink);
+
+    if (ret == 0 && nrTries-- > 0)
+    {
+      boost::this_thread::sleep_for(boost::chrono::milliseconds(250));
+      continue;
+    }
+
+    EXPECT_EQ(0, ret);
+
+    EXPECT_EQ(path, backLink);
+
+    break;
+  }
+}
