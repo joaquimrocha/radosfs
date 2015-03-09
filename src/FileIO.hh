@@ -171,6 +171,8 @@ public:
 
   void setPath(const std::string &path);
 
+  void updateBackLink(const std::string *oldBackLink=0);
+
 private:
   Filesystem *mRadosFs;
   const PoolSP mPool;

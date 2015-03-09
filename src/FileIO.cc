@@ -1276,6 +1276,13 @@ FileIO::setPath(const std::string &path)
   mHasBackLink = false;
 }
 
+void
+FileIO::updateBackLink(const std::string *oldBackLink)
+{
+  setInodeBacklinkAsync(mPool, mPath, inode(), oldBackLink, inodeBackLinkCb,
+                        this);
+}
+
 int
 OpsManager::sync(void)
 {
