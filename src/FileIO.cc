@@ -88,6 +88,23 @@ FileIO::FileIO(Filesystem *radosFs, const PoolSP pool, const std::string &iNode,
   assert(mStripeSize != 0);
 }
 
+FileIO::FileIO(Filesystem *radosFs, const PoolSP pool, const std::string &iNode,
+               const std::string &path, size_t stripeSize)
+  : mRadosFs(radosFs),
+    mPool(pool),
+    mInode(iNode),
+    mPath(path),
+    mStripeSize(stripeSize),
+    mLazyRemoval(false),
+    mLocker(""),
+    mInlineBuffer(0),
+    // If the path is not set, then we assume the backlink has been set in order
+    // to avoid trying to do it when needed
+    mHasBackLink(mPath.empty())
+{
+  assert(mStripeSize != 0);
+}
+
 FileIO::~FileIO()
 {
   mOpManager.sync();

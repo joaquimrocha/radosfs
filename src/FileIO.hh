@@ -107,6 +107,13 @@ public:
          const PoolSP pool,
          const std::string &iNode,
          size_t stripeSize);
+
+  FileIO(Filesystem *radosFs,
+         const PoolSP pool,
+         const std::string &iNode,
+         const std::string &filePath,
+         size_t stripeSize);
+
   ~FileIO();
 
   ssize_t read(char *buff, off_t offset, size_t blen);
