@@ -1126,3 +1126,37 @@ fileSizeToHex(size_t num)
 
   return std::string(stripeNumHex, XATTR_FILE_SIZE_LENGTH);
 }
+
+void
+updateInodeBacklinkAsyncCB(rados_completion_t comp, void *arg)
+{
+  rados_aio_release(comp);
+}
+
+void
+setInodeBacklinkAsync(PoolSP pool, const std::string &backlink,
+                      const std::string &inode, rados_callback_t callback,
+                      void *arg)
+{
+  std::map<std::string, librados::bufferlist> omap;
+  omap[XATTR_INODE_HARD_LINK].append(backlink);
+
+  librados::bufferlist emptyStr;
+  std::map<std::string, std::pair<librados::bufferlist, int> > omapCmp;
+  std::pair<librados::bufferlist, int> cmp(emptyStr, LIBRADOS_CMPXATTR_OP_EQ);
+  omapCmp[XATTR_INODE_HARD_LINK] = cmp;
+
+  librados::ObjectWriteOperation writeOp;
+  writeOp.omap_set(omap);
+  writeOp.omap_cmp(omapCmp, 0);
+
+  rados_completion_t comp;
+
+  if (!callback)
+    callback = updateInodeBacklinkAsyncCB;
+
+  rados_aio_create_completion(arg, 0, callback, &comp);
+  librados::AioCompletion completion((librados::AioCompletionImpl *) comp);
+
+  pool->ioctx.aio_operate(inode, &completion, &writeOp);
+}
