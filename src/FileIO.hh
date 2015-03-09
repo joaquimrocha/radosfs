@@ -167,6 +167,8 @@ public:
 
   bool hasBackLink(void);
 
+  bool shouldSetBacklink(void) { return !hasBackLink() && !mPath.empty(); }
+
 private:
   Filesystem *mRadosFs;
   const PoolSP mPool;

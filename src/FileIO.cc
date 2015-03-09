@@ -1100,6 +1100,18 @@ FileIO::getSize() const
   return size;
 }
 
+void
+inodeBackLinkCb(rados_completion_t comp, void *arg)
+{
+  int ret = rados_aio_get_return_value(comp);
+  FileIO *io = reinterpret_cast<FileIO *>(arg);
+
+  // We only assume we have set the back link if it succeeded to do so or if
+  // didn't because it had already been set (operation canceled)
+  if (ret == 0 || ret == -ECANCELED)
+    io->setHasBackLink(true);
+}
+
 int
 FileIO::setSizeIfBigger(size_t size)
 {
@@ -1121,6 +1133,12 @@ FileIO::setSizeIfBigger(size_t size)
 
   int ret = mPool->ioctx.operate(inode(), &writeOp);
 
+  // Set the back link because this op might create the object
+  if (ret == 0 && shouldSetBacklink())
+  {
+    setInodeBacklinkAsync(mPool, mPath, inode(), inodeBackLinkCb, this);
+  }
+
   radosfs_debug("Set size %d to '%s' if it's greater: retcode=%d (%s)",
                 size, inode().c_str(), ret, strerror(abs(ret)));
 
@@ -1140,6 +1158,12 @@ FileIO::setSize(size_t size)
   writeOp.omap_set(omap);
 
   int ret = mPool->ioctx.operate(inode(), &writeOp);
+
+  // Set the back link because this op might create the object
+  if (ret == 0 && shouldSetBacklink())
+  {
+    setInodeBacklinkAsync(mPool, mPath, inode(), inodeBackLinkCb, this);
+  }
 
   radosfs_debug("Set size %d to '%s': retcode=%d (%s)", size,
                 inode().c_str(), ret, strerror(abs(ret)));
