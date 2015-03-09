@@ -632,10 +632,20 @@ setXAttrFromPath(Stat &stat, uid_t uid, gid_t gid, const std::string &attrName,
   if (ret != 0)
     return ret;
 
+  librados::ObjectWriteOperation writeOp;
+
   std::map<std::string, librados::bufferlist> omap;
   omap[attrName].append(value);
+  writeOp.omap_set(omap);
 
-  return stat.pool->ioctx.omap_set(stat.translatedPath, omap);
+  ret = stat.pool->ioctx.operate(stat.translatedPath, &writeOp);
+
+  if (S_ISREG(stat.statBuff.st_mode) && ret == 0)
+  {
+    setInodeBacklinkAsync(stat.pool, stat.path, stat.translatedPath);
+  }
+
+  return ret;
 }
 
 int
