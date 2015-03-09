@@ -299,6 +299,9 @@ FilePriv::rename(const std::string &destination)
   if (ret != 0)
     return ret;
 
+  inode->mPriv->io->setPath(newPath);
+  inode->mPriv->io->updateBackLink(&stat.path);
+
   fsFile->setPath(newPath);
 
   return ret;
