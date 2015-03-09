@@ -163,6 +163,10 @@ public:
 
   FileInlineBuffer *inlineBuffer(void) const { return mInlineBuffer.get(); }
 
+  void setHasBackLink(bool hasBacklink);
+
+  bool hasBackLink(void);
+
 private:
   Filesystem *mRadosFs;
   const PoolSP mPool;

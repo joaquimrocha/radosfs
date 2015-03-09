@@ -1230,6 +1230,20 @@ FileIO::setLazyRemoval(bool remove)
   }
 }
 
+void
+FileIO::setHasBackLink(bool hasBacklink)
+{
+  boost::unique_lock<boost::mutex> lock(mHasBackLinkMutex);
+  mHasBackLink = hasBacklink;
+}
+
+bool
+FileIO::hasBackLink(void)
+{
+  boost::unique_lock<boost::mutex> lock(mHasBackLinkMutex);
+  return mHasBackLink;
+}
+
 int
 OpsManager::sync(void)
 {
