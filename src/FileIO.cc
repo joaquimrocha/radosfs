@@ -1136,7 +1136,7 @@ FileIO::setSizeIfBigger(size_t size)
   // Set the back link because this op might create the object
   if (ret == 0 && shouldSetBacklink())
   {
-    setInodeBacklinkAsync(mPool, mPath, inode(), inodeBackLinkCb, this);
+    setInodeBacklinkAsync(mPool, mPath, inode(), 0, inodeBackLinkCb, this);
   }
 
   radosfs_debug("Set size %d to '%s' if it's greater: retcode=%d (%s)",
@@ -1162,7 +1162,7 @@ FileIO::setSize(size_t size)
   // Set the back link because this op might create the object
   if (ret == 0 && shouldSetBacklink())
   {
-    setInodeBacklinkAsync(mPool, mPath, inode(), inodeBackLinkCb, this);
+    setInodeBacklinkAsync(mPool, mPath, inode(), 0, inodeBackLinkCb, this);
   }
 
   radosfs_debug("Set size %d to '%s': retcode=%d (%s)", size,

@@ -1145,15 +1145,20 @@ updateInodeBacklinkAsyncCB(rados_completion_t comp, void *arg)
 
 void
 setInodeBacklinkAsync(PoolSP pool, const std::string &backlink,
-                      const std::string &inode, rados_callback_t callback,
-                      void *arg)
+                      const std::string &inode, const std::string *compare,
+                      rados_callback_t callback, void *arg)
 {
   std::map<std::string, librados::bufferlist> omap;
   omap[XATTR_INODE_HARD_LINK].append(backlink);
 
-  librados::bufferlist emptyStr;
+  librados::bufferlist compareInode;
+
+  if (compare)
+    compareInode.append(*compare);
+
   std::map<std::string, std::pair<librados::bufferlist, int> > omapCmp;
-  std::pair<librados::bufferlist, int> cmp(emptyStr, LIBRADOS_CMPXATTR_OP_EQ);
+  std::pair<librados::bufferlist, int> cmp(compareInode,
+                                           LIBRADOS_CMPXATTR_OP_EQ);
   omapCmp[XATTR_INODE_HARD_LINK] = cmp;
 
   librados::ObjectWriteOperation writeOp;

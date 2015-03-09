@@ -222,7 +222,7 @@ int statAndGetXAttrs(librados::IoCtx &ioctx, const std::string &obj,
 std::string fileSizeToHex(size_t num);
 
 void setInodeBacklinkAsync(PoolSP pool, const std::string &backlink,
-                           const std::string &inode,
+                           const std::string &inode, const std::string *compare = 0,
                            rados_callback_t callback = 0, void *arg = 0);
 
 #endif /* __RADOS_FS_COMMON_HH__ */
