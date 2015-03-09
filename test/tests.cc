@@ -1720,6 +1720,25 @@ TEST_F(RadosFsTest, RenameFile)
   sameFile.update();
 
   EXPECT_FALSE(sameFile.exists());
+
+  // Create a file without an inline buffer so we check if the backlink in its
+  // inode gets updated when the file is renamed
+
+  file = radosfs::File(&radosFs, "/new-file");
+
+  EXPECT_EQ(0, file.create(-1, "", 0, 0));
+
+  EXPECT_EQ(0, file.writeSync("x", 0, 1));
+
+  testFileInodeBackLink(file.path());
+
+  path = "/new-file-renamed";
+
+  EXPECT_EQ(0, file.rename(path));
+
+  ASSERT_EQ(path, file.path());
+
+  testFileInodeBackLink(file.path());
 }
 
 bool
