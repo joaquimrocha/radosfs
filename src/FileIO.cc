@@ -1268,6 +1268,14 @@ FileIO::hasBackLink(void)
   return mHasBackLink;
 }
 
+void
+FileIO::setPath(const std::string &path)
+{
+  boost::unique_lock<boost::mutex> lock(mHasBackLinkMutex);
+  mPath = path;
+  mHasBackLink = false;
+}
+
 int
 OpsManager::sync(void)
 {

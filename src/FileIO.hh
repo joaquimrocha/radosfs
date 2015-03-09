@@ -169,11 +169,13 @@ public:
 
   bool shouldSetBacklink(void) { return !hasBackLink() && !mPath.empty(); }
 
+  void setPath(const std::string &path);
+
 private:
   Filesystem *mRadosFs;
   const PoolSP mPool;
   const std::string mInode;
-  const std::string mPath;
+  std::string mPath;
   size_t mStripeSize;
   bool mLazyRemoval;
   std::vector<rados_completion_t> mCompletionList;
