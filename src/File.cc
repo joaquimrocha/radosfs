@@ -311,6 +311,7 @@ FilePriv::setInode(const size_t stripeSize)
   FileIOSP fileIO = FileIOSP(new FileIO(fsFile->filesystem(),
                                         dataPool,
                                         generateUuid(),
+                                        fsFile->path(),
                                         stripe));
   inode->mPriv->setFileIO(fileIO);
 

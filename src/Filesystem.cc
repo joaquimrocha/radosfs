@@ -1131,7 +1131,7 @@ FilesystemPriv::getOrCreateFileIO(const std::string &path, const Stat *stat)
                                    stat->pool->alignment);
 
     io = FileIOSP(new FileIO(radosFs, stat->pool, stat->translatedPath,
-                             stripeSize));
+                             stat->path, stripeSize));
 
     setFileIO(io);
   }
