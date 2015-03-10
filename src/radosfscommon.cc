@@ -1175,3 +1175,95 @@ setInodeBacklinkAsync(PoolSP pool, const std::string &backlink,
 
   pool->ioctx.aio_operate(inode, &completion, &writeOp);
 }
+
+int
+moveLogicalFile(Stat &oldParent, Stat &newParent,
+                const std::string &oldFilePath,
+                const std::string &newFilePath)
+{
+  const std::string oldBaseName = oldFilePath.substr(oldParent.path.length());
+  const std::string newBaseName = newFilePath.substr(newParent.path.length());
+  const std::string oldFileEntry = XATTR_FILE_PREFIX + oldBaseName;
+  const std::string oldInlineBufferEntry = XATTR_FILE_INLINE_BUFFER + oldBaseName;
+  const std::string newFileEntry = XATTR_FILE_PREFIX + newBaseName;
+  const std::string newInlineBufferEntry = XATTR_FILE_INLINE_BUFFER + newBaseName;
+  std::set<std::string> omapKeys;
+  std::map<std::string, librados::bufferlist> omapValues, newOmapValues;
+  std::map<std::string, std::pair<librados::bufferlist, int> > omapCmp;
+  librados::bufferlist oldParentContents, newParentContents;
+
+  omapKeys.insert(oldFileEntry);
+  omapKeys.insert(oldInlineBufferEntry);
+
+  int ret = oldParent.pool->ioctx.omap_get_vals_by_keys(oldParent.translatedPath,
+                                                        omapKeys, &omapValues);
+
+  if (ret != 0)
+    return ret;
+
+  std::map<std::string, librados::bufferlist>::iterator it;
+  it = omapValues.find(oldFileEntry);
+
+  // Get the contents of the file entry and the inline buffer into the omap
+  // we'll set in the new parent
+
+  if (it != omapValues.end())
+  {
+    newOmapValues[newFileEntry] = (*it).second;
+  }
+
+  it = omapValues.find(oldInlineBufferEntry);
+
+  if (it != omapValues.end())
+  {
+    newOmapValues[newInlineBufferEntry] = (*it).second;
+  }
+
+  // Deindex the old file name in the old parent and index it in the new parent
+  oldParentContents.append(getObjectIndexLine(oldBaseName, '-'));
+  newParentContents.append(getObjectIndexLine(newBaseName, '+'));
+
+  librados::ObjectWriteOperation newParentWriteOp;
+  newParentWriteOp.append(newParentContents);
+  newParentWriteOp.omap_set(newOmapValues);
+
+  bool sameParent = oldParent.translatedPath == newParent.translatedPath;
+
+  if (sameParent)
+  {
+    // If it is the same parent (a move inside the same directory), we only set
+    // the new values if the old ones were untouched, for added consistency.
+    for (it = omapValues.begin(); it != omapValues.end(); it++)
+    {
+      const std::string &key = (*it).first;
+
+      librados::bufferlist compareInode((*it).second);
+      std::pair<librados::bufferlist, int> cmp(compareInode,
+                                               LIBRADOS_CMPXATTR_OP_EQ);
+      omapCmp[key] = cmp;
+    }
+
+    newParentWriteOp.append(oldParentContents);
+    newParentWriteOp.omap_rm_keys(omapKeys);
+
+    if (omapCmp.size() > 0)
+      newParentWriteOp.omap_cmp(omapCmp, 0);
+  }
+
+  ret = newParent.pool->ioctx.operate(newParent.translatedPath,
+                                      &newParentWriteOp);
+
+  if (ret == 0 && !sameParent)
+  {
+    // If we succeeded in moving the file's logical contents to the new parent
+    // then we delete the old ones
+    librados::ObjectWriteOperation oldParentWriteOp;
+    oldParentWriteOp.append(oldParentContents);
+    oldParentWriteOp.omap_rm_keys(omapKeys);
+
+    ret = oldParent.pool->ioctx.operate(oldParent.translatedPath,
+                                        &oldParentWriteOp);
+  }
+
+  return ret;
+}

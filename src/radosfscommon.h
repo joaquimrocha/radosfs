@@ -225,4 +225,8 @@ void setInodeBacklinkAsync(PoolSP pool, const std::string &backlink,
                            const std::string &inode, const std::string *compare = 0,
                            rados_callback_t callback = 0, void *arg = 0);
 
+int moveLogicalFile(Stat &oldParent, Stat &newParent,
+                    const std::string &oldFilePath,
+                    const std::string &newFilePath);
+
 #endif /* __RADOS_FS_COMMON_HH__ */

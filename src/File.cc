@@ -285,22 +285,17 @@ FilePriv::rename(const std::string &destination)
   stat = *fsStat();
   stat.path = newPath;
 
-  ret = indexObject(&parentStat, &stat, '+');
+  Stat *oldParentStat = reinterpret_cast<Stat *>(fsFile->parentFsStat());
 
-  if (ret != 0)
-    return ret;
-
-  Stat *oldParentStat =
-      reinterpret_cast<Stat *>(fsFile->parentFsStat());
-
-  stat.path = fsFile->path();
-  ret = indexObject(oldParentStat, &stat, '-');
+  ret = moveLogicalFile(*oldParentStat, parentStat, fsFile->path(), newPath);
 
   if (ret != 0)
     return ret;
 
   inode->mPriv->io->setPath(newPath);
-  inode->mPriv->io->updateBackLink(&stat.path);
+
+  std::string oldPath = fsFile->path();
+  inode->mPriv->io->updateBackLink(&oldPath);
 
   fsFile->setPath(newPath);
 
