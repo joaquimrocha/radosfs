@@ -1671,7 +1671,20 @@ TEST_F(RadosFsTest, RenameFile)
 
   file.setPath(path);
 
-  EXPECT_EQ(0, file.create());
+  EXPECT_EQ(0, file.create(-1, "", 0, 124));
+
+  // Add contents to the file's inline buffer
+
+  std::string fileContents = "abcdef";
+  char *fileContsBuff = new char[fileContents.length()];
+
+  EXPECT_EQ(0, file.writeSync(fileContents.c_str(), 0, fileContents.length()));
+
+  EXPECT_EQ(fileContents.length(),
+            file.read(fileContsBuff, 0, fileContents.length()));
+
+  EXPECT_EQ(0, strncmp(fileContsBuff, fileContents.c_str(),
+                       fileContents.length()));
 
   // Move the file inside the same directory
 
@@ -1682,6 +1695,24 @@ TEST_F(RadosFsTest, RenameFile)
   radosfs::File sameFile(&radosFs, path);
 
   EXPECT_TRUE(sameFile.exists());
+
+  // Check the contents
+
+  bzero(fileContsBuff, fileContents.length());
+
+  EXPECT_EQ(fileContents.length(),
+            sameFile.read(fileContsBuff, 0, fileContents.length()));
+
+  EXPECT_EQ(0, strncmp(fileContsBuff, fileContents.c_str(),
+                       fileContents.length()));
+
+  // Get the user dir's entries
+
+  std::set<std::string> entries;
+
+  userDir.update();
+
+  EXPECT_EQ(0, userDir.entryList(entries));
 
   // Rename the file (owned by the user) as root
 
@@ -1694,6 +1725,40 @@ TEST_F(RadosFsTest, RenameFile)
   file.setPath(path);
 
   EXPECT_TRUE(file.exists());
+
+  // Check the contents again
+
+  bzero(fileContsBuff, fileContents.length());
+
+  EXPECT_EQ(fileContents.length(),
+            file.read(fileContsBuff, 0, fileContents.length()));
+
+  EXPECT_EQ(0, strncmp(fileContsBuff, fileContents.c_str(),
+                       fileContents.length()));
+
+  // Get the user dir's contents again and compare them with the old ones
+
+  std::set<std::string> entries1;
+
+  userDir.update();
+
+  EXPECT_EQ(0, userDir.entryList(entries1));
+
+  EXPECT_LT(entries1.size(), entries.size());
+
+  EXPECT_EQ(entries1.find("file"), entries1.end());
+
+  // Verify that the new file's parent can list it
+
+  entries.clear();
+
+  radosfs::Dir rootDir(&radosFs, "/");
+
+  rootDir.update();
+
+  EXPECT_EQ(0, rootDir.entryList(entries));
+
+  EXPECT_NE(entries.find("file-moved"), entries.end());
 
   // Move the file to the user's dir
 
