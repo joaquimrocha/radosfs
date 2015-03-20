@@ -45,7 +45,7 @@ public:
   int registerFile(const std::string &path, uid_t uid, gid_t gid, int mode,
                    size_t inlineBufferSize=0);
 
-  int setHardLink(const std::string &hardLink);
+  int setBackLink(const std::string &backLink);
 
   Filesystem *fs;
   std::string name;

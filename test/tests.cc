@@ -1099,11 +1099,11 @@ TEST_F(RadosFsTest, FileInodeDirect)
 
   EXPECT_EQ(contentsSize / 3, inode.read(buff, 0, contentsSize / 3));
 
-  // Check the hardlink set on the inode
+  // Check the backlink set on the inode
 
-  std::string hardLink;
+  std::string backLink;
 
-  EXPECT_EQ(-ENODATA, inode.getHardLink(&hardLink));
+  EXPECT_EQ(-ENODATA, inode.getBackLink(&backLink));
 
   radosfs::File file(&radosFs, "/file");
 
@@ -1154,11 +1154,11 @@ TEST_F(RadosFsTest, FileInodeDirect)
 
   EXPECT_TRUE(file.exists());
 
-  // Check the hardlink set on the inode
+  // Check the backlink set on the inode
 
-  EXPECT_EQ(0, inode.getHardLink(&hardLink));
+  EXPECT_EQ(0, inode.getBackLink(&backLink));
 
-  EXPECT_EQ(file.path(), hardLink);
+  EXPECT_EQ(file.path(), backLink);
 
   // Read from the registered file
 

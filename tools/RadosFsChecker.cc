@@ -242,9 +242,9 @@ RadosFsChecker::fixInodes()
     radosfs::PoolListMap &poolMap = mRadosFs->mPriv->poolMap;
     radosfs::PoolListMap::iterator poolIt;
     const std::string &inode = (*it).first;
-    librados::bufferlist hardLink;
+    librados::bufferlist backLink;
 
-    // retrieve the inode hard link from the correct pool
+    // retrieve the inode back link from the correct pool
     for (poolIt = poolMap.begin(); poolIt != poolMap.end(); poolIt++)
     {
       const radosfs::PoolList &poolList = (*poolIt).second;
@@ -262,19 +262,19 @@ RadosFsChecker::fixInodes()
 
         if (ret == 0 && omap.count(XATTR_INODE_HARD_LINK) > 0)
         {
-          hardLink = omap[XATTR_INODE_HARD_LINK];
+          backLink = omap[XATTR_INODE_HARD_LINK];
           break;
         }
       }
 
-      if (hardLink.length() > 0)
+      if (backLink.length() > 0)
         break;
     }
 
     std::string action;
-    if (hardLink.length() > 0)
+    if (backLink.length() > 0)
     {
-      std::string hardLinkStr(hardLink.c_str(), hardLink.length());
+      std::string backLinkStr(backLink.c_str(), backLink.length());
 
       if (mDry)
       {
@@ -287,17 +287,17 @@ RadosFsChecker::fixInodes()
         PoolSP pool;
         Stat stat, parentStat;
 
-        pool = mRadosFs->mPriv->getMetadataPoolFromPath(hardLinkStr);
+        pool = mRadosFs->mPriv->getMetadataPoolFromPath(backLinkStr);
 
         if (!pool.get())
         {
           fprintf(stderr, "Failed to get metadata pool for %s (to point to "
-                  "%s)\n", hardLinkStr.c_str(), inode.c_str());
+                  "%s)\n", backLinkStr.c_str(), inode.c_str());
 
           return -ENODEV;
         }
 
-        stat.path = hardLinkStr;
+        stat.path = backLinkStr;
         stat.pool = pool;
         // We just need it to be a file. The permissions are already
         // set on the inode
@@ -311,7 +311,7 @@ RadosFsChecker::fixInodes()
       }
 
       fprintf(stdout, "%s %s (pointing to %s)\n", action.c_str(),
-              hardLinkStr.c_str(), inode.c_str());
+              backLinkStr.c_str(), inode.c_str());
     }
     else
     {

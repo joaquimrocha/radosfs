@@ -425,7 +425,7 @@ RadosFsTest::testFileInodeBackLink(const std::string &path)
   int nrTries(2);
   while (true)
   {
-    ret = inode.getHardLink(&backLink);
+    ret = inode.getBackLink(&backLink);
 
     if (ret == 0 && nrTries-- > 0)
     {

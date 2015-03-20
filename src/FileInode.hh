@@ -59,7 +59,7 @@ public:
 
   int registerFile(const std::string &path, uid_t uid, gid_t gid, int mode=-1);
 
-  int getHardLink(std::string *hardLink);
+  int getBackLink(std::string *backLink);
 
 private:
   FileInode(FileInodePriv *priv);

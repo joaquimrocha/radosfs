@@ -158,10 +158,10 @@ FileInodePriv::registerFile(const std::string &path, uid_t uid, gid_t gid,
 }
 
 int
-FileInodePriv::setHardLink(const std::string &hardLink)
+FileInodePriv::setBackLink(const std::string &backLink)
 {
   librados::bufferlist buff;
-  buff.append(hardLink);
+  buff.append(backLink);
 
   return io->pool()->ioctx.setxattr(io->inode(), XATTR_INODE_HARD_LINK, buff);
 }
@@ -354,7 +354,7 @@ FileInode::registerFile(const std::string &path, uid_t uid, gid_t gid, int mode)
     return ret;
   }
 
-  ret = mPriv->setHardLink(path);
+  ret = mPriv->setBackLink(path);
 
   if (ret < 0)
   {
@@ -366,7 +366,7 @@ FileInode::registerFile(const std::string &path, uid_t uid, gid_t gid, int mode)
 }
 
 int
-FileInode::getHardLink(std::string *hardLink)
+FileInode::getBackLink(std::string *backLink)
 {
   librados::bufferlist buff;
 
@@ -375,7 +375,7 @@ FileInode::getHardLink(std::string *hardLink)
 
   if (ret >= 0)
   {
-    hardLink->assign(buff.c_str(), 0, buff.length());
+    backLink->assign(buff.c_str(), 0, buff.length());
     return 0;
   }
 
