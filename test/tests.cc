@@ -1022,9 +1022,9 @@ TEST_F(RadosFsTest, FileInode)
 
   EXPECT_EQ(0, file.write("X", 0, 1));
 
-  testFileInodeBackLink(file.path());
-
   file.sync();
+
+  testFileInodeBackLink(file.path());
 
   EXPECT_EQ(0, stat.pool->ioctx.stat(stat.translatedPath, 0, 0));
 
