@@ -930,7 +930,7 @@ FileIO::truncate(size_t newSize)
 
   if (lastStripe < 0)
   {
-    if (lastStripe == -ENOENT)
+    if (lastStripe == -ENOENT || lastStripe == -ENODATA)
       lastStripe = 0;
     else
       return lastStripe;
@@ -1056,12 +1056,10 @@ ssize_t
 FileIO::getLastStripeIndexAndSize(uint64_t *size) const
 {
   librados::ObjectReadOperation op;
-  std::set<std::string> keys;
-  std::map<std::string, librados::bufferlist> omap;
+  librados::bufferlist sizeXAttr;
   ssize_t fileSize(0);
 
-  keys.insert(XATTR_FILE_SIZE);
-  op.omap_get_vals_by_keys(keys, &omap, 0);
+  op.getxattr(XATTR_FILE_SIZE, &sizeXAttr, 0);
   op.assert_exists();
 
   int ret = mPool->ioctx.operate(inode(), &op, 0);
@@ -1069,9 +1067,8 @@ FileIO::getLastStripeIndexAndSize(uint64_t *size) const
   if (ret < 0)
     return ret;
 
-  if (omap.count(XATTR_FILE_SIZE) > 0)
+  if (sizeXAttr.length() > 0)
   {
-    librados::bufferlist sizeXAttr = omap[XATTR_FILE_SIZE];
     const std::string sizeStr(sizeXAttr.c_str(), sizeXAttr.length());
     fileSize = strtoul(sizeStr.c_str(), 0, 16);
   }
@@ -1116,20 +1113,12 @@ int
 FileIO::setSizeIfBigger(size_t size)
 {
   librados::ObjectWriteOperation writeOp;
-  std::map<std::string, librados::bufferlist> omap;
-  std::map<std::string, std::pair<librados::bufferlist, int> > omapCmp;
-  librados::bufferlist cmpValue;
-  std::string sizeHex = fileSizeToHex(size);
-
-  omap[XATTR_FILE_SIZE].append(sizeHex);
-  cmpValue.append(sizeHex);
-  std::pair<librados::bufferlist, int> cmp(cmpValue, LIBRADOS_CMPXATTR_OP_LT);
-  omapCmp[XATTR_FILE_SIZE] = cmp;
+  librados::bufferlist sizeBl;
+  sizeBl.append(fileSizeToHex(size));
 
   // Set the new size only if it's greater than the one already set
-  int compRet;
-  writeOp.omap_set(omap);
-  writeOp.omap_cmp(omapCmp, &compRet);
+  writeOp.setxattr(XATTR_FILE_SIZE, sizeBl);
+  writeOp.cmpxattr(XATTR_FILE_SIZE, LIBRADOS_CMPXATTR_OP_GT, sizeBl);
 
   int ret = mPool->ioctx.operate(inode(), &writeOp);
 
@@ -1148,14 +1137,12 @@ FileIO::setSizeIfBigger(size_t size)
 int
 FileIO::setSize(size_t size)
 {
+  librados::bufferlist sizeBl;
+  sizeBl.append(fileSizeToHex(size));
+
   librados::ObjectWriteOperation writeOp;
-  std::map<std::string, librados::bufferlist> omap;
-  std::string sizeHex = fileSizeToHex(size);
-
-  omap[XATTR_FILE_SIZE].append(sizeHex);
-
   writeOp.create(false);
-  writeOp.omap_set(omap);
+  writeOp.setxattr(XATTR_FILE_SIZE, sizeBl);
 
   int ret = mPool->ioctx.operate(inode(), &writeOp);
 

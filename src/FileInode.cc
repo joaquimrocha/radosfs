@@ -160,10 +160,10 @@ FileInodePriv::registerFile(const std::string &path, uid_t uid, gid_t gid,
 int
 FileInodePriv::setHardLink(const std::string &hardLink)
 {
-  std::map<std::string, librados::bufferlist> omap;
-  omap[XATTR_INODE_HARD_LINK].append(hardLink);
+  librados::bufferlist buff;
+  buff.append(hardLink);
 
-  return io->pool()->ioctx.omap_set(name, omap);
+  return io->pool()->ioctx.setxattr(io->inode(), XATTR_INODE_HARD_LINK, buff);
 }
 
 FileInode::FileInode(Filesystem *fs, const std::string &pool)
@@ -368,17 +368,15 @@ FileInode::registerFile(const std::string &path, uid_t uid, gid_t gid, int mode)
 int
 FileInode::getHardLink(std::string *hardLink)
 {
-  std::set<std::string> keys;
-  std::map<std::string, librados::bufferlist> omap;
+  librados::bufferlist buff;
 
-  keys.insert(XATTR_INODE_HARD_LINK);
+  int ret = mPriv->io->pool()->ioctx.getxattr(name(), XATTR_INODE_HARD_LINK,
+                                              buff);
 
-  int ret = mPriv->io->pool()->ioctx.omap_get_vals_by_keys(name(), keys, &omap);
-
-  if (ret == 0 && omap.count(XATTR_INODE_HARD_LINK) > 0)
+  if (ret >= 0)
   {
-    librados::bufferlist buff = omap[XATTR_INODE_HARD_LINK];
     hardLink->assign(buff.c_str(), 0, buff.length());
+    return 0;
   }
 
   return ret;
