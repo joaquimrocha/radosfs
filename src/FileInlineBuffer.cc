@@ -277,7 +277,8 @@ FileInlineBuffer::truncate(size_t size)
     }
     else if (size > memoryBuffer->length())
     {
-      memoryBuffer->append(capacity() - memoryBuffer->length(), '\0');
+      size_t newSize = std::min(capacity(), size);
+      memoryBuffer->append(newSize - memoryBuffer->length(), '\0');
     }
 
     return;
@@ -299,7 +300,8 @@ FileInlineBuffer::truncate(size_t size)
     else if (size > currentContents.length())
     {
       inlineBuffer = currentContents;
-      inlineBuffer.append(capacity() - currentContents.length(), '\0');
+      size_t newSize = std::min(capacity(), size);
+      inlineBuffer.append(newSize - currentContents.length(), '\0');
     }
     else
     {
