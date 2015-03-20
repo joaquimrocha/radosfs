@@ -1103,9 +1103,7 @@ TEST_F(RadosFsTest, FileInodeDirect)
 
   std::string hardLink;
 
-  EXPECT_EQ(0, inode.getHardLink(&hardLink));
-
-  EXPECT_TRUE(hardLink.empty());
+  EXPECT_EQ(-ENODATA, inode.getHardLink(&hardLink));
 
   radosfs::File file(&radosFs, "/file");
 
