@@ -99,6 +99,8 @@ public:
 
   void finishCheck(void);
 
+  void setVerbose(bool verbose) { mVerbose = verbose; }
+
 private:
   bool checkPath(const std::string &path);
   void checkDirRecursive(const std::string &path);
