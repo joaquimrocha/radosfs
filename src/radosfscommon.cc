@@ -1284,3 +1284,39 @@ moveLogicalFile(Stat &oldParent, Stat &newParent,
 
   return ret;
 }
+
+int
+getFileInodeBackLink(Pool *pool, const std::string &inode,
+                     std::string *backLink)
+{
+  librados::bufferlist buff;
+
+  int ret = pool->ioctx.getxattr(inode, XATTR_INODE_HARD_LINK, buff);
+
+  if (ret >= 0)
+  {
+    backLink->assign(buff.c_str(), 0, buff.length());
+    return 0;
+  }
+
+  return ret;
+}
+
+int
+getDirInodeBackLink(Pool *pool, const std::string &inode, std::string *backLink)
+{
+  std::set<std::string> keys;
+  std::map<std::string, librados::bufferlist> omap;
+
+  keys.insert(XATTR_INODE_HARD_LINK);
+
+  int ret = pool->ioctx.omap_get_vals_by_keys(inode, keys, &omap);
+
+  if (ret == 0 && omap.count(XATTR_INODE_HARD_LINK) > 0)
+  {
+    librados::bufferlist buff = omap[XATTR_INODE_HARD_LINK];
+    backLink->assign(buff.c_str(), 0, buff.length());
+  }
+
+  return ret;
+}

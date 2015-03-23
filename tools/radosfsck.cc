@@ -191,16 +191,14 @@ main(int argc, char **argv)
 
   RadosFsChecker checker(&radosFs);
 
-  checker.setVerbose(verbose);
-  checker.setDry(dry);
+  DiagnosticSP diagnostic(new Diagnostic);
+  StatSP stat;
 
-  if (fix)
-    checker.fix();
-  else
-  {
-    checker.check();
-    checker.printIssues();
-  }
+  checker.checkDirInThread(stat, "/", true, diagnostic);
+
+  checker.finishCheck();
+
+  diagnostic->print(checker.errorsDescription);
 
   return 0;
 }

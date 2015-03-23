@@ -368,18 +368,7 @@ FileInode::registerFile(const std::string &path, uid_t uid, gid_t gid, int mode)
 int
 FileInode::getBackLink(std::string *backLink)
 {
-  librados::bufferlist buff;
-
-  int ret = mPriv->io->pool()->ioctx.getxattr(name(), XATTR_INODE_HARD_LINK,
-                                              buff);
-
-  if (ret >= 0)
-  {
-    backLink->assign(buff.c_str(), 0, buff.length());
-    return 0;
-  }
-
-  return ret;
+  return getFileInodeBackLink(mPriv->io->pool().get(), name(), backLink);
 }
 
 RADOS_FS_END_NAMESPACE

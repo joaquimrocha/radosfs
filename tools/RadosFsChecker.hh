@@ -20,7 +20,12 @@
 #include "Filesystem.hh"
 #include "Dir.hh"
 #include "File.hh"
+#include "radosfscommon.h"
 
+#include <boost/thread.hpp>
+#include <boost/shared_ptr.hpp>
+#include <boost/asio.hpp>
+#include <boost/chrono.hpp>
 #include <map>
 #include <set>
 #include <string>
@@ -28,33 +33,90 @@
 #ifndef __RADOS_FS_CHECKER_HH__
 #define __RADOS_FS_CHECKER_HH__
 
+enum ErrorCode
+{
+  NO_ENT = -ENOENT,
+  NO_LINK = -ENOLINK,
+  NO_MTIME = 1,
+  NO_CTIME,
+  NO_INODE,
+  NO_MODE,
+  NO_UID,
+  NO_GID,
+  NO_POOL,
+  NO_INLINE_BUFFER_SIZE,
+  NO_INLINEBUFFER,
+  FILE_ENTRY_NO_LINK,
+  EMPTY_FILE_ENTRY,
+  NO_BACK_LINK,
+  WRONG_BACK_LINK,
+  BACK_LINK_NO_ENT,
+
+  NO_ERROR
+};
+
+struct Issue
+{
+  Issue (const std::string &path, int error)
+    : path(path),
+      errorCode(error)
+  {}
+
+  std::string path;
+  int errorCode;
+
+  void print(const std::map<ErrorCode, std::string> &errors);
+};
+
+struct Diagnostic
+{
+  std::vector<Issue> fileIssues;
+  std::vector<Issue> dirIssues;
+  boost::mutex fileIssuesMutex;
+  boost::mutex dirIssuesMutex;
+
+  void addFileIssue(const Issue &issue);
+  void addDirIssue(const Issue &issue);
+  void print(const std::map<ErrorCode, std::string> &errors);
+};
+
+typedef boost::shared_ptr<Diagnostic> DiagnosticSP;
+
 class RadosFsChecker
 {
 public:
   RadosFsChecker(radosfs::Filesystem *radosFs);
 
-  int check(void);
-  void printIssues(void);
-  int fixDirs(void);
-  int fixInodes(void);
-  void fix(void);
-  void setVerbose(bool verbose) { mVerbose = verbose; }
-  void setDry(bool dry) { mDry = dry; }
+  void checkDir(StatSP parentStat, std::string path, bool recursive,
+                DiagnosticSP diagnostic);
+
+  void checkDirInThread(StatSP parentStat, std::string path, bool recursive,
+                        DiagnosticSP diagnostic);
+
+  void animate(void);
+
+  const std::map<ErrorCode, std::string> errorsDescription;
+
+  void finishCheck(void);
 
 private:
   bool checkPath(const std::string &path);
   void checkDirRecursive(const std::string &path);
 
+  void generalWorkerThread(boost::shared_ptr<boost::asio::io_service> ioService);
+
+  int verifyFileObject(const std::string path,
+                       std::map<std::string, librados::bufferlist> &omap,
+                       DiagnosticSP diagnostic);
+
   radosfs::Filesystem *mRadosFs;
-  bool mVerbose;
-  bool mDry;
-  std::map<std::string, std::string> mBrokenLinks;
-  std::set<std::string> mBrokenFiles;
-  std::map<std::string, std::string> mBrokenInodes;
-  std::map<std::string, std::string> mBrokenDirs;
-  std::map<std::string, std::string> mInodes;
-  std::map<std::string, std::string> mBrokenStripes;
-  std::map<std::string, std::string> mDirs;
+  boost::shared_ptr<boost::asio::io_service> ioService;
+  boost::shared_ptr<boost::asio::io_service::work> asyncWork;
+  boost::thread_group generalWorkerThreads;
+  boost::mutex mAnimationMutex;
+  size_t mAnimationStep;
+  boost::chrono::system_clock::time_point mAnimationLastUpdate;
+  const std::string mAnimation;
 };
 
 #endif // __RADOS_FS_CHECKER_HH__

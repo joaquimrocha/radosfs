@@ -233,4 +233,10 @@ int moveLogicalFile(Stat &oldParent, Stat &newParent,
                     const std::string &oldFilePath,
                     const std::string &newFilePath);
 
+int getFileInodeBackLink(Pool *pool, const std::string &inode,
+                         std::string *backLink);
+
+int getDirInodeBackLink(Pool *pool, const std::string &inode,
+                        std::string *backLink);
+
 #endif /* __RADOS_FS_COMMON_HH__ */
