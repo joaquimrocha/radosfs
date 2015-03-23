@@ -29,6 +29,8 @@
 #include "RadosFsChecker.hh"
 #include "FilesystemPriv.hh"
 
+#define ANIMATION_STEP_TIMEOUT 150 // ms
+
 void
 RadosFsChecker::generalWorkerThread(
     boost::shared_ptr<boost::asio::io_service> ioService)
@@ -64,7 +66,10 @@ RadosFsChecker::RadosFsChecker(radosfs::Filesystem *radosFs)
   : errorsDescription(createErrorsDescription()),
     mRadosFs(radosFs),
     ioService(new boost::asio::io_service),
-    asyncWork(new boost::asio::io_service::work(*ioService))
+    asyncWork(new boost::asio::io_service::work(*ioService)),
+    mAnimationStep(0),
+    mAnimationLastUpdate(boost::chrono::system_clock::now()),
+    mAnimation("|/-\\")
 {
   int numThreads = 10;
   while (numThreads-- > 0)
@@ -236,6 +241,8 @@ RadosFsChecker::checkDir(StatSP parentStat, std::string path,
   Stat stat;
   int ret = mRadosFs->mPriv->stat(path, &stat);
 
+  animate();
+
   if (ret < 0)
   {
     Issue issue(path, ret);
@@ -327,6 +334,24 @@ RadosFsChecker::finishCheck(void)
 }
 
 void
+RadosFsChecker::animate()
+{
+  boost::unique_lock<boost::mutex> lock(mAnimationMutex);
+  boost::chrono::system_clock::time_point now = boost::chrono::system_clock::now();
+  boost::chrono::duration<double> timeDiff;
+  timeDiff = now - mAnimationLastUpdate;
+
+  if (timeDiff < boost::chrono::milliseconds(ANIMATION_STEP_TIMEOUT))
+    return;
+
+  mAnimationLastUpdate = now;
+  mAnimationStep %= mAnimation.length();
+
+  fprintf(stdout, " Checking %c\r", mAnimation[mAnimationStep++]);
+  fflush(stdout);
+}
+
+void
 Issue::print(const std::map<ErrorCode, std::string> &errors)
 {
   std::map<ErrorCode, std::string>::const_iterator it =
@@ -360,6 +385,9 @@ Diagnostic::addDirIssue(const Issue &issue)
 void
 Diagnostic::print(const std::map<ErrorCode, std::string> &errors)
 {
+  fprintf(stdout, " Checking done \r");
+  fflush(stdout);
+
   size_t totalIssues = fileIssues.size() + dirIssues.size();
   fprintf(stdout, "\n\nIssues found: %lu\n", totalIssues);
 
