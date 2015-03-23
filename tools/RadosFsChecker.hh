@@ -109,6 +109,8 @@ private:
                        std::map<std::string, librados::bufferlist> &omap,
                        DiagnosticSP diagnostic);
 
+  void log(const char *msg, ...);
+
   radosfs::Filesystem *mRadosFs;
   boost::shared_ptr<boost::asio::io_service> ioService;
   boost::shared_ptr<boost::asio::io_service::work> asyncWork;
@@ -117,6 +119,7 @@ private:
   size_t mAnimationStep;
   boost::chrono::system_clock::time_point mAnimationLastUpdate;
   const std::string mAnimation;
+  bool mVerbose;
 };
 
 #endif // __RADOS_FS_CHECKER_HH__

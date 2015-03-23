@@ -17,6 +17,7 @@
  * for more details.
  */
 
+#include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
 #include <rados/librados.hpp>
@@ -69,7 +70,8 @@ RadosFsChecker::RadosFsChecker(radosfs::Filesystem *radosFs)
     asyncWork(new boost::asio::io_service::work(*ioService)),
     mAnimationStep(0),
     mAnimationLastUpdate(boost::chrono::system_clock::now()),
-    mAnimation("|/-\\")
+    mAnimation("|/-\\"),
+    mVerbose(false)
 {
   int numThreads = 10;
   while (numThreads-- > 0)
@@ -243,10 +245,15 @@ RadosFsChecker::checkDir(StatSP parentStat, std::string path,
 
   animate();
 
+  log("Checking dir '%s'...\n", path.c_str());
+
   if (ret < 0)
   {
     Issue issue(path, ret);
     diagnostic->addDirIssue(issue);
+
+    log(" Error in '%s': %d\n", path.c_str(), ret);
+
     return;
   }
 
@@ -261,6 +268,8 @@ RadosFsChecker::checkDir(StatSP parentStat, std::string path,
   {
     Issue issue(dir.path(), ret);
     issue.errorCode = ret;
+
+    log(" Error in '%s': %d\n", path.c_str(), ret);
 
     diagnostic->addDirIssue(issue);
   }
@@ -278,18 +287,24 @@ RadosFsChecker::checkDir(StatSP parentStat, std::string path,
     const std::string entryPath = dir.path() + entryName;
     ret = mRadosFs->mPriv->stat(entryPath, &stat);
 
+    log(" Checking entry '%s' of '%s'\n", entryName.c_str(), dir.path().c_str());
+
     if (ret < 0)
     {
       Issue issue(entryPath, ret);
 
       if (isDirPath(entryPath))
       {
+        log(" Error in '%s': %d\n", entryPath.c_str(), ret);
+
         diagnostic->addDirIssue(issue);
       }
       else
       {
         if (ret == -ENOENT)
           issue.errorCode = FILE_ENTRY_NO_LINK;
+
+        log(" Error in '%s': %d\n", entryPath.c_str(), issue.errorCode);
 
         diagnostic->addFileIssue(issue);
       }
@@ -349,6 +364,21 @@ RadosFsChecker::animate()
 
   fprintf(stdout, " Checking %c\r", mAnimation[mAnimationStep++]);
   fflush(stdout);
+}
+
+void
+RadosFsChecker::log(const char *msg, ...)
+{
+  if (!mVerbose)
+    return;
+
+  va_list args;
+
+  va_start(args, msg);
+
+  vfprintf(stderr, msg, args);
+
+  va_end(args);
 }
 
 void
