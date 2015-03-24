@@ -475,4 +475,22 @@ Diagnostic::print(const std::map<ErrorCode, std::string> &errors)
   {
     (*it).print(errors);
   }
+
+  if (fileSolvedIssues.size() > 0)
+  {
+    fprintf(stdout, "\nFile issues solved: %lu\n", fileSolvedIssues.size());
+    for (it = fileSolvedIssues.begin(); it != fileSolvedIssues.end(); it++)
+    {
+      (*it).print(errors);
+    }
+  }
+
+  if (dirSolvedIssues.size() > 0)
+  {
+    fprintf(stdout, "\nDir issues solved: %lu\n", dirSolvedIssues.size());
+    for (it = dirSolvedIssues.begin(); it != dirSolvedIssues.end(); it++)
+    {
+      (*it).print(errors);
+    }
+  }
 }
