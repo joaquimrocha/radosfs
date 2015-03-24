@@ -64,6 +64,7 @@ struct Issue
   {}
 
   std::string path;
+  std::string extraInfo;
   int errorCode;
   bool fixed;
 

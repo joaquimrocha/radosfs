@@ -133,6 +133,7 @@ RadosFsChecker::verifyDirObject(Stat &stat,
     if (buff.length() == 0)
     {
       Issue issue(stat.path, errorCodes[i]);
+      issue.extraInfo = stat.translatedPath;
 
       if (strcmp(keysToCheck[i], XATTR_INODE_HARD_LINK) == 0)
       {
@@ -241,6 +242,7 @@ RadosFsChecker::verifyFileObject(const std::string path,
   {
     int errorCode = backLink.empty() ? NO_BACK_LINK : WRONG_BACK_LINK;
     Issue issue(path, errorCode);
+    issue.extraInfo = stat.translatedPath;
 
     if (mFix)
     {
