@@ -192,6 +192,7 @@ main(int argc, char **argv)
   RadosFsChecker checker(&radosFs);
 
   checker.setVerbose(verbose);
+  checker.setFix(fix);
 
   DiagnosticSP diagnostic(new Diagnostic);
   StatSP stat;

@@ -59,21 +59,28 @@ struct Issue
 {
   Issue (const std::string &path, int error)
     : path(path),
-      errorCode(error)
+      errorCode(error),
+      fixed(false)
   {}
 
   std::string path;
   int errorCode;
+  bool fixed;
 
   void print(const std::map<ErrorCode, std::string> &errors);
+  void setFixed(void) { fixed = true; }
 };
 
 struct Diagnostic
 {
   std::vector<Issue> fileIssues;
   std::vector<Issue> dirIssues;
+  std::vector<Issue> fileSolvedIssues;
+  std::vector<Issue> dirSolvedIssues;
   boost::mutex fileIssuesMutex;
   boost::mutex dirIssuesMutex;
+  boost::mutex fileSolvedIssuesMutex;
+  boost::mutex dirSolvedIssuesMutex;
 
   void addFileIssue(const Issue &issue);
   void addDirIssue(const Issue &issue);
@@ -101,6 +108,8 @@ public:
 
   void setVerbose(bool verbose) { mVerbose = verbose; }
 
+  void setFix(bool fix) { mFix = fix; }
+
 private:
   bool checkPath(const std::string &path);
   void checkDirRecursive(const std::string &path);
@@ -108,6 +117,10 @@ private:
   void generalWorkerThread(boost::shared_ptr<boost::asio::io_service> ioService);
 
   int verifyFileObject(const std::string path,
+                       std::map<std::string, librados::bufferlist> &omap,
+                       DiagnosticSP diagnostic);
+
+  bool verifyDirObject(Stat &stat,
                        std::map<std::string, librados::bufferlist> &omap,
                        DiagnosticSP diagnostic);
 
@@ -122,6 +135,7 @@ private:
   boost::chrono::system_clock::time_point mAnimationLastUpdate;
   const std::string mAnimation;
   bool mVerbose;
+  bool mFix;
 };
 
 #endif // __RADOS_FS_CHECKER_HH__

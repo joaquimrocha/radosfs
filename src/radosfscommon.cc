@@ -1320,3 +1320,23 @@ getDirInodeBackLink(Pool *pool, const std::string &inode, std::string *backLink)
 
   return ret;
 }
+
+int
+setFileInodeBackLink(Pool *pool, const std::string &inode,
+                     const std::string &backLink)
+{
+  librados::bufferlist buff;
+  buff.append(backLink);
+
+  return pool->ioctx.setxattr(inode, XATTR_INODE_HARD_LINK, buff);
+}
+
+int
+setDirInodeBackLink(Pool *pool, const std::string &inode,
+                    const std::string &backLink)
+{
+  std::map<std::string, librados::bufferlist> omap;
+  omap[XATTR_INODE_HARD_LINK].append(backLink);
+
+  return pool->ioctx.omap_set(inode, omap);
+}

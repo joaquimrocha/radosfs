@@ -71,7 +71,8 @@ RadosFsChecker::RadosFsChecker(radosfs::Filesystem *radosFs)
     mAnimationStep(0),
     mAnimationLastUpdate(boost::chrono::system_clock::now()),
     mAnimation("|/-\\"),
-    mVerbose(false)
+    mVerbose(false),
+    mFix(false)
 {
   int numThreads = 10;
   while (numThreads-- > 0)
@@ -109,11 +110,10 @@ verifyPairsInEntry(const std::string &path,
   return noIssues;
 }
 
-static bool
-verifyDirObject(radosfs::Filesystem *radosFs,
-                Stat &stat,
-                std::map<std::string, librados::bufferlist> &omap,
-                boost::shared_ptr<Diagnostic> diagnostic)
+bool
+RadosFsChecker::verifyDirObject(Stat &stat,
+                                std::map<std::string, librados::bufferlist> &omap,
+                                DiagnosticSP diagnostic)
 {
   bool noIssues = true;
   const char * keysToCheck[] = {XATTR_INODE_HARD_LINK, XATTR_CTIME, XATTR_MTIME,
@@ -133,6 +133,19 @@ verifyDirObject(radosfs::Filesystem *radosFs,
     if (buff.length() == 0)
     {
       Issue issue(stat.path, errorCodes[i]);
+
+      if (strcmp(keysToCheck[i], XATTR_INODE_HARD_LINK) == 0)
+      {
+        if (mFix)
+        {
+          int ret = setDirInodeBackLink(stat.pool.get(), stat.translatedPath,
+                                        stat.path);
+
+          if (ret == 0)
+            issue.setFixed();
+        }
+      }
+
       diagnostic->addDirIssue(issue);
       noIssues = false;
     }
@@ -228,6 +241,15 @@ RadosFsChecker::verifyFileObject(const std::string path,
   {
     int errorCode = backLink.empty() ? NO_BACK_LINK : WRONG_BACK_LINK;
     Issue issue(path, errorCode);
+
+    if (mFix)
+    {
+      int ret = setFileInodeBackLink(stat.pool.get(), stat.translatedPath, path);
+
+      if (ret == 0)
+        issue.setFixed();
+    }
+
     diagnostic->addFileIssue(issue);
     return ret;
   }
@@ -277,7 +299,7 @@ RadosFsChecker::checkDir(StatSP parentStat, std::string path,
   std::map<std::string, librados::bufferlist> omap;
   stat.pool->ioctx.omap_get_vals(stat.translatedPath, "", "", UINT_MAX, &omap);
 
-  verifyDirObject(mRadosFs, stat, omap, diagnostic);
+  verifyDirObject(stat, omap, diagnostic);
 
   std::set<std::string>::iterator it;
   for (it = entries.begin(); it != entries.end(); it++)
@@ -328,7 +350,7 @@ RadosFsChecker::checkDir(StatSP parentStat, std::string path,
       stat.pool->ioctx.omap_get_vals(stat.translatedPath, "", "", UINT_MAX,
                                      &omap);
 
-      verifyDirObject(mRadosFs, stat, omap, diagnostic);
+      verifyDirObject(stat, omap, diagnostic);
     }
   }
 }
@@ -401,15 +423,31 @@ Issue::print(const std::map<ErrorCode, std::string> &errors)
 void
 Diagnostic::addFileIssue(const Issue &issue)
 {
-  boost::unique_lock<boost::mutex> lock(fileIssuesMutex);
-  fileIssues.push_back(issue);
+  if (issue.fixed)
+  {
+    boost::unique_lock<boost::mutex> lock(fileSolvedIssuesMutex);
+    fileSolvedIssues.push_back(issue);
+  }
+  else
+  {
+    boost::unique_lock<boost::mutex> lock(fileIssuesMutex);
+    fileIssues.push_back(issue);
+  }
 }
 
 void
 Diagnostic::addDirIssue(const Issue &issue)
 {
-  boost::unique_lock<boost::mutex> lock(dirIssuesMutex);
-  dirIssues.push_back(issue);
+  if (issue.fixed)
+  {
+    boost::unique_lock<boost::mutex> lock(dirSolvedIssuesMutex);
+    dirSolvedIssues.push_back(issue);
+  }
+  else
+  {
+    boost::unique_lock<boost::mutex> lock(dirIssuesMutex);
+    dirIssues.push_back(issue);
+  }
 }
 
 void
