@@ -414,12 +414,15 @@ Issue::print(const std::map<ErrorCode, std::string> &errors)
   if (it != errors.end())
   {
     const std::string &error = (*it).second;
-    fprintf(stdout, "%-20s   %s\n", error.c_str(), path.c_str());
+    fprintf(stdout, "%-20s", error.c_str());
   }
   else
   {
-    fprintf(stdout, "%-20d   %s\n", errorCode, path.c_str());
+    fprintf(stdout, "%-20d", errorCode);
   }
+
+  fprintf(stdout, "   %s%s\n", path.c_str(),
+          extraInfo.empty() ? "" : (" : " + extraInfo).c_str());
 }
 
 void
