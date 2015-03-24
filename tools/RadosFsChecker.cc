@@ -464,21 +464,22 @@ Diagnostic::print(const std::map<ErrorCode, std::string> &errors)
   size_t totalIssues = fileIssues.size() + dirIssues.size();
   fprintf(stdout, "\n\nIssues found: %lu\n", totalIssues);
 
-  if (totalIssues == 0)
-    return;
 
   std::vector<Issue>::iterator it;
 
-  fprintf(stdout, "\nFile issues: %lu\n", fileIssues.size());
-  for (it = fileIssues.begin(); it != fileIssues.end(); it++)
+  if (totalIssues > 0)
   {
-    (*it).print(errors);
-  }
+    fprintf(stdout, "\nFile issues: %lu\n", fileIssues.size());
+    for (it = fileIssues.begin(); it != fileIssues.end(); it++)
+    {
+      (*it).print(errors);
+    }
 
-  fprintf(stdout, "\nDirectory issues: %lu\n", dirIssues.size());
-  for (it = dirIssues.begin(); it != dirIssues.end(); it++)
-  {
-    (*it).print(errors);
+    fprintf(stdout, "\nDirectory issues: %lu\n", dirIssues.size());
+    for (it = dirIssues.begin(); it != dirIssues.end(); it++)
+    {
+      (*it).print(errors);
+    }
   }
 
   if (fileSolvedIssues.size() > 0)
