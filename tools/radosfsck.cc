@@ -193,6 +193,7 @@ main(int argc, char **argv)
 
   checker.setVerbose(verbose);
   checker.setFix(fix);
+  checker.setDry(dry);
 
   DiagnosticSP diagnostic(new Diagnostic);
   StatSP stat;
@@ -201,7 +202,7 @@ main(int argc, char **argv)
 
   checker.finishCheck();
 
-  diagnostic->print(checker.errorsDescription);
+  diagnostic->print(checker.errorsDescription, dry);
 
   return 0;
 }

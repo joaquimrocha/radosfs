@@ -72,7 +72,8 @@ RadosFsChecker::RadosFsChecker(radosfs::Filesystem *radosFs)
     mAnimationLastUpdate(boost::chrono::system_clock::now()),
     mAnimation("|/-\\"),
     mVerbose(false),
-    mFix(false)
+    mFix(false),
+    mDry(false)
 {
   int numThreads = 10;
   while (numThreads-- > 0)
@@ -139,8 +140,13 @@ RadosFsChecker::verifyDirObject(Stat &stat,
       {
         if (mFix)
         {
-          int ret = setDirInodeBackLink(stat.pool.get(), stat.translatedPath,
-                                        stat.path);
+          int ret = 0;
+
+          if (!mDry)
+          {
+            ret = setDirInodeBackLink(stat.pool.get(), stat.translatedPath,
+                                      stat.path);
+          }
 
           if (ret == 0)
             issue.setFixed();
@@ -246,7 +252,10 @@ RadosFsChecker::verifyFileObject(const std::string path,
 
     if (mFix)
     {
-      int ret = setFileInodeBackLink(stat.pool.get(), stat.translatedPath, path);
+      int ret = 0;
+
+      if (!mDry)
+        ret = setFileInodeBackLink(stat.pool.get(), stat.translatedPath, path);
 
       if (ret == 0)
         issue.setFixed();
@@ -456,7 +465,7 @@ Diagnostic::addDirIssue(const Issue &issue)
 }
 
 void
-Diagnostic::print(const std::map<ErrorCode, std::string> &errors)
+Diagnostic::print(const std::map<ErrorCode, std::string> &errors, bool dry)
 {
   fprintf(stdout, " Checking done \r");
   fflush(stdout);
@@ -484,7 +493,13 @@ Diagnostic::print(const std::map<ErrorCode, std::string> &errors)
 
   if (fileSolvedIssues.size() > 0)
   {
-    fprintf(stdout, "\nFile issues solved: %lu\n", fileSolvedIssues.size());
+    if (!dry)
+      fprintf(stdout, "\nFile issues solved: ");
+    else
+      fprintf(stdout, "\nFile issues that would be solved: ");
+
+    fprintf(stdout, "%lu\n", fileSolvedIssues.size());
+
     for (it = fileSolvedIssues.begin(); it != fileSolvedIssues.end(); it++)
     {
       (*it).print(errors);
@@ -493,7 +508,13 @@ Diagnostic::print(const std::map<ErrorCode, std::string> &errors)
 
   if (dirSolvedIssues.size() > 0)
   {
-    fprintf(stdout, "\nDir issues solved: %lu\n", dirSolvedIssues.size());
+    if (!dry)
+      fprintf(stdout, "\nDir issues solved: ");
+    else
+      fprintf(stdout, "\nDir issues that would be solved: ");
+
+    fprintf(stdout, "%lu\n", dirSolvedIssues.size());
+
     for (it = dirSolvedIssues.begin(); it != dirSolvedIssues.end(); it++)
     {
       (*it).print(errors);

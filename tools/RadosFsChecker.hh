@@ -85,7 +85,7 @@ struct Diagnostic
 
   void addFileIssue(const Issue &issue);
   void addDirIssue(const Issue &issue);
-  void print(const std::map<ErrorCode, std::string> &errors);
+  void print(const std::map<ErrorCode, std::string> &errors, bool dry);
 };
 
 typedef boost::shared_ptr<Diagnostic> DiagnosticSP;
@@ -108,6 +108,8 @@ public:
   void finishCheck(void);
 
   void setVerbose(bool verbose) { mVerbose = verbose; }
+
+  void setDry(bool dry) { mDry = dry; }
 
   void setFix(bool fix) { mFix = fix; }
 
@@ -137,6 +139,7 @@ private:
   const std::string mAnimation;
   bool mVerbose;
   bool mFix;
+  bool mDry;
 };
 
 #endif // __RADOS_FS_CHECKER_HH__
