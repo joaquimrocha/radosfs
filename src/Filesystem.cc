@@ -449,14 +449,14 @@ getInlineBufferCapacityFromExtraData(
 }
 
 void
-FilesystemPriv::statXAttrInThread(std::string path, std::string xattr,
+FilesystemPriv::statEntryInThread(std::string path, std::string entry,
                                   size_t inlineBufferSize, Stat *stat, int *ret,
                                   boost::mutex *mutex,
                                   boost::condition_variable *cond, int *numJobs)
 {
   PoolSP dataPool;
   std::string pool;
-  *ret = statFromXAttr(path, xattr, &stat->statBuff, stat->translatedPath,
+  *ret = statFromXAttr(path, entry, &stat->statBuff, stat->translatedPath,
                        pool, stat->extraData);
 
   if (*ret != 0)
@@ -534,7 +534,7 @@ FilesystemPriv::statEntries(StatAsyncInfo *info,
                          XATTR_FILE_INLINE_BUFFER_HEADER_SIZE;
     }
 
-    ioService->post(boost::bind(&FilesystemPriv::statXAttrInThread, this, path,
+    ioService->post(boost::bind(&FilesystemPriv::statEntryInThread, this, path,
                                 xattr, inlineBufferSize, &stats[i], &rets[i],
                                 &mutex, &cond, &numJobs));
   }

@@ -195,7 +195,7 @@ public:
 
   void updateDirTimes(Stat *stat, timespec *spec = 0);
 
-  void statXAttrInThread(std::string path, std::string xattr,
+  void statEntryInThread(std::string path, std::string entry,
                          size_t inlineBufferSize, Stat *stat, int *ret,
                          boost::mutex *mutex, boost::condition_variable *cond,
                          int *numJobs);
