@@ -624,6 +624,94 @@ TEST_F(RadosFsTest, CreateFileInDir)
   EXPECT_EQ(0, file.create());
 }
 
+TEST_F(RadosFsTest, StatFile)
+{
+  AddPool();
+
+  size_t inlineBufferSize = 16;
+
+  // Create a file with a predefined inline buffer size
+
+  radosfs::File file(&radosFs, "/file");
+
+  ASSERT_EQ(0, file.create(-1, "", 0, inlineBufferSize));
+
+  // Stat the empty file and verify its size
+
+  struct stat stat1;
+
+  EXPECT_EQ(0, radosFs.stat(file.path(), &stat1));
+
+  EXPECT_EQ(0, stat1.st_size);
+
+  // Write inline contents to the file
+
+  std::string contents("x");
+
+  EXPECT_EQ(0, file.writeSync(contents.c_str(), 0, contents.length()));
+
+  // Stat the file from the file instance and from the filesystem instance, and
+  // verify that they match
+
+  EXPECT_EQ(0, file.stat(&stat1));
+
+  struct stat stat2;
+
+  EXPECT_EQ(0, radosFs.stat(file.path(), &stat2));
+
+  EXPECT_EQ(stat1.st_size, stat2.st_size);
+
+  EXPECT_EQ(contents.length(), stat2.st_size);
+
+  // Write contents beyong the inline buffer and stat again
+
+  contents.assign(inlineBufferSize + 1, 'y');
+
+  EXPECT_EQ(0, file.writeSync(contents.c_str(), 0, contents.length()));
+
+  EXPECT_EQ(0, radosFs.stat(file.path(), &stat1));
+
+  EXPECT_EQ(contents.length(), stat1.st_size);
+
+  // Create a new file and write to its inline buffer
+
+  radosfs::File file1(&radosFs, "/file1");
+
+  ASSERT_EQ(0, file1.create(-1, "", 0, inlineBufferSize));
+
+  EXPECT_EQ(0, file1.writeSync(contents.c_str(), 0, contents.length() / 2));
+
+  // Stat three paths in parallel and verify the stat operations' return codes
+  // and sizes
+
+  std::vector<std::pair<int, struct stat> > statResult;
+  std::vector<std::string> paths;
+
+  paths.push_back(file.path());
+  paths.push_back(file1.path());
+  paths.push_back("/non-existing");
+
+  statResult = radosFs.stat(paths);
+
+  EXPECT_EQ(paths.size(), statResult.size());
+
+  const int retCodes[] = {0, 0, -ENOENT};
+  const size_t sizes[] = {contents.length(), contents.length() / 2, 0};
+
+  std::vector<std::pair<int, struct stat> >::iterator it;
+  int i;
+  for (it = statResult.begin(), i = 0; it != statResult.end(); it++, i++)
+  {
+    int retCode = (*it).first;
+    struct stat fileStat = (*it).second;
+
+    EXPECT_EQ(retCodes[i], retCode);
+
+    if (retCode == 0)
+      EXPECT_EQ(sizes[i], fileStat.st_size);
+  }
+}
+
 TEST_F(RadosFsTest, DirPermissions)
 {
   AddPool();
