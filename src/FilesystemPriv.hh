@@ -195,9 +195,10 @@ public:
 
   void updateDirTimes(Stat *stat, timespec *spec = 0);
 
-  void statXAttrInThread(std::string path, std::string xattr, Stat *stat,
-                         int *ret, boost::mutex *mutex,
-                         boost::condition_variable *cond, int *numJobs);
+  void statXAttrInThread(std::string path, std::string xattr,
+                         size_t inlineBufferSize, Stat *stat, int *ret,
+                         boost::mutex *mutex, boost::condition_variable *cond,
+                         int *numJobs);
 
   int statAsyncInfoInThread(const std::string path, StatAsyncInfo *info,
                             boost::mutex *mutex, boost::condition_variable *cond,

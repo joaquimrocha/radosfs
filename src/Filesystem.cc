@@ -433,9 +433,25 @@ FilesystemPriv::getIoService()
   return ioService;
 }
 
+static size_t
+getInlineBufferCapacityFromExtraData(
+                                 const std::map<std::string, std::string> &data)
+{
+  std::map<std::string, std::string>::const_iterator it;
+  it = data.find(XATTR_FILE_INLINE_BUFFER_SIZE);
+
+  if (it == data.end())
+    return 0;
+
+  const std::string &sizeStr = (*it).second;
+
+  return strtoul(sizeStr.c_str(), 0, 10);
+}
+
 void
 FilesystemPriv::statXAttrInThread(std::string path, std::string xattr,
-                                  Stat *stat, int *ret, boost::mutex *mutex,
+                                  size_t inlineBufferSize, Stat *stat, int *ret,
+                                  boost::mutex *mutex,
                                   boost::condition_variable *cond, int *numJobs)
 {
   PoolSP dataPool;
@@ -450,8 +466,19 @@ FilesystemPriv::statXAttrInThread(std::string path, std::string xattr,
 
   dataPool = getDataPool(path, pool);
   stat->pool = dataPool;
-  FileIOSP fileIO = getOrCreateFileIO(stat->translatedPath, stat);
-  stat->statBuff.st_size = fileIO->getSize();
+
+  // We only have to check the file inode's stripes if the inline buffer's
+  // capacity is zero of it is completely filled up
+  size_t capacity = getInlineBufferCapacityFromExtraData(stat->extraData);
+  if (capacity > 0 && inlineBufferSize != capacity)
+  {
+    stat->statBuff.st_size = inlineBufferSize;
+  }
+  else
+  {
+    FileIOSP fileIO = getOrCreateFileIO(stat->translatedPath, stat);
+    stat->statBuff.st_size = fileIO->getSize();
+  }
 
   bool notify = false;
 
@@ -484,8 +511,9 @@ FilesystemPriv::statEntries(StatAsyncInfo *info,
 
   for (size_t i = 0; i < info->entries->size(); i++)
   {
-    const std::string &path = info->stat.path + (*info->entries)[i];
-    const std::string &xattr = xattrs[XATTR_FILE_PREFIX + (*info->entries)[i]];
+    const std::string &entryName = (*info->entries)[i];
+    const std::string &path = info->stat.path + entryName;
+    const std::string &xattr = xattrs[XATTR_FILE_PREFIX + entryName];
 
     if (xattr == "")
     {
@@ -496,9 +524,19 @@ FilesystemPriv::statEntries(StatAsyncInfo *info,
       continue;
     }
 
+    // Get the inline buffer's size as this might determine the file's size
+    const std::string &inlineBuffer = xattrs[XATTR_FILE_INLINE_BUFFER +
+                                             entryName];
+    size_t inlineBufferSize = 0;
+    if (inlineBuffer.length() > XATTR_FILE_INLINE_BUFFER_HEADER_SIZE)
+    {
+      inlineBufferSize = inlineBuffer.length() -
+                         XATTR_FILE_INLINE_BUFFER_HEADER_SIZE;
+    }
+
     ioService->post(boost::bind(&FilesystemPriv::statXAttrInThread, this, path,
-                                xattr, &stats[i], &rets[i], &mutex, &cond,
-                                &numJobs));
+                                xattr, inlineBufferSize, &stats[i], &rets[i],
+                                &mutex, &cond, &numJobs));
   }
 
   boost::unique_lock<boost::mutex> lock(mutex);
@@ -533,8 +571,11 @@ FilesystemPriv::statAsync(StatAsyncInfo *info)
 
   for (size_t i = 0; i < info->entries->size(); i++)
   {
-    const std::string &entry = XATTR_FILE_PREFIX + (*info->entries)[i];
+    const std::string &entryName = (*info->entries)[i];
+    const std::string &entry = XATTR_FILE_PREFIX + entryName;
+    const std::string &inlineBuffer = XATTR_FILE_INLINE_BUFFER + entryName;
     xattrs[entry] = "";
+    xattrs[inlineBuffer] = "";
   }
 
   info->statRet = statAndGetXAttrs(info->stat.pool->ioctx,
