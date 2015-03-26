@@ -520,6 +520,14 @@ RadosFsChecker::log(const char *msg, ...)
   va_end(args);
 }
 
+PoolSP
+RadosFsChecker::getPool(const std::string &name)
+{
+  PoolSP pool = mRadosFs->mPriv->getDataPoolFromName(name);
+
+  return pool;
+}
+
 void
 Issue::print(const std::map<ErrorCode, std::string> &errors)
 {

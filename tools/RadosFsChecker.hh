@@ -117,6 +117,8 @@ public:
 
   void setFix(bool fix) { mFix = fix; }
 
+  PoolSP getPool(const std::string &name);
+
 private:
   bool checkPath(const std::string &path);
   void checkDirRecursive(const std::string &path);

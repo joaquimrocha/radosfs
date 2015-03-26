@@ -32,6 +32,8 @@
 #define CHECK_DIRS_CHAR 'd'
 #define CHECK_DIRS_RECURSIVE_ARG "recursive"
 #define CHECK_DIRS_RECURSIVE_ARG_CHAR 'R'
+#define CHECK_FILE_INODES_ARG "check-file-inodes"
+#define CHECK_FILE_INODES_ARG_CHAR 'i'
 #define FIX_ARG "fix"
 #define FIX_ARG_CHAR 'f'
 #define VERBOSE_ARG "verbose"
@@ -118,6 +120,7 @@ static int
 parseArguments(int argc, char **argv,
                std::string &confPath,
                std::vector<std::string> &dirsToCheck,
+               std::vector<std::string> &dataPoolsToCheck,
                bool *recursive,
                bool *fix,
                bool *dry,
@@ -135,6 +138,7 @@ parseArguments(int argc, char **argv,
   {{CLUSTER_CONF_ARG, required_argument, 0, CLUSTER_CONF_ARG_CHAR},
    {CHECK_DIRS_ARG, required_argument, 0, CHECK_DIRS_CHAR},
    {CHECK_DIRS_RECURSIVE_ARG, no_argument, 0, CHECK_DIRS_RECURSIVE_ARG_CHAR},
+   {CHECK_FILE_INODES_ARG, required_argument, 0, CHECK_FILE_INODES_ARG_CHAR},
    {FIX_ARG, no_argument, 0, FIX_ARG_CHAR},
    {DRY_ARG, no_argument, 0, DRY_ARG_CHAR},
    {VERBOSE_ARG, no_argument, 0, VERBOSE_ARG_CHAR},
@@ -145,7 +149,7 @@ parseArguments(int argc, char **argv,
   *recursive = false;
 
   int c;
-  while ((c = getopt_long(argc, argv, "Rhfnvc:d:", options, &optionIndex)) != -1)
+  while ((c = getopt_long(argc, argv, "Rhfnvc:d:i:", options, &optionIndex)) != -1)
   {
     switch(c)
     {
@@ -154,6 +158,9 @@ parseArguments(int argc, char **argv,
         break;
       case CHECK_DIRS_CHAR:
         splitToVector(optarg, dirsToCheck);
+        break;
+      case CHECK_FILE_INODES_ARG_CHAR:
+        splitToVector(optarg, dataPoolsToCheck);
         break;
       case CHECK_DIRS_RECURSIVE_ARG_CHAR:
         *recursive = true;
@@ -206,11 +213,12 @@ main(int argc, char **argv)
   bool recursive, fix, dry, verbose;
   int position;
   std::string confPath;
-  std::vector<std::string> dirsToCheck;
+  std::vector<std::string> dirsToCheck, dataPoolsToCheck;
 
   ret = parseArguments(argc, argv,
                        confPath,
                        dirsToCheck,
+                       dataPoolsToCheck,
                        &recursive,
                        &fix,
                        &dry,
@@ -272,6 +280,30 @@ main(int argc, char **argv)
     }
 
     checker.checkDirInThread(stat, dir, recursive, diagnostic);
+  }
+
+  if (!dataPoolsToCheck.empty())
+  {
+    std::vector<PoolSP> dataPools;
+    for (size_t i = 0; i < dataPoolsToCheck.size(); i++)
+    {
+      const std::string &poolName = dataPoolsToCheck[i];
+      PoolSP pool = checker.getPool(poolName);
+
+      if (!pool)
+      {
+        fprintf(stderr, "Cannot get data pool '%s'. Please check if the name is "
+                        "correct.\n", poolName.c_str());
+        exit(EINVAL);
+      }
+
+      dataPools.push_back(pool);
+    }
+
+    for (size_t i = 0; i < dataPools.size(); i++)
+    {
+      checker.checkInodes(dataPools[i], diagnostic);
+    }
   }
 
   checker.finishCheck();
