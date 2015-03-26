@@ -51,6 +51,8 @@ enum ErrorCode
   NO_BACK_LINK,
   WRONG_BACK_LINK,
   BACK_LINK_NO_ENT,
+  INODE_NO_SIZE,
+  LOOSE_INODE_STRIPE,
 
   NO_ERROR
 };
@@ -101,6 +103,8 @@ public:
   void checkDirInThread(StatSP parentStat, std::string path, bool recursive,
                         DiagnosticSP diagnostic);
 
+  void checkInodes(PoolSP pool, boost::shared_ptr<Diagnostic> diagnostic);
+
   void animate(void);
 
   const std::map<ErrorCode, std::string> errorsDescription;
@@ -126,6 +130,15 @@ private:
   bool verifyDirObject(Stat &stat,
                        std::map<std::string, librados::bufferlist> &omap,
                        DiagnosticSP diagnostic);
+
+  void checkInode(PoolSP pool, std::string inode, DiagnosticSP diagnostic);
+
+  void checkInodeInThread(PoolSP pool, const std::string &inode,
+                          DiagnosticSP diagnostic);
+
+  void checkInodeBackLink(const std::string &inode,
+                          const std::string &backLink,
+                          DiagnosticSP diagnostic);
 
   void log(const char *msg, ...);
 

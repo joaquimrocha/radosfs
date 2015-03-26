@@ -898,6 +898,18 @@ nameIsStripe(const std::string &name)
       name[nameLength - FILE_STRIPE_LENGTH - 2] == PATH_SEP;
 }
 
+std::string
+getBaseInode(const std::string &name)
+{
+  // we add 2 because of the // that comes before the stripe index
+  if (name.length() < UUID_STRING_SIZE)
+  {
+    return "";
+  }
+
+  return name.substr(0, UUID_STRING_SIZE);
+}
+
 bool
 isDirPath(const std::string &path)
 {
