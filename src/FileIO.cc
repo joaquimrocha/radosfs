@@ -769,7 +769,7 @@ FileIO::realWrite(char *buff, off_t offset, size_t blen, bool deleteBuffer,
     }
   }
 
-  updateTimeAsync2(mPool, mInode, XATTR_MTIME);
+  updateTimeAsyncInXAttr(mPool, mInode, XATTR_MTIME);
 
   off_t currentOffset =  offset % mStripeSize;
   size_t bytesToWrite = blen;
@@ -915,7 +915,7 @@ FileIO::truncate(size_t newSize)
     mInlineBuffer->truncate(newSize);
   }
 
-  updateTimeAsync2(mPool, mInode, XATTR_MTIME);
+  updateTimeAsyncInXAttr(mPool, mInode, XATTR_MTIME);
 
   const std::string &opId = generateUuid();
 

@@ -1024,24 +1024,48 @@ void
 updateTimeAsync(const Stat *stat, const char *timeXAttrKey,
                 const std::string &time)
 {
-  updateTimeAsync2(stat->pool, stat->translatedPath, timeXAttrKey, time);
+  updateTimeAsyncInOmap(stat->pool, stat->translatedPath, timeXAttrKey, time);
 }
 
 void
-updateTimeAsync2(const PoolSP &pool, const std::string &inode,
-                 const char *timeXAttrKey,
-                 const std::string &time)
+updateTimeAsyncInOmap(const PoolSP &pool, const std::string &inode,
+                      const char *timeKey,
+                      const std::string &time)
 {
   std::map<std::string, librados::bufferlist> omap;
 
   if (time == "")
-    omap[timeXAttrKey].append(getCurrentTimeStr());
+    omap[timeKey].append(getCurrentTimeStr());
   else
-    omap[timeXAttrKey].append(time);
+    omap[timeKey].append(time);
 
   librados::ObjectWriteOperation op;
 
   op.omap_set(omap);
+
+  rados_completion_t comp;
+
+  rados_aio_create_completion(0, 0, updateTimeAsyncCB, &comp);
+  librados::AioCompletion completion((librados::AioCompletionImpl *)comp);
+
+  pool->ioctx.aio_operate(inode, &completion, &op);
+}
+
+void
+updateTimeAsyncInXAttr(const PoolSP &pool, const std::string &inode,
+                       const char *timeKey,
+                       const std::string &time)
+{
+  librados::bufferlist timeBl;
+
+  if (time == "")
+    timeBl.append(getCurrentTimeStr());
+  else
+    timeBl.append(time);
+
+  librados::ObjectWriteOperation op;
+
+  op.setxattr(timeKey, timeBl);
 
   rados_completion_t comp;
 
