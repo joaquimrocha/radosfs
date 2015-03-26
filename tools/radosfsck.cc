@@ -28,6 +28,10 @@
 #define CONF_ENV_VAR "RADOSFS_CLUSTER_CONF"
 #define CLUSTER_CONF_ARG "conf"
 #define CLUSTER_CONF_ARG_CHAR 'c'
+#define CHECK_DIRS_ARG "check-dirs"
+#define CHECK_DIRS_CHAR 'd'
+#define CHECK_DIRS_RECURSIVE_ARG "recursive"
+#define CHECK_DIRS_RECURSIVE_ARG_CHAR 'R'
 #define FIX_ARG "fix"
 #define FIX_ARG_CHAR 'f'
 #define VERBOSE_ARG "verbose"
@@ -56,6 +60,14 @@ showUsage(const char *name)
           "   more pools and prefixes can also be specified.\n"
           " \nOPTIONS can be:\n"
          );
+  fprintf(stdout, "\t--%s=DIR1[:DIR2], -%c DIR1:[DIR1]\t check the given "
+                  "directories (can be together with --%s for checking "
+                  "subdirectories resursively)\n",
+          CHECK_DIRS_ARG, CHECK_DIRS_CHAR, CHECK_DIRS_RECURSIVE_ARG);
+  fprintf(stdout, "\t--%s, -%c \t check the given directories recursively "
+                  "(to be used with --%s, otherwise has no effect)\n",
+          CHECK_DIRS_RECURSIVE_ARG, CHECK_DIRS_RECURSIVE_ARG_CHAR,
+          CHECK_DIRS_ARG);
   fprintf(stdout, "\t--%s, -%c \t fix the issues found\n",
           FIX_ARG, FIX_ARG_CHAR);
   fprintf(stdout, "\t--%s, -%c \t dry run (to use with the fix option), shows "
@@ -67,9 +79,46 @@ showUsage(const char *name)
           HELP_ARG, HELP_ARG_CHAR);
 }
 
+static void
+splitToVector(const std::string &str, std::vector<std::string> &vec)
+{
+  const char separator = ',';
+  std::string token;
+  for (size_t i = 0; i < str.length(); i++)
+  {
+    if (str[i] == '\\' && (i + 1) != str.length() && str[i + 1] == separator)
+    {
+      token += str[++i];
+      continue;
+    }
+
+    if (str[i] == separator)
+    {
+      if (!token.empty())
+      {
+        vec.push_back(token);
+        token.clear();
+      }
+
+      continue;
+    }
+
+    token += str[i];
+    continue;
+  }
+
+  if (!token.empty())
+  {
+    vec.push_back(token);
+    token.clear();
+  }
+}
+
 static int
 parseArguments(int argc, char **argv,
                std::string &confPath,
+               std::vector<std::string> &dirsToCheck,
+               bool *recursive,
                bool *fix,
                bool *dry,
                bool *verbose,
@@ -84,6 +133,8 @@ parseArguments(int argc, char **argv,
   int optionIndex = 0;
   struct option options[] =
   {{CLUSTER_CONF_ARG, required_argument, 0, CLUSTER_CONF_ARG_CHAR},
+   {CHECK_DIRS_ARG, required_argument, 0, CHECK_DIRS_CHAR},
+   {CHECK_DIRS_RECURSIVE_ARG, no_argument, 0, CHECK_DIRS_RECURSIVE_ARG_CHAR},
    {FIX_ARG, no_argument, 0, FIX_ARG_CHAR},
    {DRY_ARG, no_argument, 0, DRY_ARG_CHAR},
    {VERBOSE_ARG, no_argument, 0, VERBOSE_ARG_CHAR},
@@ -91,13 +142,21 @@ parseArguments(int argc, char **argv,
    {0, 0, 0, 0}
   };
 
+  *recursive = false;
+
   int c;
-  while ((c = getopt_long(argc, argv, "hfnvc:", options, &optionIndex)) != -1)
+  while ((c = getopt_long(argc, argv, "Rhfnvc:d:", options, &optionIndex)) != -1)
   {
     switch(c)
     {
       case CLUSTER_CONF_ARG_CHAR:
         confPath = optarg;
+        break;
+      case CHECK_DIRS_CHAR:
+        splitToVector(optarg, dirsToCheck);
+        break;
+      case CHECK_DIRS_RECURSIVE_ARG_CHAR:
+        *recursive = true;
         break;
       case DRY_ARG_CHAR:
         *dry = true;
@@ -144,12 +203,15 @@ int
 main(int argc, char **argv)
 {
   int ret;
-  bool fix, dry, verbose;
+  bool recursive, fix, dry, verbose;
   int position;
   std::string confPath;
+  std::vector<std::string> dirsToCheck;
 
   ret = parseArguments(argc, argv,
                        confPath,
+                       dirsToCheck,
+                       &recursive,
                        &fix,
                        &dry,
                        &verbose,
@@ -198,7 +260,19 @@ main(int argc, char **argv)
   DiagnosticSP diagnostic(new Diagnostic);
   StatSP stat;
 
-  checker.checkDirInThread(stat, "/", true, diagnostic);
+  for (size_t i = 0; i < dirsToCheck.size(); i++)
+  {
+    const std::string &dir(dirsToCheck[i]);
+
+    if (dir[0] != '/')
+    {
+      fprintf(stderr, "Cannot check '%s'. Please use an absolute path.",
+              dir.c_str());
+      exit(EINVAL);
+    }
+
+    checker.checkDirInThread(stat, dir, recursive, diagnostic);
+  }
 
   checker.finishCheck();
 
