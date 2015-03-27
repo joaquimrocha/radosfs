@@ -945,10 +945,13 @@ FilesystemPriv::getMtdPoolFromName(const std::string &name)
   PoolMap::const_iterator it;
   for (it = mtdPoolMap.begin(); it != mtdPoolMap.end(); it++)
   {
-    pool = (*it).second;
+    PoolSP currentPool = (*it).second;
 
-    if (pool->name == name)
+    if (currentPool->name == name)
+    {
+      pool = currentPool;
       break;
+    }
   }
 
   return pool;
