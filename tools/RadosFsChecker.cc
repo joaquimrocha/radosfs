@@ -641,7 +641,7 @@ Diagnostic::print(const std::map<ErrorCode, std::string> &errors, bool dry)
   fprintf(stdout, " Checking done \r");
   fflush(stdout);
 
-  size_t totalIssues = fileIssues.size() + dirIssues.size();
+  size_t totalIssues = fileIssues.size() + dirIssues.size() + inodeIssues.size();
   fprintf(stdout, "\n\nIssues found: %lu\n", totalIssues);
 
 
@@ -657,6 +657,12 @@ Diagnostic::print(const std::map<ErrorCode, std::string> &errors, bool dry)
 
     fprintf(stdout, "\nDirectory issues: %lu\n", dirIssues.size());
     for (it = dirIssues.begin(); it != dirIssues.end(); it++)
+    {
+      (*it).print(errors);
+    }
+
+    fprintf(stdout, "\nInode issues: %lu\n", inodeIssues.size());
+    for (it = inodeIssues.begin(); it != inodeIssues.end(); it++)
     {
       (*it).print(errors);
     }
@@ -687,6 +693,21 @@ Diagnostic::print(const std::map<ErrorCode, std::string> &errors, bool dry)
     fprintf(stdout, "%lu\n", dirSolvedIssues.size());
 
     for (it = dirSolvedIssues.begin(); it != dirSolvedIssues.end(); it++)
+    {
+      (*it).print(errors);
+    }
+  }
+
+  if (inodeSolvedIssues.size() > 0)
+  {
+    if (!dry)
+      fprintf(stdout, "\nInode issues solved: ");
+    else
+      fprintf(stdout, "\nInode issues that would be solved: ");
+
+    fprintf(stdout, "%lu\n", inodeSolvedIssues.size());
+
+    for (it = inodeSolvedIssues.begin(); it != inodeSolvedIssues.end(); it++)
     {
       (*it).print(errors);
     }
