@@ -551,30 +551,31 @@ Issue::print(const std::map<ErrorCode, std::string> &errors)
 void
 Diagnostic::addFileIssue(const Issue &issue)
 {
-  if (issue.fixed)
-  {
-    boost::unique_lock<boost::mutex> lock(fileSolvedIssuesMutex);
-    fileSolvedIssues.push_back(issue);
-  }
-  else
-  {
-    boost::unique_lock<boost::mutex> lock(fileIssuesMutex);
-    fileIssues.push_back(issue);
-  }
+  addIssue(issue, fileIssues, fileIssuesMutex, fileSolvedIssues,
+           fileSolvedIssuesMutex);
 }
 
 void
 Diagnostic::addDirIssue(const Issue &issue)
 {
+  addIssue(issue, dirIssues, dirIssuesMutex, dirSolvedIssues,
+           dirSolvedIssuesMutex);
+}
+
+void
+Diagnostic::addIssue(const Issue &issue, std::vector<Issue> &issues,
+                     boost::mutex &issuesMutex, std::vector<Issue> &fixedIssues,
+                     boost::mutex &fixedIssuesMutex)
+{
   if (issue.fixed)
   {
-    boost::unique_lock<boost::mutex> lock(dirSolvedIssuesMutex);
-    dirSolvedIssues.push_back(issue);
+    boost::unique_lock<boost::mutex> lock(fixedIssuesMutex);
+    fixedIssues.push_back(issue);
   }
   else
   {
-    boost::unique_lock<boost::mutex> lock(dirIssuesMutex);
-    dirIssues.push_back(issue);
+    boost::unique_lock<boost::mutex> lock(issuesMutex);
+    issues.push_back(issue);
   }
 }
 

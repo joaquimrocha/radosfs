@@ -87,6 +87,11 @@ struct Diagnostic
 
   void addFileIssue(const Issue &issue);
   void addDirIssue(const Issue &issue);
+  void addInodeIssue(const Issue &issue);
+  void addIssue(const Issue &issue, std::vector<Issue> &issues,
+                boost::mutex &issuesMutex,
+                std::vector<Issue> &fixedIssues,
+                boost::mutex &fixedIssuesMutex);
   void print(const std::map<ErrorCode, std::string> &errors, bool dry);
 };
 
