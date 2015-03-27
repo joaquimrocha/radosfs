@@ -70,6 +70,10 @@ showUsage(const char *name)
                   "(to be used with --%s, otherwise has no effect)\n",
           CHECK_DIRS_RECURSIVE_ARG, CHECK_DIRS_RECURSIVE_ARG_CHAR,
           CHECK_DIRS_ARG);
+  fprintf(stdout, "\t--%s[=POOL1[,POOL2]], -%c [POOL1[,POOL2]]\t check the given "
+                  "pools' inode objects when an argument is supplied, otherwise "
+                  "check the pools configured for the given prefixes.\n",
+          CHECK_INODES_ARG, CHECK_INODES_ARG_CHAR);
   fprintf(stdout, "\t--%s, -%c \t fix the issues found\n",
           FIX_ARG, FIX_ARG_CHAR);
   fprintf(stdout, "\t--%s, -%c \t dry run (to use with the fix option), shows "
