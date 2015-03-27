@@ -82,9 +82,9 @@ showUsage(const char *name)
 }
 
 static void
-splitToVector(const std::string &str, std::vector<std::string> &vec)
+splitToVector(const std::string &str, std::vector<std::string> &vec,
+              const char separator = ',')
 {
-  const char separator = ',';
   std::string token;
   for (size_t i = 0; i < str.length(); i++)
   {
@@ -119,13 +119,13 @@ splitToVector(const std::string &str, std::vector<std::string> &vec)
 static int
 parseArguments(int argc, char **argv,
                std::string &confPath,
+               std::vector<std::string> &pools,
                std::vector<std::string> &dirsToCheck,
-               std::vector<std::string> &poolsToCheck,
+               std::vector<std::string> &poolsToCheckInodes,
                bool *recursive,
                bool *fix,
                bool *dry,
-               bool *verbose,
-               int *position)
+               bool *verbose)
 {
   confPath = "";
   const char *confFromEnv(getenv(CONF_ENV_VAR));
@@ -160,7 +160,7 @@ parseArguments(int argc, char **argv,
         splitToVector(optarg, dirsToCheck);
         break;
       case CHECK_INODES_ARG_CHAR:
-        splitToVector(optarg, poolsToCheck);
+        splitToVector(optarg, poolsToCheckInodes);
         break;
       case CHECK_DIRS_RECURSIVE_ARG_CHAR:
         *recursive = true;
@@ -191,19 +191,50 @@ parseArguments(int argc, char **argv,
     return -1;
   }
 
-  int numPosArgs = argc - optind;
-  if (numPosArgs > 0 && (numPosArgs % 3) == 0)
+  for (int posArg = optind; posArg < argc; posArg++)
   {
-    *position = optind;
-
-    return 0;
+    pools.push_back(argv[posArg]);
   }
 
-  fprintf(stdout, "Error: Please specify the pool name and prefix pairs...\n\n");
+  return 0;
+}
 
-  showUsage(argv[0]);
+void
+addPools(radosfs::Filesystem &fs, std::vector<std::string> poolsArg)
+{
+  if (poolsArg.size() == 0)
+    return;
 
-  return -EINVAL;
+  for (size_t i = 0; i < poolsArg.size(); i++)
+  {
+    std::vector<std::string> poolsForPrefix;
+    splitToVector(poolsArg[i], poolsForPrefix, ':');
+
+    if (poolsForPrefix.size() != 3)
+    {
+      fprintf(stderr, "Invalid argument for describing a prefix and pool: "
+                      "'%s'", poolsArg[i].c_str());
+      exit(EINVAL);
+    }
+
+    const std::string &prefix = poolsForPrefix[0];
+    const std::string &dataPool = poolsForPrefix[1];
+    const std::string &mtdPool = poolsForPrefix[2];
+
+    int ret;
+    if ((ret = fs.addDataPool(dataPool, prefix)) != 0)
+    {
+      fprintf(stderr, "Problem adding data pool '%s': %s (retcode=%d)",
+              dataPool.c_str(), strerror(abs(ret)), ret);
+      exit(abs(ret));
+    }
+    if ((ret = fs.addMetadataPool(mtdPool, prefix)) != 0)
+    {
+      fprintf(stderr, "Problem adding metadata pool '%s': %s (retcode=%d)",
+              mtdPool.c_str(), strerror(abs(ret)), ret);
+      exit(abs(ret));
+    }
+  }
 }
 
 int
@@ -211,19 +242,18 @@ main(int argc, char **argv)
 {
   int ret;
   bool recursive, fix, dry, verbose;
-  int position;
   std::string confPath;
-  std::vector<std::string> dirsToCheck, poolsToCheck;
+  std::vector<std::string> dirsToCheck, poolsToCheckInodes, pools;
 
   ret = parseArguments(argc, argv,
                        confPath,
+                       pools,
                        dirsToCheck,
-                       poolsToCheck,
+                       poolsToCheckInodes,
                        &recursive,
                        &fix,
                        &dry,
-                       &verbose,
-                       &position);
+                       &verbose);
 
   if (ret != 0)
     return ret;
@@ -231,33 +261,7 @@ main(int argc, char **argv)
   radosfs::Filesystem radosFs;
   radosFs.init("", confPath.c_str());
 
-  int numPosArgs = argc - position;
-  int i = position;
-
-  while (i < position + numPosArgs)
-  {
-    const char *dataPoolName, *mtdPoolName, *pathPrefix;
-
-    pathPrefix = argv[i];
-    dataPoolName = argv[i + 1];
-    mtdPoolName = argv[i + 2];
-
-    if ((ret = radosFs.addDataPool(dataPoolName, pathPrefix)) != 0)
-    {
-      fprintf(stdout, "Problem adding pool '%s'\n", dataPoolName);
-      showUsage(argv[0]);
-      return ret;
-    }
-
-    if ((ret = radosFs.addMetadataPool(mtdPoolName, pathPrefix)) != 0)
-    {
-      fprintf(stdout, "Problem adding pool '%s'\n", mtdPoolName);
-      showUsage(argv[0]);
-      return ret;
-    }
-
-    i += 3;
-  }
+  addPools(radosFs, pools);
 
   RadosFsChecker checker(&radosFs);
 
@@ -282,12 +286,12 @@ main(int argc, char **argv)
     checker.checkDirInThread(stat, dir, recursive, diagnostic);
   }
 
-  if (!poolsToCheck.empty())
+  if (!poolsToCheckInodes.empty())
   {
     std::vector<PoolSP> pools;
-    for (size_t i = 0; i < poolsToCheck.size(); i++)
+    for (size_t i = 0; i < poolsToCheckInodes.size(); i++)
     {
-      const std::string &poolName = poolsToCheck[i];
+      const std::string &poolName = poolsToCheckInodes[i];
       PoolSP pool = checker.getPool(poolName);
 
       if (!pool)
