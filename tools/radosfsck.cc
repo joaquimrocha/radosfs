@@ -121,6 +121,7 @@ parseArguments(int argc, char **argv,
                std::string &confPath,
                std::vector<std::string> &pools,
                std::vector<std::string> &dirsToCheck,
+               bool *checkInodes,
                std::vector<std::string> &poolsToCheckInodes,
                bool *recursive,
                bool *fix,
@@ -138,7 +139,7 @@ parseArguments(int argc, char **argv,
   {{CLUSTER_CONF_ARG, required_argument, 0, CLUSTER_CONF_ARG_CHAR},
    {CHECK_DIRS_ARG, required_argument, 0, CHECK_DIRS_CHAR},
    {CHECK_DIRS_RECURSIVE_ARG, no_argument, 0, CHECK_DIRS_RECURSIVE_ARG_CHAR},
-   {CHECK_INODES_ARG, required_argument, 0, CHECK_INODES_ARG_CHAR},
+   {CHECK_INODES_ARG, optional_argument, 0, CHECK_INODES_ARG_CHAR},
    {FIX_ARG, no_argument, 0, FIX_ARG_CHAR},
    {DRY_ARG, no_argument, 0, DRY_ARG_CHAR},
    {VERBOSE_ARG, no_argument, 0, VERBOSE_ARG_CHAR},
@@ -149,7 +150,7 @@ parseArguments(int argc, char **argv,
   *recursive = false;
 
   int c;
-  while ((c = getopt_long(argc, argv, "Rhfnvc:d:i:", options, &optionIndex)) != -1)
+  while ((c = getopt_long(argc, argv, "Rhfnvc:d:i::", options, &optionIndex)) != -1)
   {
     switch(c)
     {
@@ -160,7 +161,10 @@ parseArguments(int argc, char **argv,
         splitToVector(optarg, dirsToCheck);
         break;
       case CHECK_INODES_ARG_CHAR:
-        splitToVector(optarg, poolsToCheckInodes);
+        *checkInodes = true;
+        if (optarg)
+          splitToVector(optarg, poolsToCheckInodes);
+
         break;
       case CHECK_DIRS_RECURSIVE_ARG_CHAR:
         *recursive = true;
@@ -241,7 +245,7 @@ int
 main(int argc, char **argv)
 {
   int ret;
-  bool recursive, fix, dry, verbose;
+  bool checkInodes, recursive, fix, dry, verbose;
   std::string confPath;
   std::vector<std::string> dirsToCheck, poolsToCheckInodes, pools;
 
@@ -249,6 +253,7 @@ main(int argc, char **argv)
                        confPath,
                        pools,
                        dirsToCheck,
+                       &checkInodes,
                        poolsToCheckInodes,
                        &recursive,
                        &fix,
@@ -286,27 +291,42 @@ main(int argc, char **argv)
     checker.checkDirInThread(stat, dir, recursive, diagnostic);
   }
 
-  if (!poolsToCheckInodes.empty())
+  if (checkInodes)
   {
-    std::vector<PoolSP> pools;
-    for (size_t i = 0; i < poolsToCheckInodes.size(); i++)
+    if (poolsToCheckInodes.empty())
     {
-      const std::string &poolName = poolsToCheckInodes[i];
-      PoolSP pool = checker.getPool(poolName);
-
-      if (!pool)
+      if (pools.empty())
       {
-        fprintf(stderr, "Cannot get pool '%s'. Please check if the name is "
-                        "correct.\n", poolName.c_str());
+        fprintf(stderr, "No argument is provided to --%s and no pools "
+                        "configured. Either one of these options needs to be "
+                        "set in order for the inodes to be checked.",
+                CHECK_INODES_ARG);
         exit(EINVAL);
       }
-
-      pools.push_back(pool);
+      checker.checkInodes(diagnostic);
     }
-
-    for (size_t i = 0; i < pools.size(); i++)
+    else
     {
-      checker.checkInodes(pools[i], diagnostic);
+      std::vector<PoolSP> poolsObjs;
+      for (size_t i = 0; i < poolsToCheckInodes.size(); i++)
+      {
+        const std::string &poolName = poolsToCheckInodes[i];
+        PoolSP pool = checker.getPool(poolName);
+
+        if (!pool)
+        {
+          fprintf(stderr, "Cannot get pool '%s'. Please check if the name is "
+                          "correct.\n", poolName.c_str());
+          exit(EINVAL);
+        }
+
+        poolsObjs.push_back(pool);
+      }
+
+      for (size_t i = 0; i < poolsObjs.size(); i++)
+      {
+        checker.checkInodesInThread(poolsObjs[i], diagnostic);
+      }
     }
   }
 
