@@ -378,27 +378,75 @@ RadosFsChecker::checkDirInThread(StatSP parentStat, std::string path,
 
 void
 RadosFsChecker::checkInodeBackLink(const std::string &inode,
+                                   Pool &pool,
                                    const std::string &backLink,
                                    DiagnosticSP diagnostic)
 {
-  Stat fileStat;
-  int ret = mRadosFs->mPriv->stat(backLink, &fileStat);
+  Stat backLinkStat;
+  int ret = mRadosFs->mPriv->stat(backLink, &backLinkStat);
 
   if (ret != 0)
   {
     Issue issue(inode, WRONG_BACK_LINK);
     issue.extraInfo.append("problem statting inode's backlink '" + backLink +
-                           "'.");
-    diagnostic->addFileIssue(issue);
+                           "' in pool '" + pool.name + "'.");
+    diagnostic->addInodeIssue(issue);
   }
   else
   {
-    if (inode != fileStat.translatedPath)
+    if (inode != backLinkStat.translatedPath)
     {
       Issue issue(inode, WRONG_BACK_LINK);
-      issue.extraInfo.append(fileStat.path + " points to '" +
-                             fileStat.translatedPath + "' instead.");
-      diagnostic->addFileIssue(issue);
+      issue.extraInfo.append(backLinkStat.path + " points to '" +
+                             backLinkStat.translatedPath + "' in pool '" +
+                             backLinkStat.pool->name + "' instead.");
+      diagnostic->addInodeIssue(issue);
+    }
+  }
+}
+
+void
+RadosFsChecker::checkInodeKeys(const std::string &inode, Pool &pool,
+                        const std::map<std::string, librados::bufferlist> &keys,
+                        DiagnosticSP diagnostic, bool isFile)
+{
+  std::map<std::string, librados::bufferlist>::const_iterator it;
+
+  it = keys.find(XATTR_INODE_HARD_LINK);
+  if (it == keys.end())
+  {
+    Issue issue(inode, NO_BACK_LINK);
+    diagnostic->addInodeIssue(issue);
+  }
+  else
+  {
+    librados::bufferlist backLink = (*it).second;
+    if (backLink.length() == 0)
+    {
+      Issue issue(inode, WRONG_BACK_LINK);
+      diagnostic->addInodeIssue(issue);
+    }
+    else
+    {
+      std::string backLinkStr(backLink.c_str(), backLink.length());
+      checkInodeBackLink(inode, pool, backLinkStr, diagnostic);
+    }
+  }
+
+  it = keys.find(XATTR_MTIME);
+  if (it == keys.end())
+  {
+    Issue issue(inode, NO_MTIME);
+    diagnostic->addInodeIssue(issue);
+  }
+
+  if (isFile)
+  {
+    it = keys.find(XATTR_FILE_SIZE);
+    if (it == keys.end())
+    {
+      Issue issue(inode, INODE_NO_SIZE);
+      diagnostic->addInodeIssue(issue);
     }
   }
 }
@@ -416,53 +464,51 @@ RadosFsChecker::checkInode(PoolSP pool, std::string inode,
     if (pool->ioctx.stat(baseInode, 0, 0) != 0)
     {
       Issue issue(inode, LOOSE_INODE_STRIPE);
-      diagnostic->addFileIssue(issue);
+      issue.extraInfo.append("in pool '" + pool->name + "'");
+      diagnostic->addInodeIssue(issue);
     }
 
     return;
   }
 
+  std::map<std::string, librados::bufferlist> *keyValueMap;
   std::map<std::string, librados::bufferlist> xattrs;
+  std::map<std::string, librados::bufferlist> omap;
 
-  int ret = pool->ioctx.getxattrs(inode, xattrs);
+  int getXattrsRet, getOmapRet;
+  librados::ObjectReadOperation readOp;
+  readOp.getxattrs(&xattrs, &getXattrsRet);
+  readOp.omap_get_vals("", XATTR_RADOSFS_PREFIX, UINT_MAX, &omap, &getOmapRet);
+
+  int ret = pool->ioctx.operate(inode, &readOp, 0);
+
+  bool inodeIsFile = false;
+
+  if (!omap.size())
+    inodeIsFile = true;
 
   if (ret < 0)
   {
     Issue issue(inode, ret);
-    diagnostic->addFileIssue(issue);
+    diagnostic->addInodeIssue(issue);
     return;
   }
 
-  std::map<std::string, librados::bufferlist>::const_iterator it;
+  if (inodeIsFile)
+    keyValueMap = &xattrs;
+  else
+    keyValueMap = &omap;
 
-  it = xattrs.find(XATTR_INODE_HARD_LINK);
-  if (it != xattrs.end())
-  {
-    librados::bufferlist backLink = (*it).second;
-    if (backLink.length() == 0)
-    {
-      Issue issue(inode, WRONG_BACK_LINK);
-      diagnostic->addFileIssue(issue);
-    }
-    else
-    {
-      std::string backLinkStr(backLink.c_str(), backLink.length());
-      checkInodeBackLink(inode, backLinkStr, diagnostic);
-    }
-  }
-
-  it = xattrs.find(XATTR_MTIME);
-  if (it == xattrs.end())
-  {
-    Issue issue(inode, NO_MTIME);
-    diagnostic->addFileIssue(issue);
-  }
+  checkInodeKeys(inode, *pool.get(), *keyValueMap, diagnostic, inodeIsFile);
 }
 
 void
 RadosFsChecker::checkInodeInThread(PoolSP pool, const std::string &inode,
                                    DiagnosticSP diagnostic)
 {
+  if (!nameIsInode(inode))
+    return;
+
   ioService->post(boost::bind(&RadosFsChecker::checkInode, this, pool,
                               inode, diagnostic));
 }
@@ -525,6 +571,9 @@ RadosFsChecker::getPool(const std::string &name)
 {
   PoolSP pool = mRadosFs->mPriv->getDataPoolFromName(name);
 
+  if (!pool)
+    pool = mRadosFs->mPriv->getMtdPoolFromName(name);
+
   return pool;
 }
 
@@ -560,6 +609,13 @@ Diagnostic::addDirIssue(const Issue &issue)
 {
   addIssue(issue, dirIssues, dirIssuesMutex, dirSolvedIssues,
            dirSolvedIssuesMutex);
+}
+
+void
+Diagnostic::addInodeIssue(const Issue &issue)
+{
+  addIssue(issue, inodeIssues, inodeIssuesMutex, inodeSolvedIssues,
+           inodeSolvedIssuesMutex);
 }
 
 void

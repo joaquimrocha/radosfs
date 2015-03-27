@@ -898,6 +898,17 @@ nameIsStripe(const std::string &name)
       name[nameLength - FILE_STRIPE_LENGTH - 2] == PATH_SEP;
 }
 
+bool
+nameIsInode(const std::string &name)
+{
+  const size_t nameLength = name.length();
+  // we add 2 because of the // that comes before the stripe index
+  const size_t stripeLength = UUID_STRING_SIZE + FILE_STRIPE_LENGTH + 2;
+
+  return ((nameLength == UUID_STRING_SIZE || nameLength == stripeLength) &&
+          name[0] != '/');
+}
+
 std::string
 getBaseInode(const std::string &name)
 {

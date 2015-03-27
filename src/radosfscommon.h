@@ -180,6 +180,8 @@ std::string makeFileStripeName(const std::string &filePath, size_t stripeIndex);
 
 bool nameIsStripe(const std::string &name);
 
+bool nameIsInode(const std::string &name);
+
 std::string getBaseInode(const std::string &name);
 
 std::string getFileXAttrDirRecord(const Stat *stat);

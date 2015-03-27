@@ -78,12 +78,16 @@ struct Diagnostic
 {
   std::vector<Issue> fileIssues;
   std::vector<Issue> dirIssues;
+  std::vector<Issue> inodeIssues;
   std::vector<Issue> fileSolvedIssues;
   std::vector<Issue> dirSolvedIssues;
+  std::vector<Issue> inodeSolvedIssues;
   boost::mutex fileIssuesMutex;
   boost::mutex dirIssuesMutex;
+  boost::mutex inodeIssuesMutex;
   boost::mutex fileSolvedIssuesMutex;
   boost::mutex dirSolvedIssuesMutex;
+  boost::mutex inodeSolvedIssuesMutex;
 
   void addFileIssue(const Issue &issue);
   void addDirIssue(const Issue &issue);
@@ -143,9 +147,13 @@ private:
   void checkInodeInThread(PoolSP pool, const std::string &inode,
                           DiagnosticSP diagnostic);
 
-  void checkInodeBackLink(const std::string &inode,
+  void checkInodeBackLink(const std::string &inode, Pool &pool,
                           const std::string &backLink,
                           DiagnosticSP diagnostic);
+
+  void checkInodeKeys(const std::string &inode, Pool &pool,
+                      const std::map<std::string, librados::bufferlist> &keys,
+                      DiagnosticSP diagnostic, bool isFile);
 
   void log(const char *msg, ...);
 
