@@ -106,6 +106,10 @@ class RadosFsChecker
 public:
   RadosFsChecker(radosfs::Filesystem *radosFs);
 
+  void checkPath(std::string path, DiagnosticSP diagnostic);
+
+  void checkPathInThread(std::string path, DiagnosticSP diagnostic);
+
   void checkDir(StatSP parentStat, std::string path, bool recursive,
                 DiagnosticSP diagnostic);
 

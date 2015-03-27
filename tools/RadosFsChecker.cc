@@ -271,6 +271,59 @@ RadosFsChecker::verifyFileObject(const std::string path,
 }
 
 void
+RadosFsChecker::checkPath(std::string path, DiagnosticSP diagnostic)
+{
+  Stat stat;
+  int ret = mRadosFs->mPriv->stat(path, &stat);
+
+  animate();
+
+  if (ret < 0)
+  {
+    Issue issue(path, ret);
+    diagnostic->addFileIssue(issue);
+    return;
+  }
+
+  if (S_ISDIR(stat.statBuff.st_mode))
+  {
+    std::map<std::string, librados::bufferlist> omap;
+    stat.pool->ioctx.omap_get_vals(stat.translatedPath, "", "", UINT_MAX, &omap);
+
+    verifyDirObject(stat, omap, diagnostic);
+    return;
+  }
+
+  if (S_ISREG(stat.statBuff.st_mode))
+  {
+    Stat parentStat;
+    std::string parentDir = getParentDir(stat.path, 0);
+    ret = mRadosFs->mPriv->stat(parentDir, &parentStat);
+
+    if (ret < 0)
+    {
+      Issue issue(parentDir, ret);
+      issue.extraInfo.append("When checking path " + path);
+      diagnostic->addDirIssue(issue);
+      return;
+    }
+
+    std::map<std::string, librados::bufferlist> omap;
+    parentStat.pool->ioctx.omap_get_vals(parentStat.translatedPath, "", "",
+                                         UINT_MAX, &omap);
+
+    verifyFileObject(stat.path, omap, diagnostic);
+  }
+}
+
+void
+RadosFsChecker::checkPathInThread(std::string path, DiagnosticSP diagnostic)
+{
+  ioService->post(boost::bind(&RadosFsChecker::checkPath, this, path,
+                              diagnostic));
+}
+
+void
 RadosFsChecker::checkDir(StatSP parentStat, std::string path,
                          bool recursive,
                          boost::shared_ptr<Diagnostic> diagnostic)
