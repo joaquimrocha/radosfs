@@ -1087,6 +1087,37 @@ FilesystemPriv::getDataPools(const std::string &path)
   return pools;
 }
 
+PoolList
+FilesystemPriv::getDataPools()
+{
+  PoolList pools;
+  boost::unique_lock<boost::mutex> lock(poolMutex);
+
+  PoolListMap::const_iterator it;
+  for (it = poolMap.begin(); it != poolMap.end(); it++)
+  {
+    const PoolList &list = (*it).second;
+    pools.insert(pools.end(), list.begin(), list.end());
+  }
+
+  return pools;
+}
+
+PoolList
+FilesystemPriv::getMtdPools()
+{
+  PoolList pools;
+  boost::unique_lock<boost::mutex> lock(mtdPoolMutex);
+
+  PoolMap::const_iterator it;
+  for (it = mtdPoolMap.begin(); it != mtdPoolMap.end(); it++)
+  {
+    pools.push_back((*it).second);
+  }
+
+  return pools;
+}
+
 const std::string
 FilesystemPriv::getParentDir(const std::string &obj, int *pos)
 {

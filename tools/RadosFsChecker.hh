@@ -112,7 +112,11 @@ public:
   void checkDirInThread(StatSP parentStat, std::string path, bool recursive,
                         DiagnosticSP diagnostic);
 
-  void checkInodes(PoolSP pool, boost::shared_ptr<Diagnostic> diagnostic);
+  void checkInodes(PoolSP pool, DiagnosticSP diagnostic);
+
+  void checkInodesInThread(PoolSP pool, DiagnosticSP diagnostic);
+
+  void checkInodes(DiagnosticSP diagnostic);
 
   void animate(void);
 

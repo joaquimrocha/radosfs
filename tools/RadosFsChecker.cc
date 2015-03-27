@@ -514,8 +514,7 @@ RadosFsChecker::checkInodeInThread(PoolSP pool, const std::string &inode,
 }
 
 void
-RadosFsChecker::checkInodes(PoolSP pool,
-                            boost::shared_ptr<Diagnostic> diagnostic)
+RadosFsChecker::checkInodes(PoolSP pool, DiagnosticSP diagnostic)
 {
   librados::ObjectIterator it;
 
@@ -524,6 +523,26 @@ RadosFsChecker::checkInodes(PoolSP pool,
     const std::string &inode = (*it).first;
     checkInodeInThread(pool, inode, diagnostic);
   }
+}
+
+void
+RadosFsChecker::checkInodesInThread(PoolSP pool, DiagnosticSP diagnostic)
+{
+  if (pool)
+    ioService->post(boost::bind(&RadosFsChecker::checkInodes, this, pool,
+                                diagnostic));
+}
+
+void
+RadosFsChecker::checkInodes(DiagnosticSP diagnostic)
+{
+  std::vector<PoolSP> pools = mRadosFs->mPriv->getDataPools();
+  const std::vector<PoolSP> &mtdPools = mRadosFs->mPriv->getMtdPools();
+  pools.insert(pools.end(), mtdPools.begin(), mtdPools.end());
+
+  std::vector<PoolSP>::iterator it;
+  for (it = pools.begin(); it != pools.end(); it++)
+    checkInodesInThread((*it), diagnostic);
 }
 
 void
