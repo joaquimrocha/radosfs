@@ -65,7 +65,7 @@ createErrorsDescription()
   return errorDescription;
 }
 
-RadosFsChecker::RadosFsChecker(radosfs::Filesystem *radosFs)
+RadosFsChecker::RadosFsChecker(radosfs::Filesystem *radosFs, size_t numThreads)
   : errorsDescription(createErrorsDescription()),
     mRadosFs(radosFs),
     ioService(new boost::asio::io_service),
@@ -77,7 +77,6 @@ RadosFsChecker::RadosFsChecker(radosfs::Filesystem *radosFs)
     mFix(false),
     mDry(false)
 {
-  int numThreads = 10;
   while (numThreads-- > 0)
     generalWorkerThreads.create_thread(
           boost::bind(&RadosFsChecker::generalWorkerThread, this, ioService));

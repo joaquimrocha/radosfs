@@ -104,7 +104,7 @@ typedef boost::shared_ptr<Diagnostic> DiagnosticSP;
 class RadosFsChecker
 {
 public:
-  RadosFsChecker(radosfs::Filesystem *radosFs);
+  RadosFsChecker(radosfs::Filesystem *radosFs, size_t numThreads);
 
   void checkPath(std::string path, DiagnosticSP diagnostic);
 

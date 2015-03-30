@@ -40,6 +40,9 @@
 #define FIX_ARG_CHAR 'f'
 #define VERBOSE_ARG "verbose"
 #define VERBOSE_ARG_CHAR 'v'
+#define NUM_THREADS_ARG "threads"
+#define NUM_THREADS_ARG_CHAR 't'
+#define DEFAULT_NUM_THREADS 4
 #define DRY_ARG "dry"
 #define DRY_ARG_CHAR 'n'
 #define HELP_ARG "help"
@@ -133,6 +136,7 @@ parseArguments(int argc, char **argv,
                bool *checkInodes,
                std::vector<std::string> &poolsToCheckInodes,
                std::vector<std::string> &pathsToCheck,
+               int *numThreads,
                bool *recursive,
                bool *fix,
                bool *dry,
@@ -151,6 +155,7 @@ parseArguments(int argc, char **argv,
    {CHECK_DIRS_RECURSIVE_ARG, no_argument, 0, CHECK_DIRS_RECURSIVE_ARG_CHAR},
    {CHECK_INODES_ARG, optional_argument, 0, CHECK_INODES_ARG_CHAR},
    {CHECK_PATHS_ARG, required_argument, 0, CHECK_PATHS_ARG_CHAR},
+   {NUM_THREADS_ARG, required_argument, 0, NUM_THREADS_ARG_CHAR},
    {FIX_ARG, no_argument, 0, FIX_ARG_CHAR},
    {DRY_ARG, no_argument, 0, DRY_ARG_CHAR},
    {VERBOSE_ARG, no_argument, 0, VERBOSE_ARG_CHAR},
@@ -162,6 +167,7 @@ parseArguments(int argc, char **argv,
   *fix = false;
   *dry = false;
   *verbose = false;
+  *numThreads = DEFAULT_NUM_THREADS;
 
   std::string args;
 
@@ -203,6 +209,16 @@ parseArguments(int argc, char **argv,
         break;
       case FIX_ARG_CHAR:
         *fix = true;
+        break;
+      case NUM_THREADS_ARG_CHAR:
+        *numThreads = atoi(optarg);
+        if (*numThreads <= 0)
+        {
+          fprintf(stderr, "Error: The number of threads requested (%d) seems "
+                          "to be a mistake, please verify that you have chosen"
+                          "a number > 0!", *numThreads);
+          return -EINVAL;
+        }
         break;
       case VERBOSE_ARG_CHAR:
         *verbose = true;
@@ -275,6 +291,7 @@ main(int argc, char **argv)
 {
   int ret;
   bool checkInodes, recursive, fix, dry, verbose;
+  int numThreads;
   std::string confPath;
   std::vector<std::string> dirsToCheck, poolsToCheckInodes, pools, pathsToCheck;
 
@@ -285,6 +302,7 @@ main(int argc, char **argv)
                        &checkInodes,
                        poolsToCheckInodes,
                        pathsToCheck,
+                       &numThreads,
                        &recursive,
                        &fix,
                        &dry,
@@ -298,7 +316,7 @@ main(int argc, char **argv)
 
   addPools(radosFs, pools);
 
-  RadosFsChecker checker(&radosFs);
+  RadosFsChecker checker(&radosFs, numThreads);
 
   checker.setVerbose(verbose);
   checker.setFix(fix);
