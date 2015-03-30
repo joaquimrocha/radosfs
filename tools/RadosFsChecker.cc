@@ -592,7 +592,7 @@ RadosFsChecker::checkInode(PoolSP pool, std::string inode,
 
   bool inodeIsFile = false;
 
-  if (!omap.size())
+  if (!omap.size() || xattrs.count(XATTR_FILE_SIZE) > 0)
     inodeIsFile = true;
 
   if (ret < 0)
