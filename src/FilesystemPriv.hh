@@ -216,6 +216,10 @@ public:
 
   boost::shared_ptr<boost::asio::io_service> getIoService();
 
+  int resetFileEntry(Stat &stat);
+
+  int resetDirLogicalObj(Stat &dirStat);
+
   Filesystem *radosFs;
   librados::Rados radosCluster;
   bool initialized;

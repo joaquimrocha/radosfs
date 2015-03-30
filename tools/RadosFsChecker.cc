@@ -429,6 +429,40 @@ RadosFsChecker::checkDirInThread(StatSP parentStat, std::string path,
                               path, recursive, diagnostic));
 }
 
+int
+RadosFsChecker::fixInodeBackLink(Stat &backLinkStat, const std::string &inode,
+                                 Pool &pool, Issue &issue)
+{
+  int ret = 0;
+
+  if (!mDry)
+  {
+    backLinkStat.translatedPath = inode;
+
+    if (isDirPath(backLinkStat.path))
+    {
+      if (!backLinkStat.pool)
+        backLinkStat.pool =
+            mRadosFs->mPriv->getMetadataPoolFromPath(backLinkStat.path);
+
+      ret = mRadosFs->mPriv->resetDirLogicalObj(backLinkStat);
+    }
+    else
+    {
+      ret = mRadosFs->mPriv->resetFileEntry(backLinkStat);
+    }
+  }
+
+  if (ret == 0)
+  {
+    issue.extraInfo.append("Now points to '" + inode + "' in pool '"
+                           + pool.name + "'.");
+    issue.setFixed();
+  }
+
+  return ret;
+}
+
 void
 RadosFsChecker::checkInodeBackLink(const std::string &inode,
                                    Pool &pool,
@@ -436,18 +470,39 @@ RadosFsChecker::checkInodeBackLink(const std::string &inode,
                                    DiagnosticSP diagnostic)
 {
   Stat backLinkStat;
-  int ret = mRadosFs->mPriv->stat(backLink, &backLinkStat);
+  backLinkStat.path = backLink;
+  PoolSP mtdPool = mRadosFs->mPriv->getMetadataPoolFromPath(backLink);
+  bool isDirBackLink = isDirPath(backLink);
 
-  if (ret != 0)
+  int ret;
+
+  if (isDirBackLink)
+    ret = mRadosFs->mPriv->statDir(mtdPool, &backLinkStat);
+  else
+    ret = mRadosFs->mPriv->statFile(mtdPool, &backLinkStat);
+
+  if (ret != 0 && ret != -ENODATA && ret != -ENOLINK)
   {
     Issue issue(inode, WRONG_BACK_LINK);
     issue.extraInfo.append("problem statting inode's backlink '" + backLink +
-                           "' in pool '" + pool.name + "'.");
+                           ".");
     diagnostic->addInodeIssue(issue);
   }
-  else
+  else if (inode != backLinkStat.translatedPath)
   {
-    if (inode != backLinkStat.translatedPath)
+    if (backLinkStat.translatedPath.empty())
+    {
+      Issue issue(backLinkStat.path, NO_INODE);
+
+      if (mFix)
+        ret = fixInodeBackLink(backLinkStat, inode, pool, issue);
+
+      if (isDirBackLink)
+        diagnostic->addDirIssue(issue);
+      else
+        diagnostic->addFileIssue(issue);
+    }
+    else
     {
       Issue issue(inode, WRONG_BACK_LINK);
       issue.extraInfo.append(backLinkStat.path + " points to '" +

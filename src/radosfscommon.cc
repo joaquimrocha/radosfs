@@ -1011,17 +1011,24 @@ createDirAndInode(const Stat *stat)
   return ret;
 }
 
-int
-createDirObject(const Stat *stat)
+std::string
+makeInodeXattr(const Stat *stat)
 {
   std::stringstream stream;
-  librados::ObjectWriteOperation writeOp;
 
   stream << LINK_KEY << "='" << stat->translatedPath << "' ";
   stream << POOL_KEY << "='" << stat->pool->name << "'";
 
+  return stream.str();
+}
+
+int
+createDirObject(const Stat *stat)
+{
+  librados::ObjectWriteOperation writeOp;
+
   std::map<std::string, librados::bufferlist> omap;
-  omap[XATTR_INODE].append(stream.str());
+  omap[XATTR_INODE].append(makeInodeXattr(stat));
 
   writeOp.create(true);
   writeOp.omap_set(omap);

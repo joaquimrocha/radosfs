@@ -433,6 +433,52 @@ FilesystemPriv::getIoService()
   return ioService;
 }
 
+int
+FilesystemPriv::resetFileEntry(Stat &fileStat)
+{
+  if (!fileStat.pool)
+    return -ENODEV;
+
+  std::string parentDir = getParentDir(fileStat.path, 0);
+  Stat parentStat;
+
+  int ret = stat(parentDir, &parentStat);
+
+  if (ret != 0)
+    return ret;
+
+  std::string omapFileEntry = XATTR_FILE_PREFIX +
+                              fileStat.path.substr(parentDir.length());
+  std::map<std::string, librados::bufferlist> omap;
+
+  std::string fileEntry = getFileXAttrDirRecord(&fileStat);
+  omap[omapFileEntry].append(fileEntry);
+
+  librados::ObjectWriteOperation writeOp;
+  writeOp.assert_exists();
+  writeOp.omap_set(omap);
+
+  return parentStat.pool->ioctx.operate(parentStat.translatedPath, &writeOp);
+}
+
+int
+FilesystemPriv::resetDirLogicalObj(Stat &dirStat)
+{
+  if (!dirStat.pool)
+    return -ENODEV;
+
+  std::map<std::string, librados::bufferlist> omap;
+  std::string inode = makeInodeXattr(&dirStat);
+
+  omap[XATTR_INODE].append(inode);
+
+  librados::ObjectWriteOperation writeOp;
+  writeOp.assert_exists();
+  writeOp.omap_set(omap);
+
+  return dirStat.pool->ioctx.operate(dirStat.path, &writeOp);
+}
+
 static size_t
 getInlineBufferCapacityFromExtraData(
                                  const std::map<std::string, std::string> &data)

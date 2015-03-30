@@ -249,4 +249,6 @@ int setFileInodeBackLink(Pool *pool, const std::string &inode,
 int setDirInodeBackLink(Pool *pool, const std::string &inode,
                         const std::string &backLink);
 
+std::string makeInodeXattr(const Stat *stat);
+
 #endif /* __RADOS_FS_COMMON_HH__ */

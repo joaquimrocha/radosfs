@@ -163,6 +163,9 @@ private:
                       const std::map<std::string, librados::bufferlist> &keys,
                       DiagnosticSP diagnostic, bool isFile);
 
+  int fixInodeBackLink(Stat &backLinkStat, const std::string &inode,
+                       Pool &pool, Issue &issue);
+
   void log(const char *msg, ...);
 
   radosfs::Filesystem *mRadosFs;
