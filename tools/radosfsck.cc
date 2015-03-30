@@ -293,18 +293,27 @@ main(int argc, char **argv)
   DiagnosticSP diagnostic(new Diagnostic);
   StatSP stat;
 
-  for (size_t i = 0; i < dirsToCheck.size(); i++)
+  if (pools.empty() && dirsToCheck.size())
   {
-    const std::string &dir(dirsToCheck[i]);
-
-    if (dir[0] != '/')
+    fprintf(stderr, "No pools and prefixes were configured. This is needed "
+                    "in order to check the directories.");
+    exit(EINVAL);
+  }
+  else
+  {
+    for (size_t i = 0; i < dirsToCheck.size(); i++)
     {
-      fprintf(stderr, "Cannot check '%s'. Please use an absolute path.",
-              dir.c_str());
-      exit(EINVAL);
-    }
+      const std::string &dir(dirsToCheck[i]);
 
-    checker.checkDirInThread(stat, dir, recursive, diagnostic);
+      if (dir[0] != '/')
+      {
+        fprintf(stderr, "Cannot check '%s'. Please use an absolute path.",
+                dir.c_str());
+        exit(EINVAL);
+      }
+
+      checker.checkDirInThread(stat, dir, recursive, diagnostic);
+    }
   }
 
   if (checkInodes)
@@ -346,18 +355,27 @@ main(int argc, char **argv)
     }
   }
 
-  for (size_t i = 0; i < pathsToCheck.size(); i++)
+  if (pools.empty() && pathsToCheck.size())
   {
-    const std::string &path(pathsToCheck[i]);
-
-    if (path[0] != '/')
+    fprintf(stderr, "No pools and prefixes were configured. This is needed "
+                    "in order to check the paths.");
+    exit(EINVAL);
+  }
+  else
+  {
+    for (size_t i = 0; i < pathsToCheck.size(); i++)
     {
-      fprintf(stderr, "Cannot check '%s'. Please use an absolute path.",
-              path.c_str());
-      exit(EINVAL);
-    }
+      const std::string &path(pathsToCheck[i]);
 
-    checker.checkPathInThread(path, diagnostic);
+      if (path[0] != '/')
+      {
+        fprintf(stderr, "Cannot check '%s'. Please use an absolute path.",
+                path.c_str());
+        exit(EINVAL);
+      }
+
+      checker.checkPathInThread(path, diagnostic);
+    }
   }
 
   checker.finishCheck();
