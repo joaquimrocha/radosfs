@@ -47,50 +47,86 @@
 #define DRY_ARG_CHAR 'n'
 #define HELP_ARG "help"
 #define HELP_ARG_CHAR 'h'
+#define OUTPUT_SPAN "%-50s"
+#define OPTION_SPAN "    " OUTPUT_SPAN " "
+#define SPECIAL_OPTION_SPAN "  * " OUTPUT_SPAN " "
 
 static void
 showUsage(const char *name)
 {
-  fprintf(stdout, "Usage:\n%s [OPTIONS] --%s=CLUSTER_CONF POOL "
-          "POOL_PREFIX DATA_POOL MTD_POOL "
-          "[POOL_PREFIX_2 DATA_POOL_2 MTD_POOL_2]\n\n",
+  fprintf(stdout, "Usage:\n%s ACTIONS [OPTIONS] --%s=CLUSTER_CONF "
+          "[POOL_PREFIX:DATA_POOL:MTD_POOL] "
+          "[POOL_PREFIX_2:DATA_POOL_2:MTD_POOL_2]\n\n",
           name,
           CLUSTER_CONF_ARG
          );
   fprintf(stdout,
-          " CLUSTER_CONF\t- path to the cluster's configuration file\n"
-          " POOL_PREFIX\t- is the path prefix corresponding to the pools "
-          " DATA_POOL and MTD_POOL\n"
-          " DATA_POOL\t- is the name of the data pool to assign to POOL_PREFIX\n"
-          " MTD_POOL\t- is the name of the metadata pool to assign to "
+          "  CLUSTER_CONF\t- path to the cluster's configuration file\n"
+          "  POOL_PREFIX\t- is the path prefix corresponding to the pools"
+          "  DATA_POOL and MTD_POOL\n"
+          "  DATA_POOL\t- is the name of the data pool to assign to POOL_PREFIX\n"
+          "  MTD_POOL\t- is the name of the metadata pool to assign to "
           "POOL_PREFIX\n"
-          "   more pools and prefixes can also be specified.\n"
-          " \nOPTIONS can be:\n"
+          "\n"
+          "  Optionally more pools and prefixes can also be specified.\n\n"
+          "ACTIONS can be:\n"
          );
-  fprintf(stdout, "\t--%s=DIR1[:DIR2], -%c DIR1:[DIR1]\t check the given "
-                  "directories (can be together with --%s for checking "
-                  "subdirectories resursively)\n",
-          CHECK_DIRS_ARG, CHECK_DIRS_CHAR, CHECK_DIRS_RECURSIVE_ARG);
-  fprintf(stdout, "\t--%s, -%c \t check the given directories recursively "
+  std::stringstream arg;
+  arg << "--" << CHECK_DIRS_ARG << "=DIR1[,DIR2], -" << CHECK_DIRS_CHAR <<
+         " DIR1[,DIR1]";
+  fprintf(stdout, SPECIAL_OPTION_SPAN "check the given directories (can be "
+                  "together with --%s for checking subdirectories resursively)\n",
+          arg.str().c_str(), CHECK_DIRS_RECURSIVE_ARG);
+
+  arg.str("");
+  arg << "--" << CHECK_INODES_ARG << "=POOL1[,POOL2], -" << CHECK_DIRS_CHAR <<
+         " POOL1[,POOL2]";
+  fprintf(stdout, SPECIAL_OPTION_SPAN "check the given  pools' inode objects\n",
+          arg.str().c_str());
+
+  arg.str("");
+  arg << "--" << CHECK_INODES_ARG << ", -" << CHECK_DIRS_CHAR;
+  fprintf(stdout, OPTION_SPAN "check all inode objects in the pools "
+                  "specified for the prefixes\n", arg.str().c_str());
+
+  arg.str("");
+  arg << "--" << CHECK_PATHS_ARG << "=PATH1[,PATH2], -" <<
+         CHECK_PATHS_ARG_CHAR << " PATH1[,PATH2]";
+  fprintf(stdout, SPECIAL_OPTION_SPAN "check the given paths only (does not "
+                  "check directories' contents)\n", arg.str().c_str());
+
+  fprintf(stdout, "\n  Actions marked with * need to be used together with the "
+                  "pools specification given above.\n\n"
+                  "OPTIONS can be:\n");
+
+  arg.str("");
+  arg << "--" << CHECK_DIRS_RECURSIVE_ARG << ", -" <<
+         CHECK_DIRS_RECURSIVE_ARG_CHAR;
+  fprintf(stdout, OPTION_SPAN "check the given directories recursively "
                   "(to be used with --%s, otherwise has no effect)\n",
-          CHECK_DIRS_RECURSIVE_ARG, CHECK_DIRS_RECURSIVE_ARG_CHAR,
-          CHECK_DIRS_ARG);
-  fprintf(stdout, "\t--%s[=POOL1[,POOL2]], -%c [POOL1[,POOL2]]\t check the given "
-                  "pools' inode objects when an argument is supplied, otherwise "
-                  "check the pools configured for the given prefixes.\n",
-          CHECK_INODES_ARG, CHECK_INODES_ARG_CHAR);
-  fprintf(stdout, "\t--%s=PATH1[,PATH2], -%c PATH1[,PATH2]\t check the given "
-                  "paths only (does not check directories' contents).\n",
-          CHECK_PATHS_ARG, CHECK_PATHS_ARG_CHAR);
-  fprintf(stdout, "\t--%s, -%c \t fix the issues found\n",
-          FIX_ARG, FIX_ARG_CHAR);
-  fprintf(stdout, "\t--%s, -%c \t dry run (to use with the fix option), shows "
-          "what would be done to fix the issues\n",
-          DRY_ARG, DRY_ARG_CHAR);
-  fprintf(stdout, "\t--%s, -%c \t display more details about the issues\n",
-          VERBOSE_ARG, VERBOSE_ARG_CHAR);
-  fprintf(stdout, "\t--%s, -%c \t displays help information\n",
-          HELP_ARG, HELP_ARG_CHAR);
+          arg.str().c_str(), CHECK_DIRS_ARG);
+
+  arg.str("");
+  arg << "--" << FIX_ARG << ", -" << FIX_ARG_CHAR;
+  fprintf(stdout, OPTION_SPAN "fix the issues found (can be used with "
+                  "the --%s and --%s actions)\n", arg.str().c_str(),
+          CHECK_DIRS_ARG, CHECK_INODES_ARG);
+
+  arg.str("");
+  arg << "--" << DRY_ARG << ", -" << DRY_ARG_CHAR;
+  fprintf(stdout, OPTION_SPAN "dry run (to be used with the --%s option), "
+                  "shows what would be done to fix the issues\n",
+          arg.str().c_str(), FIX_ARG);
+
+  arg.str("");
+  arg << "--" << VERBOSE_ARG << ", -" << VERBOSE_ARG_CHAR;
+  fprintf(stdout, OPTION_SPAN "display more details about what is being "
+                  "done\n", arg.str().c_str());
+
+  arg.str("");
+  arg << "--" << HELP_ARG << ", -" << HELP_ARG_CHAR;
+  fprintf(stdout, OPTION_SPAN "display help information\n",
+          arg.str().c_str());
 }
 
 static void
