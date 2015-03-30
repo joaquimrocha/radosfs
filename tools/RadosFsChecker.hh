@@ -134,6 +134,8 @@ public:
 
   void setFix(bool fix) { mFix = fix; }
 
+  void setHasPools(bool hasPools) { mHasPools = hasPools; }
+
   PoolSP getPool(const std::string &name);
 
 private:
@@ -179,6 +181,7 @@ private:
   bool mVerbose;
   bool mFix;
   bool mDry;
+  bool mHasPools;
 };
 
 #endif // __RADOS_FS_CHECKER_HH__

@@ -288,6 +288,7 @@ main(int argc, char **argv)
   checker.setVerbose(verbose);
   checker.setFix(fix);
   checker.setDry(dry);
+  checker.setHasPools(!pools.empty());
 
   DiagnosticSP diagnostic(new Diagnostic);
   StatSP stat;

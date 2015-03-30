@@ -534,7 +534,7 @@ RadosFsChecker::checkInodeKeys(const std::string &inode, Pool &pool,
       Issue issue(inode, WRONG_BACK_LINK);
       diagnostic->addInodeIssue(issue);
     }
-    else
+    else if (mHasPools)
     {
       std::string backLinkStr(backLink.c_str(), backLink.length());
       checkInodeBackLink(inode, pool, backLinkStr, diagnostic);
@@ -700,6 +700,13 @@ RadosFsChecker::getPool(const std::string &name)
 
   if (!pool)
     pool = mRadosFs->mPriv->getMtdPoolFromName(name);
+
+  if (!pool)
+  {
+    librados::IoCtx ioctx;
+    if (mRadosFs->mPriv->radosCluster.ioctx_create(name.c_str(), ioctx) == 0)
+      pool.reset(new Pool(name, 0, ioctx));
+  }
 
   return pool;
 }
