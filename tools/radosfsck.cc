@@ -159,6 +159,9 @@ parseArguments(int argc, char **argv,
   };
 
   *recursive = false;
+  *fix = false;
+  *dry = false;
+  *verbose = false;
 
   int c;
   while ((c = getopt_long(argc, argv, "Rhfnvc:d:i::p:", options, &optionIndex)) != -1)
