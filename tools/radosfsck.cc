@@ -34,6 +34,8 @@
 #define CHECK_DIRS_RECURSIVE_ARG_CHAR 'R'
 #define CHECK_INODES_ARG "check-inodes"
 #define CHECK_INODES_ARG_CHAR 'i'
+#define CHECK_PATHS_ARG "check-paths"
+#define CHECK_PATHS_ARG_CHAR 'p'
 #define FIX_ARG "fix"
 #define FIX_ARG_CHAR 'f'
 #define VERBOSE_ARG "verbose"
@@ -74,6 +76,9 @@ showUsage(const char *name)
                   "pools' inode objects when an argument is supplied, otherwise "
                   "check the pools configured for the given prefixes.\n",
           CHECK_INODES_ARG, CHECK_INODES_ARG_CHAR);
+  fprintf(stdout, "\t--%s=PATH1[,PATH2], -%c PATH1[,PATH2]\t check the given "
+                  "paths only (does not check directories' contents).\n",
+          CHECK_PATHS_ARG, CHECK_PATHS_ARG_CHAR);
   fprintf(stdout, "\t--%s, -%c \t fix the issues found\n",
           FIX_ARG, FIX_ARG_CHAR);
   fprintf(stdout, "\t--%s, -%c \t dry run (to use with the fix option), shows "
@@ -127,6 +132,7 @@ parseArguments(int argc, char **argv,
                std::vector<std::string> &dirsToCheck,
                bool *checkInodes,
                std::vector<std::string> &poolsToCheckInodes,
+               std::vector<std::string> &pathsToCheck,
                bool *recursive,
                bool *fix,
                bool *dry,
@@ -144,6 +150,7 @@ parseArguments(int argc, char **argv,
    {CHECK_DIRS_ARG, required_argument, 0, CHECK_DIRS_CHAR},
    {CHECK_DIRS_RECURSIVE_ARG, no_argument, 0, CHECK_DIRS_RECURSIVE_ARG_CHAR},
    {CHECK_INODES_ARG, optional_argument, 0, CHECK_INODES_ARG_CHAR},
+   {CHECK_PATHS_ARG, required_argument, 0, CHECK_PATHS_ARG_CHAR},
    {FIX_ARG, no_argument, 0, FIX_ARG_CHAR},
    {DRY_ARG, no_argument, 0, DRY_ARG_CHAR},
    {VERBOSE_ARG, no_argument, 0, VERBOSE_ARG_CHAR},
@@ -154,7 +161,7 @@ parseArguments(int argc, char **argv,
   *recursive = false;
 
   int c;
-  while ((c = getopt_long(argc, argv, "Rhfnvc:d:i::", options, &optionIndex)) != -1)
+  while ((c = getopt_long(argc, argv, "Rhfnvc:d:i::p:", options, &optionIndex)) != -1)
   {
     switch(c)
     {
@@ -169,6 +176,9 @@ parseArguments(int argc, char **argv,
         if (optarg)
           splitToVector(optarg, poolsToCheckInodes);
 
+        break;
+      case CHECK_PATHS_ARG_CHAR:
+        splitToVector(optarg, pathsToCheck);
         break;
       case CHECK_DIRS_RECURSIVE_ARG_CHAR:
         *recursive = true;
@@ -251,7 +261,7 @@ main(int argc, char **argv)
   int ret;
   bool checkInodes, recursive, fix, dry, verbose;
   std::string confPath;
-  std::vector<std::string> dirsToCheck, poolsToCheckInodes, pools;
+  std::vector<std::string> dirsToCheck, poolsToCheckInodes, pools, pathsToCheck;
 
   ret = parseArguments(argc, argv,
                        confPath,
@@ -259,6 +269,7 @@ main(int argc, char **argv)
                        dirsToCheck,
                        &checkInodes,
                        poolsToCheckInodes,
+                       pathsToCheck,
                        &recursive,
                        &fix,
                        &dry,
@@ -332,6 +343,20 @@ main(int argc, char **argv)
         checker.checkInodesInThread(poolsObjs[i], diagnostic);
       }
     }
+  }
+
+  for (size_t i = 0; i < pathsToCheck.size(); i++)
+  {
+    const std::string &path(pathsToCheck[i]);
+
+    if (path[0] != '/')
+    {
+      fprintf(stderr, "Cannot check '%s'. Please use an absolute path.",
+              path.c_str());
+      exit(EINVAL);
+    }
+
+    checker.checkPathInThread(path, diagnostic);
   }
 
   checker.finishCheck();
