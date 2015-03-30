@@ -163,8 +163,20 @@ parseArguments(int argc, char **argv,
   *dry = false;
   *verbose = false;
 
+  std::string args;
+
+  for (int i = 0; options[i].name != 0; i++)
+  {
+    args += options[i].val;
+
+    if (options[i].has_arg == required_argument)
+      args += ":";
+    if (options[i].has_arg == optional_argument)
+      args += "::";
+  }
+
   int c;
-  while ((c = getopt_long(argc, argv, "Rhfnvc:d:i::p:", options, &optionIndex)) != -1)
+  while ((c = getopt_long(argc, argv, args.c_str(), options, &optionIndex)) != -1)
   {
     switch(c)
     {
