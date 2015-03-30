@@ -110,10 +110,9 @@ public:
 
   void checkPathInThread(std::string path, DiagnosticSP diagnostic);
 
-  void checkDir(StatSP parentStat, std::string path, bool recursive,
-                DiagnosticSP diagnostic);
+  void checkDir(std::string path, bool recursive, DiagnosticSP diagnostic);
 
-  void checkDirInThread(StatSP parentStat, std::string path, bool recursive,
+  void checkDirInThread(std::string path, bool recursive,
                         DiagnosticSP diagnostic);
 
   void checkInodes(PoolSP pool, DiagnosticSP diagnostic);

@@ -291,7 +291,6 @@ main(int argc, char **argv)
   checker.setHasPools(!pools.empty());
 
   DiagnosticSP diagnostic(new Diagnostic);
-  StatSP stat;
 
   if (pools.empty() && dirsToCheck.size())
   {
@@ -312,7 +311,7 @@ main(int argc, char **argv)
         exit(EINVAL);
       }
 
-      checker.checkDirInThread(stat, dir, recursive, diagnostic);
+      checker.checkDirInThread(dir, recursive, diagnostic);
     }
   }
 

@@ -324,8 +324,7 @@ RadosFsChecker::checkPathInThread(std::string path, DiagnosticSP diagnostic)
 }
 
 void
-RadosFsChecker::checkDir(StatSP parentStat, std::string path,
-                         bool recursive,
+RadosFsChecker::checkDir(std::string path, bool recursive,
                          boost::shared_ptr<Diagnostic> diagnostic)
 {
   Stat stat;
@@ -407,8 +406,8 @@ RadosFsChecker::checkDir(StatSP parentStat, std::string path,
     }
     else if (recursive)
     {
-      ioService->post(boost::bind(&RadosFsChecker::checkDir, this, parentStat,
-                                  entryPath, recursive, diagnostic));
+      ioService->post(boost::bind(&RadosFsChecker::checkDir, this, entryPath,
+                                  recursive, diagnostic));
     }
     else
     {
@@ -422,11 +421,11 @@ RadosFsChecker::checkDir(StatSP parentStat, std::string path,
 }
 
 void
-RadosFsChecker::checkDirInThread(StatSP parentStat, std::string path,
-                                 bool recursive, DiagnosticSP diagnostic)
+RadosFsChecker::checkDirInThread(std::string path, bool recursive,
+                                 DiagnosticSP diagnostic)
 {
-  ioService->post(boost::bind(&RadosFsChecker::checkDir, this, parentStat,
-                              path, recursive, diagnostic));
+  ioService->post(boost::bind(&RadosFsChecker::checkDir, this, path, recursive,
+                              diagnostic));
 }
 
 int
