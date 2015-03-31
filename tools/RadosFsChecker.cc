@@ -380,6 +380,14 @@ RadosFsChecker::checkDir(std::string path, bool recursive,
     return;
   }
 
+  if (S_ISLNK(stat.statBuff.st_mode))
+  {
+    fprintf(stderr, "Dir '%s' is actually a link pointing to '%s'. Check it as "
+                    "a path or check its target instead.\nAborting...",
+            stat.path.c_str(), stat.translatedPath.c_str());
+    exit(ENOTSUP);
+  }
+
   radosfs::Dir dir(mRadosFs, path);
 
   dir.update();
