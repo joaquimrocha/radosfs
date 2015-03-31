@@ -117,6 +117,7 @@ RadosFsChecker::verifyDirObject(Stat &stat,
                                 std::map<std::string, librados::bufferlist> &omap,
                                 DiagnosticSP diagnostic)
 {
+  log("Verifying dir object '%s'...\n", stat.path.c_str());
   bool noIssues = true;
   const char * keysToCheck[] = {XATTR_INODE_HARD_LINK, XATTR_CTIME, XATTR_MTIME,
                                 0};
@@ -139,9 +140,14 @@ RadosFsChecker::verifyDirObject(Stat &stat,
 
       if (strcmp(keysToCheck[i], XATTR_INODE_HARD_LINK) == 0)
       {
+        log("No back link set in '%s' (%s)!\n", stat.translatedPath.c_str(),
+            stat.path.c_str());
         if (mFix)
         {
           int ret = 0;
+
+          log("Fixing back link in '%s' (%s)!\n", stat.translatedPath.c_str(),
+              stat.path.c_str());
 
           if (!mDry)
           {
@@ -185,6 +191,7 @@ RadosFsChecker::verifyFileObject(const std::string path,
                                  std::map<std::string, librados::bufferlist> &omap,
                                  DiagnosticSP diagnostic)
 {
+  log("Verifying file object '%s'...\n", path.c_str());
   int ret = 0;
   const std::string parentPath = getParentDir(path, 0);
   const std::string baseName = path.substr(parentPath.length());
@@ -194,6 +201,7 @@ RadosFsChecker::verifyFileObject(const std::string path,
 
   if (it == omap.end())
   {
+    log("File '%s' has no entry in its parent!\n", path.c_str());
     Issue issue(path, FILE_ENTRY_NO_LINK);
     diagnostic->addFileIssue(issue);
     return ret;
@@ -204,6 +212,7 @@ RadosFsChecker::verifyFileObject(const std::string path,
 
   if (fileEntryContents.empty())
   {
+    log("File '%s' has an empty entry in its parent!\n", path.c_str());
     Issue issue(path, EMPTY_FILE_ENTRY);
     diagnostic->addFileIssue(issue);
     return ret;
@@ -230,6 +239,8 @@ RadosFsChecker::verifyFileObject(const std::string path,
 
   if (ret < 0)
   {
+    log("Error statting file '%s': %s (%d)\n", stat.path.c_str(),
+        strerror(abs(ret)), abs(ret));
     Issue issue(path, ret);
     diagnostic->addFileIssue(issue);
     return ret;
@@ -247,13 +258,30 @@ RadosFsChecker::verifyFileObject(const std::string path,
 
   if (backLink != path)
   {
-    int errorCode = backLink.empty() ? NO_BACK_LINK : WRONG_BACK_LINK;
+    int errorCode;
+
+    if (backLink.empty())
+    {
+      errorCode = NO_BACK_LINK;
+      log("Inode '%s' (%s) has no backlink!\n", stat.translatedPath.c_str(),
+          stat.path.c_str());
+    }
+    else
+    {
+      errorCode = WRONG_BACK_LINK;
+      log("Inode '%s' (%s) has a wrong backlink!\n", stat.translatedPath.c_str(),
+          stat.path.c_str());
+    }
+
     Issue issue(path, errorCode);
     issue.extraInfo = stat.translatedPath;
 
     if (mFix)
     {
       int ret = 0;
+
+      log("Fixing back link in '%s' (%s)!\n", stat.translatedPath.c_str(),
+          stat.path.c_str());
 
       if (!mDry)
         ret = setFileInodeBackLink(stat.pool.get(), stat.translatedPath, path);
@@ -272,6 +300,7 @@ RadosFsChecker::verifyFileObject(const std::string path,
 void
 RadosFsChecker::checkPath(std::string path, DiagnosticSP diagnostic)
 {
+  log("Checking path '%s'...\n", path.c_str());
   Stat stat;
   int ret = mRadosFs->mPriv->stat(path, &stat);
 
@@ -279,6 +308,8 @@ RadosFsChecker::checkPath(std::string path, DiagnosticSP diagnostic)
 
   if (ret < 0)
   {
+    log("Error statting path '%s': %s (%d)\n", path.c_str(), strerror(abs(ret)),
+        abs(ret));
     Issue issue(path, ret);
     diagnostic->addFileIssue(issue);
     return;
