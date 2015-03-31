@@ -119,6 +119,13 @@ showUsage(const char *name)
           arg.str().c_str(), FIX_ARG);
 
   arg.str("");
+  arg << "--" << NUM_THREADS_ARG << "=NUM_THREADS, -" << NUM_THREADS_ARG_CHAR <<
+         " NUM_THREADS";
+  fprintf(stdout, OPTION_SPAN "specify number of threads to be used in the "
+                  "check (default=%d)\n", arg.str().c_str(),
+                  DEFAULT_NUM_THREADS);
+
+  arg.str("");
   arg << "--" << VERBOSE_ARG << ", -" << VERBOSE_ARG_CHAR;
   fprintf(stdout, OPTION_SPAN "display more details about what is being "
                   "done\n", arg.str().c_str());
