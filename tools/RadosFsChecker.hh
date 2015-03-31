@@ -142,7 +142,7 @@ private:
 
   void generalWorkerThread(boost::shared_ptr<boost::asio::io_service> ioService);
 
-  int verifyFileObject(const std::string path,
+  int verifyFileObject(Stat &stat,
                        std::map<std::string, librados::bufferlist> &omap,
                        DiagnosticSP diagnostic);
 

@@ -187,22 +187,25 @@ RadosFsChecker::verifyDirObject(Stat &stat,
 }
 
 int
-RadosFsChecker::verifyFileObject(const std::string path,
+RadosFsChecker::verifyFileObject(Stat &stat,
                                  std::map<std::string, librados::bufferlist> &omap,
                                  DiagnosticSP diagnostic)
 {
-  log("Verifying file object '%s'...\n", path.c_str());
+  bool isLink = S_ISLNK(stat.statBuff.st_mode);
   int ret = 0;
-  const std::string parentPath = getParentDir(path, 0);
-  const std::string baseName = path.substr(parentPath.length());
+  const std::string parentPath = getParentDir(stat.path, 0);
+  const std::string baseName = stat.path.substr(parentPath.length());
   std::map<std::string, librados::bufferlist>::iterator it;
+
+  log("Verifying %s object '%s'...\n", isLink ? "link" : "file",
+      stat.path.c_str());
 
   it = omap.find(XATTR_FILE_PREFIX + baseName);
 
   if (it == omap.end())
   {
-    log("File '%s' has no entry in its parent!\n", path.c_str());
-    Issue issue(path, FILE_ENTRY_NO_LINK);
+    log("'%s' has no entry in its parent!\n", stat.path.c_str());
+    Issue issue(stat.path, FILE_ENTRY_NO_LINK);
     diagnostic->addFileIssue(issue);
     return ret;
   }
@@ -212,8 +215,8 @@ RadosFsChecker::verifyFileObject(const std::string path,
 
   if (fileEntryContents.empty())
   {
-    log("File '%s' has an empty entry in its parent!\n", path.c_str());
-    Issue issue(path, EMPTY_FILE_ENTRY);
+    log("'%s' has an empty entry in its parent!\n", stat.path.c_str());
+    Issue issue(stat.path, EMPTY_FILE_ENTRY);
     diagnostic->addFileIssue(issue);
     return ret;
   }
@@ -222,27 +225,30 @@ RadosFsChecker::verifyFileObject(const std::string path,
   fileEntryMap = stringAttrsToMap(fileEntryContents);
 
   const char * keysToCheck[] = {LINK_KEY, UID_KEY, GID_KEY, MODE_KEY, TIME_KEY,
-                                XATTR_FILE_INLINE_BUFFER_SIZE,
+                                isLink ? 0 : XATTR_FILE_INLINE_BUFFER_SIZE,
                                 0};
   const ErrorCode errorCodes[] = {NO_LINK, NO_UID, NO_GID, NO_MODE, NO_CTIME,
-                                  NO_INLINE_BUFFER_SIZE,
+                                  isLink ? NO_ERROR : NO_INLINE_BUFFER_SIZE,
                                   NO_ERROR};
 
-  if (!verifyPairsInEntry(path, fileEntryContents, keysToCheck, errorCodes,
+  if (!verifyPairsInEntry(stat.path, fileEntryContents, keysToCheck, errorCodes,
                           diagnostic))
   {
     return ret;
   }
 
-  Stat stat;
-  ret = mRadosFs->mPriv->stat(path, &stat);
-
-  if (ret < 0)
+  if (isLink)
   {
-    log("Error statting file '%s': %s (%d)\n", stat.path.c_str(),
-        strerror(abs(ret)), abs(ret));
-    Issue issue(path, ret);
-    diagnostic->addFileIssue(issue);
+    Stat targetStat;
+    int ret = mRadosFs->mPriv->stat(stat.translatedPath, &targetStat);
+    if (ret != 0)
+    {
+      Issue issue(stat.path, ret);
+      issue.extraInfo.append("Error statting link target " +
+                             stat.translatedPath);
+      diagnostic->addFileIssue(issue);
+    }
+
     return ret;
   }
 
@@ -256,7 +262,7 @@ RadosFsChecker::verifyFileObject(const std::string path,
     return 0;
   }
 
-  if (backLink != path)
+  if (backLink != stat.path)
   {
     int errorCode;
 
@@ -273,7 +279,7 @@ RadosFsChecker::verifyFileObject(const std::string path,
           stat.path.c_str());
     }
 
-    Issue issue(path, errorCode);
+    Issue issue(stat.path, errorCode);
     issue.extraInfo = stat.translatedPath;
 
     if (mFix)
@@ -284,7 +290,8 @@ RadosFsChecker::verifyFileObject(const std::string path,
           stat.path.c_str());
 
       if (!mDry)
-        ret = setFileInodeBackLink(stat.pool.get(), stat.translatedPath, path);
+        ret = setFileInodeBackLink(stat.pool.get(), stat.translatedPath,
+                                   stat.path);
 
       if (ret == 0)
         issue.setFixed();
@@ -315,16 +322,8 @@ RadosFsChecker::checkPath(std::string path, DiagnosticSP diagnostic)
     return;
   }
 
-  if (S_ISDIR(stat.statBuff.st_mode))
-  {
-    std::map<std::string, librados::bufferlist> omap;
-    stat.pool->ioctx.omap_get_vals(stat.translatedPath, "", "", UINT_MAX, &omap);
 
-    verifyDirObject(stat, omap, diagnostic);
-    return;
-  }
-
-  if (S_ISREG(stat.statBuff.st_mode))
+  if (S_ISLNK(stat.statBuff.st_mode) || S_ISREG(stat.statBuff.st_mode))
   {
     Stat parentStat;
     std::string parentDir = getParentDir(stat.path, 0);
@@ -342,7 +341,14 @@ RadosFsChecker::checkPath(std::string path, DiagnosticSP diagnostic)
     parentStat.pool->ioctx.omap_get_vals(parentStat.translatedPath, "", "",
                                          UINT_MAX, &omap);
 
-    verifyFileObject(stat.path, omap, diagnostic);
+    verifyFileObject(stat, omap, diagnostic);
+  }
+  else if (S_ISDIR(stat.statBuff.st_mode))
+  {
+    std::map<std::string, librados::bufferlist> omap;
+    stat.pool->ioctx.omap_get_vals(stat.translatedPath, "", "", UINT_MAX, &omap);
+
+    verifyDirObject(stat, omap, diagnostic);
   }
 }
 
@@ -429,9 +435,9 @@ RadosFsChecker::checkDir(std::string path, bool recursive,
       continue;
     }
 
-    if (S_ISREG (stat.statBuff.st_mode))
+    if (S_ISLNK (stat.statBuff.st_mode) || S_ISREG (stat.statBuff.st_mode))
     {
-      ret = verifyFileObject(dir.path() + entryName, omap, diagnostic);
+      ret = verifyFileObject(stat, omap, diagnostic);
       continue;
     }
     else if (recursive)
