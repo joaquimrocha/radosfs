@@ -383,6 +383,26 @@ main(int argc, char **argv)
     exit(EOPNOTSUPP);
   }
 
+  // Warn that the fix is being incorrectly used
+  if (fix && dirsToCheck.empty() && poolsToCheckInodes.empty() && !checkInodes)
+  {
+    fprintf(stderr, "The --%s option can only be used with the following "
+                    "actions:\n"
+                    "\t--%s\n"
+                    "\t--%s\n",
+                     FIX_ARG, CHECK_DIRS_ARG, CHECK_INODES_ARG);
+
+    exit(EOPNOTSUPP);
+  }
+
+  if (dry && !fix)
+  {
+    fprintf(stderr, "The --%s option can only be used together with the --%s "
+                    "option\n", DRY_ARG, FIX_ARG);
+
+    exit(EOPNOTSUPP);
+  }
+
   if (pools.empty() && dirsToCheck.size())
   {
     fprintf(stderr, "No pools and prefixes were configured. This is needed "
