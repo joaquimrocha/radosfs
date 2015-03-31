@@ -521,6 +521,7 @@ RadosFsChecker::checkInodeKeys(const std::string &inode, Pool &pool,
   it = keys.find(XATTR_INODE_HARD_LINK);
   if (it == keys.end())
   {
+    log("Inode '%s' has no back link\n", inode.c_str());
     Issue issue(inode, NO_BACK_LINK);
     diagnostic->addInodeIssue(issue);
   }
@@ -529,6 +530,7 @@ RadosFsChecker::checkInodeKeys(const std::string &inode, Pool &pool,
     librados::bufferlist backLink = (*it).second;
     if (backLink.length() == 0)
     {
+      log("Inode '%s' has the wrong back link\n", inode.c_str());
       Issue issue(inode, WRONG_BACK_LINK);
       diagnostic->addInodeIssue(issue);
     }
@@ -542,6 +544,7 @@ RadosFsChecker::checkInodeKeys(const std::string &inode, Pool &pool,
   it = keys.find(XATTR_MTIME);
   if (it == keys.end())
   {
+    log("Inode '%s' has no mtime\n", inode.c_str());
     Issue issue(inode, NO_MTIME);
     diagnostic->addInodeIssue(issue);
   }
@@ -551,6 +554,7 @@ RadosFsChecker::checkInodeKeys(const std::string &inode, Pool &pool,
     it = keys.find(XATTR_FILE_SIZE);
     if (it == keys.end())
     {
+      log("Inode '%s' has no size\n", inode.c_str());
       Issue issue(inode, INODE_NO_SIZE);
       diagnostic->addInodeIssue(issue);
     }
@@ -563,12 +567,15 @@ RadosFsChecker::checkInode(PoolSP pool, std::string inode,
 {
   animate();
 
+  log("Checking inode '%s'...\n", inode.c_str());
+
   if (nameIsStripe(inode))
   {
     std::string baseInode = getBaseInode(inode);
 
     if (pool->ioctx.stat(baseInode, 0, 0) != 0)
     {
+      log("Inode stripe '%s' is loose!\n", inode.c_str());
       Issue issue(inode, LOOSE_INODE_STRIPE);
       issue.extraInfo.append("in pool '" + pool->name + "'");
       diagnostic->addInodeIssue(issue);
@@ -595,6 +602,8 @@ RadosFsChecker::checkInode(PoolSP pool, std::string inode,
 
   if (ret < 0)
   {
+    log("Error getting the xattrs or omap of inode '%s': %s (%d)\n",
+        inode.c_str(), abs(ret), strerror(abs(ret)));
     Issue issue(inode, ret);
     diagnostic->addInodeIssue(issue);
     return;
