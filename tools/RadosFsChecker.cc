@@ -670,6 +670,9 @@ RadosFsChecker::finishCheck(void)
 void
 RadosFsChecker::animate()
 {
+  if (mVerbose)
+    return;
+
   boost::unique_lock<boost::mutex> lock(mAnimationMutex);
   boost::chrono::system_clock::time_point now = boost::chrono::system_clock::now();
   boost::chrono::duration<double> timeDiff;
