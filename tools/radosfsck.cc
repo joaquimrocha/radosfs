@@ -368,6 +368,21 @@ main(int argc, char **argv)
 
   DiagnosticSP diagnostic(new Diagnostic);
 
+  // Verify the user asked for something to be checked
+  if (dirsToCheck.empty() && pathsToCheck.empty() &&
+      poolsToCheckInodes.empty() && !checkInodes)
+  {
+    fprintf(stderr, "Please specify one of the following actions:\n"
+                    "\t--%s\n"
+                    "\t--%s\n"
+                    "\t--%s\n\n",
+                    CHECK_DIRS_ARG, CHECK_INODES_ARG, CHECK_PATHS_ARG);
+
+    showUsage(argv[0]);
+
+    exit(EOPNOTSUPP);
+  }
+
   if (pools.empty() && dirsToCheck.size())
   {
     fprintf(stderr, "No pools and prefixes were configured. This is needed "
