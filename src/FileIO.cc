@@ -1023,9 +1023,8 @@ FileIO::truncate(size_t newSize)
       // or have the part out of the truncated range zeroed otherwise.
       if (hasAlignment)
       {
-        librados::bufferlist zeroContents;
-        zeroContents.append_zero(stripeSize() - newLastStripeSize);
-        op.write(newLastStripeSize, zeroContents);
+        std::string zeroStr(stripeSize() - newLastStripeSize, '\0');
+        setAlignedStripeWriteOp(op, fileStripe, newLastStripeSize, zeroStr);
       }
       else
       {
