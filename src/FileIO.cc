@@ -726,6 +726,58 @@ FileIO::verifyWriteParams(off_t offset, size_t length)
   return ret;
 }
 
+void
+FileIO::setAlignedStripeWriteOp(librados::ObjectWriteOperation &op,
+                                const std::string &fileStripe,
+                                const size_t offset,
+                                const std::string &newContents)
+{
+  std::map<std::string, librados::bufferlist> xattrs;
+  librados::ObjectReadOperation readOp;
+  librados::bufferlist contentsBl;
+
+  readOp.read(0, mStripeSize, &contentsBl, 0);
+  readOp.getxattrs(&xattrs, 0);
+
+  mPool->ioctx.operate(fileStripe, &readOp, 0);
+
+  std::string contents;
+  contents.reserve(mStripeSize);
+
+  if (contentsBl.length() > 0)
+  {
+    contents.assign(contentsBl.c_str(), contentsBl.length());
+  }
+  else
+  {
+    contents.assign(mStripeSize, '\0');
+  }
+
+  if (contentsBl.length() == contents.length())
+  {
+    contentsBl.copy_in(0, contents.length(), contents.c_str());
+  }
+  else
+  {
+    contentsBl.clear();
+    contentsBl.append(contents);
+  }
+
+  contents.replace(offset, newContents.length(), newContents);
+  op.remove();
+  op.set_op_flags(librados::OP_FAILOK);
+  op.create(false);
+
+  std::map<std::string, librados::bufferlist>::iterator it;
+  for (it = xattrs.begin(); it != xattrs.end(); it++)
+  {
+    const std::string &xattrName = (*it).first;
+    op.setxattr(xattrName.c_str(), (*it).second);
+  }
+
+  op.append(contentsBl);
+}
+
 int
 FileIO::realWrite(char *buff, off_t offset, size_t blen, bool deleteBuffer,
                   AsyncOpSP asyncOp)
@@ -808,13 +860,12 @@ FileIO::realWrite(char *buff, off_t offset, size_t blen, bool deleteBuffer,
 
     if (mPool->hasAlignment())
     {
-      size_t stripeRemaining = stripeSize() - length;
-
-      if (stripeRemaining > 0)
-        contents.append_zero(stripeRemaining);
+      setAlignedStripeWriteOp(op, fileStripe, currentOffset, contentsStr);
     }
-
-    op.write(currentOffset, contents);
+    else
+    {
+      op.write(currentOffset, contents);
+    }
 
     completion = librados::Rados::aio_create_completion();
 

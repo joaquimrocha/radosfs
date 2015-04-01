@@ -218,6 +218,10 @@ private:
                         boost::shared_ptr<boost::shared_mutex> readOpMutex,
                         AsyncOpSP asyncOp,
                         boost::shared_ptr<ssize_t> inodeSize);
+  void setAlignedStripeWriteOp(librados::ObjectWriteOperation &op,
+                               const std::string &fileStripe,
+                               const size_t offset,
+                               const std::string &newContents);
 };
 
 RADOS_FS_END_NAMESPACE
