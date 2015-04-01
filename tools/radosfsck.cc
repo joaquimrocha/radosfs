@@ -43,6 +43,8 @@
 #define NUM_THREADS_ARG "threads"
 #define NUM_THREADS_ARG_CHAR 't'
 #define DEFAULT_NUM_THREADS 4
+#define USER_ARG "user"
+#define USER_ARG_CHAR 'u'
 #define DRY_ARG "dry"
 #define DRY_ARG_CHAR 'n'
 #define HELP_ARG "help"
@@ -126,6 +128,11 @@ showUsage(const char *name)
                   DEFAULT_NUM_THREADS);
 
   arg.str("");
+  arg << "--" << USER_ARG << "=USER_NAME, -" << USER_ARG_CHAR << " USER_NAME";
+  fprintf(stdout, OPTION_SPAN "the user name to use when initializing the "
+                              "Ceph cluster\n", arg.str().c_str());
+
+  arg.str("");
   arg << "--" << VERBOSE_ARG << ", -" << VERBOSE_ARG_CHAR;
   fprintf(stdout, OPTION_SPAN "display more details about what is being "
                   "done\n", arg.str().c_str());
@@ -174,6 +181,7 @@ splitToVector(const std::string &str, std::vector<std::string> &vec,
 static int
 parseArguments(int argc, char **argv,
                std::string &confPath,
+               std::string &userName,
                std::vector<std::string> &pools,
                std::vector<std::string> &dirsToCheck,
                bool *checkInodes,
@@ -199,6 +207,7 @@ parseArguments(int argc, char **argv,
    {CHECK_INODES_ARG, optional_argument, 0, CHECK_INODES_ARG_CHAR},
    {CHECK_PATHS_ARG, required_argument, 0, CHECK_PATHS_ARG_CHAR},
    {NUM_THREADS_ARG, required_argument, 0, NUM_THREADS_ARG_CHAR},
+   {USER_ARG, required_argument, 0, USER_ARG_CHAR},
    {FIX_ARG, no_argument, 0, FIX_ARG_CHAR},
    {DRY_ARG, no_argument, 0, DRY_ARG_CHAR},
    {VERBOSE_ARG, no_argument, 0, VERBOSE_ARG_CHAR},
@@ -211,6 +220,7 @@ parseArguments(int argc, char **argv,
   *dry = false;
   *verbose = false;
   *numThreads = DEFAULT_NUM_THREADS;
+  userName = "";
 
   std::string args;
 
@@ -252,6 +262,9 @@ parseArguments(int argc, char **argv,
         break;
       case FIX_ARG_CHAR:
         *fix = true;
+        break;
+      case USER_ARG_CHAR:
+        userName = optarg;
         break;
       case NUM_THREADS_ARG_CHAR:
         *numThreads = atoi(optarg);
@@ -335,11 +348,12 @@ main(int argc, char **argv)
   int ret;
   bool checkInodes, recursive, fix, dry, verbose;
   int numThreads;
-  std::string confPath;
+  std::string confPath, userName;
   std::vector<std::string> dirsToCheck, poolsToCheckInodes, pools, pathsToCheck;
 
   ret = parseArguments(argc, argv,
                        confPath,
+                       userName,
                        pools,
                        dirsToCheck,
                        &checkInodes,
@@ -355,7 +369,7 @@ main(int argc, char **argv)
     return ret;
 
   radosfs::Filesystem radosFs;
-  radosFs.init("", confPath.c_str());
+  radosFs.init(userName.c_str(), confPath.c_str());
 
   addPools(radosFs, pools);
 
