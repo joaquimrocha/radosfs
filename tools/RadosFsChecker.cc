@@ -446,7 +446,6 @@ RadosFsChecker::checkDir(std::string path, bool recursive,
     if (S_ISLNK (stat.statBuff.st_mode) || S_ISREG (stat.statBuff.st_mode))
     {
       ret = verifyFileObject(stat, omap, diagnostic);
-      continue;
     }
     else if (recursive)
     {
