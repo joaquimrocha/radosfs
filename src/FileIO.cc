@@ -753,6 +753,8 @@ FileIO::setAlignedStripeWriteOp(librados::ObjectWriteOperation &op,
     contents.assign(mStripeSize, '\0');
   }
 
+  contents.replace(offset, newContents.length(), newContents);
+
   if (contentsBl.length() == contents.length())
   {
     contentsBl.copy_in(0, contents.length(), contents.c_str());
@@ -763,7 +765,6 @@ FileIO::setAlignedStripeWriteOp(librados::ObjectWriteOperation &op,
     contentsBl.append(contents);
   }
 
-  contents.replace(offset, newContents.length(), newContents);
   op.remove();
   op.set_op_flags(librados::OP_FAILOK);
   op.create(false);
