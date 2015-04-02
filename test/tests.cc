@@ -3321,6 +3321,14 @@ TEST_F(RadosFsTest, PoolAlignment)
 
   EXPECT_EQ(0, radosFsPriv()->stat(file.path(), &stat));
 
+  // Check the consistency of the contents written
+
+  char readBuff[contentsSize];
+
+  EXPECT_EQ(contentsSize, file.read(readBuff, 0, contentsSize));
+
+  EXPECT_EQ(0, strncmp(contents, readBuff, contentsSize));
+
   radosfs::FileIO *fileIO = radosFsFilePriv(file)->getFileIO().get();
   ssize_t lastStripe = fileIO->getLastStripeIndex();
 
