@@ -850,7 +850,7 @@ FileIO::remove()
   if (lastChunk < 0)
   {
     radosfs_debug("Error trying to remove inode '%s' (retcode=%d): %s",
-                  inode().c_str(), lastChunk, strerror(abs(lastChunk)));
+                  inode().c_str(), lastChunk, strerror(std::abs(lastChunk)));
     return lastChunk;
   }
 
