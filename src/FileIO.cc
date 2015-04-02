@@ -748,7 +748,7 @@ FileIO::setAlignedStripeWriteOp(librados::ObjectWriteOperation &op,
   {
     contents.assign(contentsBl.c_str(), contentsBl.length());
   }
-  else
+  else if (newContents.length() != mStripeSize)
   {
     contents.assign(mStripeSize, '\0');
   }
