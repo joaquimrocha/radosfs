@@ -49,7 +49,12 @@ set( NO_SOURCE CACHE BOOL false )
 if( NOT NO_SOURCE )
   if ( "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR
        "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" )
-    set( WARNING_LEVEL "-Wall -Wno-unused-local-typedefs" )
+    set( WARNING_LEVEL "-Wall" )
+
+    if ( "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" )
+      set( WARNING_LEVEL "${WARNING_LEVEL} -Wno-unused-local-typedefs" )
+    endif()
+
     set( CMAKE_CXX_FLAGS ${WARNING_LEVEL}
          CACHE STRING "C++ compiler flags." FORCE )
     set( CMAKE_C_FLAGS  ${WARNING_LEVEL}
