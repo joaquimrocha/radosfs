@@ -1,37 +1,54 @@
-Rados Filesystem - A filesystem library based in librados
-==========================================================
+==============================================
+RadosFs - A filesystem library based in RADOS
+==============================================
 
-This library offers a simple interface for file operations on top of a Rados
-Cluster.
+RadosFs is a complete client-side implementation of filesystem-like
+functionality based on the RADOS object store (Ceph).
+RadosFs was designed according to the requirements of the CERN Data Storage
+Services group in terms of scalability and flexibility: it provides a scale-out
+namespace and pseudo-hierarchical storage view with optimized directory and file
+access (no strict POSIX semantics), parallel metadata queries, modification time
+propagation, file striping and other features.
 
-It is published under the terms of the LGPLv3 license:
-  http://www.gnu.org/licenses/gpl-3.0.html
+RadosFs should not be confused with CephFS. CephFS is a high-performance
+POSIX-compliant filesystem implementation built on top of RADOS and supported by
+Inktank/Redhat.
+
+RadosFs is published under the terms of the LGPLv3 license:
+  http://www.gnu.org/licenses/lgpl-3.0.html
 
 
-======
 Usage
 ======
 
 Here is a quick example of how to use RadosFs (it might also be a good idea to
 take a look at the unit tests for further examples):
 
-  #include <libradosfs.h>
+  #include <libradosfs.hh>
 
   int ret;
 
   // Initialize RadosFs
-  radosfs::RadosFs radosFs;
-  ret = radosFs.init("someusername", "/path/to/conf/ceph.conf");
+  radosfs::Filesystem fs;
+  ret = fs.init("someusername", "/path/to/conf/ceph.conf");
 
   if (ret != 0)
     return ret;
 
-  // Add a pool
-  radosFs.addPool("root-pool", "/");
+  // Add pools for prefixes
+  fs.addDataPool("data-pool", "/");
+  fs.addMetadataPool("mtd-pool", "/");
+
+  // Create a directory
+  radosfs::Dir dir(&fs, "/users");
+  ret = dir.create();
+
+  if (ret != 0)
+    return ret;
 
   // Create a directory for a user with UID and GID = 1000
-  radosfs::RadosFsDir dir(&radosFs, "/userdir");
-  ret = dir.create(-1, false, 1000, 1000);
+  radosfs::Dir userdir(&fs, "/users/joe");
+  ret = userdir.create(S_IRWXU, , false, 1000, 1000);
 
   if (ret != 0)
     return ret;
@@ -41,56 +58,54 @@ take a look at the unit tests for further examples):
   radosFs.setIds(1000, 1000);
 
   // Create a file as user 1000
-  radofs::RadosFsFile file(&radosFs,
-                           "/userdir/myfile",
-                           radofs::RadosFsFile::MODE_WRITE);
+  radosfs::File file(&radosFs, "/userdir/myfile");
   ret = file.create();
 
   if (ret != 0)
     return ret;
 
 
-======
 Tools
 ======
 
 RadosFs comes with a radosfsck tool for checking the filesystem for issues
-and correct them.
+and possibly correct them.
 
 Here is how to use it:
 
-  $ radosfsck --conf=PATH_TO_CLUSTER_CONF pool-name
+  $ radosfsck --conf=CLUSTER_CONF /:data-pool:mtd-pool --check-dirs=/users -R
 
-  Run the check in the cluster configured by PATH_TO_CLUSTER_CONF and the pool
-  indicated by "pool-name" which is automatically mapped to the root (/) as
-  no path prefix was indicated.
+  Check the directory "/users" recursively in the cluster configured by
+  CLUSTER_CONF with the data pool "data-pool" and metadata pool "mtd-pool" set
+  for objects with the prefix "/" (all files and directories)
 
+  $ radosfsck --conf=CLUSTER_CONF /:data-pool:mtd-pool --check-paths=/users/joe/file1,/trash/
 
-  $ radosfsck --conf=PATH_TO_CLUSTER_CONF root-pool / test-pool /test/
+  Simply check the file "/users/joe/file1" and the directory "/trash/" (does not
+  check its entries) using the cluster and pools configured as in the previous
+  example.
 
-  More than one pool can be configured and mapped to a certain prefix. As shown
-  above, the pool named root-pool is mapped to the root prefix (/) and the one
-  named test-pool is mapped to the /test/ prefix.
+  $ radosfsck --conf=PATH_TO_CLUSTER_CONF /:data-pool:mtd-pool --check-dirs=/ -R --fix
 
+  Checks all files and directories recursively in the filesystem. When a fixable
+  issue is found, it will be fixed. Currently, the only fixable issues are
+  broken links (to inodes, in the logical path objects) and broken back links
+  (in inodes, to their logical path objects).
 
-  $ radosfsck --fix --conf=PATH_TO_CLUSTER_CONF root-pool
+  $ radosfsck --conf=PATH_TO_CLUSTER_CONF /:data-pool:mtd-pool --check-inodes --fix
 
-  The fix option (--fix or -f) will try to correct the issues found. The current
-  approach to that is:
+  Checks all the inode objects in the configured pools ("data-pool" and
+  "mtd-pool") and attempts to fix the issues found. As mentioned before, the
+  only fixable issues are broken links in both directions.
 
-    * if a directory doesn't exist anymore, create it;
-    * if a file doesn't exist anymore, deindex it;
-    * if a file or directory exists but is not indexed, do index it.
+  $ radosfsck --conf=PATH_TO_CLUSTER_CONF --check-inodes=data-pool-2
 
+  Checks all the inode objects in the given pool ("data-pool"). In this case,
+  since there are no pools configured, the check will be less thorough than
+  in the previous example.
 
-  $ radosfsck --fix --dry --conf=PATH_TO_CLUSTER_CONF root-pool
-
-  Sometimes it might be useful to see what the fix operation would do without
-  running it. That can be accomplished by using the dry run (--dry or -n) option
-  together with the run one.
-
-
-  $ radosfsck --verbose --conf=PATH_TO_CLUSTER_CONF root-pool
+  Whenever the --fix option is used, the --dry option can also be included so it
+  only reports what would have been fixed, without really doing it.
 
   Using the --verbose option (or -v) will show all the issues found and not only
   a summary. If used together with the fix option, it will show what was fixed
