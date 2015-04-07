@@ -21,6 +21,7 @@
 #include <cstdarg>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <time.h>
 
 #include "radosfscommon.h"
 #include "radosfsdefines.h"
@@ -122,17 +123,22 @@ Logger::log(const char *file, const int line, const Filesystem::LogLevel msgLeve
 
   vsnprintf(buffer, mBufferMaxSize, msg, args);
 
-  time_t _time;
-  time(&_time);
+  struct timespec times;
+  clock_gettime(CLOCK_REALTIME, &times);
+
+  time_t _time = times.tv_sec;
   struct tm *currentTime = localtime(&_time);
 
-  fprintf(stderr, "RADOSFS DEBUG %d-%.2d-%.2d %.2d:%.2d:%.2d, %s:%.2d -- %s\n",
+  int milliseconds = round(static_cast<double>(times.tv_nsec / 1000000));
+
+  fprintf(stderr, "RADOSFS DEBUG %d-%.2d-%.2d %.2d:%.2d:%.2d.%.03d, %s:%.2d -- %s\n",
           currentTime->tm_year + 1900,
           currentTime->tm_mon,
           currentTime->tm_mday,
           currentTime->tm_hour,
           currentTime->tm_min,
           currentTime->tm_sec,
+          milliseconds,
           file,
           line,
           buffer);
