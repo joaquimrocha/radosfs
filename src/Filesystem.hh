@@ -35,6 +35,8 @@ class RadosFsChecker;
 
 RADOS_FS_BEGIN_NAMESPACE
 
+typedef void (*AsyncOpCallback)(const std::string &opId, int retCode, void *args);
+
 class FilesystemPriv;
 class FileInodePriv;
 class FsObj;

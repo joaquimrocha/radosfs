@@ -28,12 +28,12 @@
 #include <vector>
 #include <memory>
 
-#define RADOS_FS_BEGIN_NAMESPACE namespace radosfs {
-#define RADOS_FS_END_NAMESPACE }
+#include "Filesystem.hh"
 
 RADOS_FS_BEGIN_NAMESPACE
 
 class AyncOpPriv;
+class FileIO;
 
 class AsyncOp
 {
@@ -45,6 +45,7 @@ public:
   bool isFinished(void);
   int returnValue(void);
   int waitForCompletion(void);
+  void setCallback(AsyncOpCallback callback, void *arg);
 
 private:
   boost::scoped_ptr<AyncOpPriv> mPriv;

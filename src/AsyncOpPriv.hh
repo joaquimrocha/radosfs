@@ -23,11 +23,14 @@
 #include <boost/thread/mutex.hpp>
 #include <rados/librados.hpp>
 
+#include "Filesystem.hh"
 #include "radosfsdefines.h"
 
 RADOS_FS_BEGIN_NAMESPACE
 
 typedef std::vector<librados::AioCompletion *> CompletionList;
+
+class AsyncOp;
 
 class AyncOpPriv
 {
@@ -44,6 +47,8 @@ public:
   bool complete;
   int returnCode;
   int ready;
+  AsyncOpCallback callback;
+  void *callbackArg;
 
 private:
   boost::mutex mOpMutex;

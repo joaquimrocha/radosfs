@@ -29,7 +29,9 @@ AyncOpPriv::AyncOpPriv(const std::string &id)
   : id(id),
     complete(false),
     returnCode(-EINPROGRESS),
-    ready(-1)
+    ready(-1),
+    callback(0),
+    callbackArg(0)
 {}
 
 AyncOpPriv::~AyncOpPriv()
@@ -84,6 +86,11 @@ AyncOpPriv::waitForCompletion(void)
   }
 
   complete = true;
+
+  if (callback)
+  {
+    callback(id, returnCode, callbackArg);
+  }
 
   return returnCode;
 }
@@ -144,6 +151,13 @@ int
 AsyncOp::waitForCompletion(void)
 {
   return mPriv->waitForCompletion();
+}
+
+void
+AsyncOp::setCallback(AsyncOpCallback callback, void *arg)
+{
+  mPriv->callback = callback;
+  mPriv->callbackArg = arg;
 }
 
 RADOS_FS_END_NAMESPACE
