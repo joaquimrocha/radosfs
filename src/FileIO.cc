@@ -390,7 +390,8 @@ FileIO::vectorReadStripe(size_t fileStripe,
 }
 
 int
-FileIO::read(const std::vector<FileReadData> &intervals, std::string *asyncOpId)
+FileIO::read(const std::vector<FileReadData> &intervals, std::string *asyncOpId,
+             AsyncOpCallback callback, void *callbackArg)
 {
   mOpManager.sync();
 
@@ -401,6 +402,10 @@ FileIO::read(const std::vector<FileReadData> &intervals, std::string *asyncOpId)
   }
 
   AsyncOpSP asyncOp(new AsyncOp(generateUuid()));
+
+  if (callback)
+    asyncOp->setCallback(callback, callbackArg);
+
   mOpManager.addOperation(asyncOp);
 
   if (asyncOpId)
@@ -568,7 +573,7 @@ FileIO::writeSync(const char *buff, off_t offset, size_t blen)
 
 int
 FileIO::write(const char *buff, off_t offset, size_t blen, std::string *opId,
-              bool copyBuffer)
+              bool copyBuffer, AsyncOpCallback callback, void *arg)
 {
   int ret = 0;
 
@@ -576,6 +581,10 @@ FileIO::write(const char *buff, off_t offset, size_t blen, std::string *opId,
     return ret;
 
   AsyncOpSP asyncOp(new AsyncOp(generateUuid()));
+
+  if (callback)
+    asyncOp->setCallback(callback, arg);
+
   mOpManager.addOperation(asyncOp);
 
   if (opId)

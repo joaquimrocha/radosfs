@@ -57,11 +57,13 @@ public:
 
   ssize_t read(char *buff, off_t offset, size_t blen);
 
-  int read(const std::vector<FileReadData> &intervals, std::string *asyncOpId);
+  int read(const std::vector<FileReadData> &intervals,
+           std::string *asyncOpId = 0,
+           AsyncOpCallback callback = 0, void *callbackArg = 0);
 
-  int write(const char *buff, off_t offset, size_t blen);
-
-  int write(const char *buff, off_t offset, size_t blen, bool copyBuffer);
+  int write(const char *buff, off_t offset, size_t blen, bool copyBuffer = false,
+            std::string *asyncOpId = 0, AsyncOpCallback callback = 0,
+            void *callbackArg = 0);
 
   int writeSync(const char *buff, off_t offset, size_t blen);
 

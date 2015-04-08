@@ -390,7 +390,8 @@ File::read(char *buff, off_t offset, size_t blen)
 }
 
 int
-File::read(const std::vector<FileReadData> &intervals, std::string *asyncOpId)
+File::read(const std::vector<FileReadData> &intervals, std::string *asyncOpId,
+           AsyncOpCallback callback, void *callbackArg)
 {
   int ret;
   if ((ret = mPriv->verifyExistanceAndType()) != 0)
@@ -401,22 +402,18 @@ File::read(const std::vector<FileReadData> &intervals, std::string *asyncOpId)
   if (mPriv->permissions & File::MODE_READ)
   {
     if (isLink())
-      return mPriv->target->read(intervals, asyncOpId);
+      return mPriv->target->read(intervals, asyncOpId, callback, callbackArg);
 
-    ret = mPriv->inode->read(intervals, asyncOpId);
+    ret = mPriv->inode->read(intervals, asyncOpId, callback, callbackArg);
   }
 
   return ret;
 }
 
 int
-File::write(const char *buff, off_t offset, size_t blen)
-{
-  return write(buff, offset, blen, false);
-}
-
-int
-File::write(const char *buff, off_t offset, size_t blen, bool copyBuffer)
+File::write(const char *buff, off_t offset, size_t blen, bool copyBuffer,
+            std::string *asyncOpId, AsyncOpCallback callback,
+            void *callbackArg)
 {
   int ret;
   if ((ret = mPriv->verifyExistanceAndType()) != 0)
@@ -425,9 +422,11 @@ File::write(const char *buff, off_t offset, size_t blen, bool copyBuffer)
   if (mPriv->permissions & File::MODE_WRITE)
   {
     if (isLink())
-      return mPriv->target->write(buff, offset, blen, copyBuffer);
+      return mPriv->target->write(buff, offset, blen, copyBuffer, asyncOpId,
+                                  callback, callbackArg);
 
-    return mPriv->inode->write(buff, offset, blen, copyBuffer);
+    return mPriv->inode->write(buff, offset, blen, copyBuffer, asyncOpId,
+                               callback, callbackArg);
   }
 
   return -EACCES;
