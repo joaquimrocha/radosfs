@@ -1603,6 +1603,67 @@ TEST_F(RadosFsTest, FileVectorRead)
   delete buff2;
 }
 
+void fileReadWriteCallback(const std::string &opId, int retCode, void *arg)
+{
+  std::string *argStr = static_cast<std::string *>(arg);
+
+  ASSERT_EQ(0, retCode);
+
+  argStr->assign(opId);
+}
+
+TEST_F(RadosFsTest, FileReadWriteWithCallbacks)
+{
+  AddPool();
+
+  // Create file
+
+  radosfs::File file(&radosFs, "/file");
+
+  ASSERT_EQ(0, file.create());
+
+  // Write contents into file, getting its op id providing a callback
+
+  std::string *cbArg = new std::string;
+  std::string opId;
+  std::string contents("testing...");
+
+  file.write(contents.c_str(), 0, contents.length(), false, &opId,
+             fileReadWriteCallback, cbArg);
+
+  file.sync();
+
+  // Check that the callback was called
+
+  ASSERT_GT(cbArg->length(), 0);
+
+  ASSERT_EQ(opId, *cbArg);
+
+  // Clear reusable vars
+
+  cbArg->clear();
+  opId.clear();
+
+  // Read contents from file, getting its op id providing a callback
+
+  char *buff = new char[contents.length()];
+  std::vector<radosfs::FileReadData> intervals;
+  intervals.push_back(radosfs::FileReadData(buff, 0, contents.length(), 0));
+
+  file.read(intervals, &opId, fileReadWriteCallback, cbArg);
+
+  file.sync();
+
+  // Check that the callback was called
+
+  ASSERT_GT(cbArg->length(), 0);
+
+  ASSERT_EQ(opId, *cbArg);
+
+  delete[] buff;
+  delete cbArg;
+}
+
 TEST_F(RadosFsTest, FileInline)
 {
   AddPool();
