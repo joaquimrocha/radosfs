@@ -80,7 +80,7 @@ public:
 
   std::string dataPoolPrefix(const std::string &pool) const;
 
-  int dataPoolSize(const std::string &pool) const;
+  ssize_t dataPoolSize(const std::string &pool) const;
 
   int addMetadataPool(const std::string &name, const std::string &prefix);
 

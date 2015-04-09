@@ -1573,10 +1573,10 @@ Filesystem::dataPoolPrefix(const std::string &pool) const
   return prefix;
 }
 
-int
+ssize_t
 Filesystem::dataPoolSize(const std::string &pool) const
 {
-  int size = 0;
+  ssize_t size = -ENOENT;
   boost::unique_lock<boost::mutex> lock(mPriv->poolMutex);
 
   PoolListMap::const_iterator it;
@@ -1594,7 +1594,7 @@ Filesystem::dataPoolSize(const std::string &pool) const
       }
     }
 
-    if (size != 0)
+    if (size >= 0)
       break;
   }
 
