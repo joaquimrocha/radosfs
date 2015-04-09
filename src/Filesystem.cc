@@ -1654,7 +1654,7 @@ Filesystem::uid(void) const
   return mPriv->uid;
 }
 
-uid_t
+gid_t
 Filesystem::gid(void) const
 {
   return mPriv->gid;

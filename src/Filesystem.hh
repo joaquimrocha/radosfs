@@ -98,7 +98,7 @@ public:
 
   uid_t uid(void) const;
 
-  uid_t gid(void) const;
+  gid_t gid(void) const;
 
   int statCluster(uint64_t *totalSpaceKb,
                   uint64_t *usedSpaceKb,
