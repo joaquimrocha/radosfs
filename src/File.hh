@@ -49,8 +49,6 @@ public:
 
   File(const File &otherFile);
 
-  File(const File *otherFile);
-
   File & operator=(const File &otherFile);
 
   OpenMode mode(void) const;

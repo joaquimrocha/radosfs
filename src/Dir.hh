@@ -40,8 +40,6 @@ public:
 
   Dir(const Dir &otherDir);
 
-  Dir(const Dir *otherDir);
-
   virtual ~Dir();
 
   Dir & operator=(const Dir &otherDir);

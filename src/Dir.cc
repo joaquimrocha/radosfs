@@ -413,11 +413,6 @@ Dir::Dir(const Dir &otherDir)
     mPriv(new DirPriv(this))
 {}
 
-Dir::Dir(const Dir *otherDir)
-  : FsObj(*otherDir),
-    mPriv(new DirPriv(this))
-{}
-
 Dir::Dir(Filesystem *radosFs,
          const std::string &path,
          bool cacheable)

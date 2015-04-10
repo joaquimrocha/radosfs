@@ -343,11 +343,6 @@ File::File(const File &otherFile)
     mPriv(new FilePriv(this, otherFile.mode()))
 {}
 
-File::File(const File *otherFile)
-  : FsObj(*otherFile),
-    mPriv(new FilePriv(this, otherFile->mode()))
-{}
-
 File &
 File::operator=(const File &otherFile)
 {
