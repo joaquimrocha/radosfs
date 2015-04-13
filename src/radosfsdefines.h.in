@@ -67,6 +67,7 @@
 #define FINDER_KEY_NAME "name"
 #define FINDER_KEY_INAME "iname"
 #define FINDER_KEY_SIZE "size"
+#define FINDER_KEY_MTD "mtd"
 #define FINDER_EQ_SYM "="
 #define FINDER_NE_SYM "!="
 #define FINDER_GT_SYM ">"

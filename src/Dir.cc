@@ -986,6 +986,19 @@ Dir::find(std::set<std::string> &results, const std::string args)
       else if (op == FINDER_LT_SYM)
         option = Finder::FIND_SIZE_LT;
     }
+    else if (key.substr(0, strlen(FINDER_KEY_MTD)) == FINDER_KEY_MTD)
+    {
+      arg.valueStr = value;
+      if (key.length() > strlen(FINDER_KEY_MTD))
+      {
+        arg.key = key.substr(strlen(FINDER_KEY_MTD) + 1);
+      }
+
+      if (op == FINDER_EQ_SYM)
+        option = Finder::FIND_MTD_EQ;
+      else if (op == FINDER_NE_SYM)
+        option = Finder::FIND_MTD_NE;
+    }
 
     finderArgs[option] = arg;
 

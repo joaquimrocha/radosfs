@@ -76,6 +76,23 @@ checkEntryNameRegex(FinderData *data, const Finder::FindOptions option,
 }
 
 int
+checkEntryRegex(const std::string &exp, bool icase, regex_t *regex)
+{
+  int ret = 0;
+  int flags = 0;
+
+  if (exp == "")
+    return -EINVAL;
+
+  if (icase)
+    flags = REG_ICASE;
+
+  ret = regcomp(regex, exp.c_str(), flags);
+
+  return ret;
+}
+
+int
 Finder::checkEntrySize(FinderData *data, const std::string &entry,
                        const Dir &dir, struct stat &buff)
 {
@@ -135,6 +152,71 @@ Finder::checkEntrySize(FinderData *data, const std::string &entry,
         break;
       default:
         break;
+    }
+
+    if (ret != 0)
+      break;
+  }
+
+  return ret;
+}
+
+int
+Finder::checkEntryMtd(FinderData *data, const std::string &entry,
+                      Dir &dir)
+{
+  int ret = 0;
+  const int mtdOptions[] = {FIND_MTD_EQ,
+                            FIND_MTD_NE,
+                            0
+                           };
+
+  for (int i = 0; mtdOptions[i] != 0; i++)
+  {
+    FindOptions option = static_cast<FindOptions>(mtdOptions[i]);
+
+    if (data->args->count(option) == 0)
+      continue;
+
+    FinderArg arg = data->args->at(option);
+
+    std::string mtdValue;
+    bool checkingName = arg.key.empty();
+    std::string key = checkingName ? arg.valueStr : arg.key;
+
+    ret = dir.getMetadata(entry, key, mtdValue);
+
+    if (ret == 0)
+    {
+      regex_t regex;
+      ret = checkEntryRegex(arg.valueStr, arg.valueInt == 1, &regex);
+
+      if (ret != 0)
+      {
+        radosfs_debug("Error making regex for %s on directory '%s'.",
+                      arg.valueStr.c_str(), dir.path().c_str());
+        return -EINVAL;
+      }
+
+      if (checkingName)
+        ret = makeRegexFromExp(arg.valueStr, regex, key);
+      else
+        ret = makeRegexFromExp(arg.valueStr, regex, mtdValue);
+
+      regfree(&regex);
+
+      if ((option == FIND_MTD_EQ && ret == 0) ||
+          (option == FIND_MTD_NE && ret == REG_NOMATCH))
+      {
+        ret = 0;
+        continue;
+      }
+
+      ret = -1;
+    }
+    else if (checkingName && option == FIND_MTD_NE)
+    {
+      ret = 0;
     }
 
     if (ret != 0)
@@ -212,6 +294,14 @@ Finder::find(FinderData *data)
     }
 
     ret = checkEntrySize(data, entry, dir, buff);
+
+    if (ret != 0)
+    {
+      ret = 0;
+      continue;
+    }
+
+    ret = checkEntryMtd(data, entry, dir);
 
     if (ret != 0)
     {

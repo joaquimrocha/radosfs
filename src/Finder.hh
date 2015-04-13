@@ -33,6 +33,8 @@ public:
   {
     FIND_NAME_EQ,
     FIND_NAME_NE,
+    FIND_MTD_EQ,
+    FIND_MTD_NE,
     FIND_SIZE_EQ,
     FIND_SIZE_NE,
     FIND_SIZE_GT,
@@ -47,6 +49,8 @@ public:
                      const std::string &entry,
                      const Dir &dir,
                      struct stat &buff);
+
+  int checkEntryMtd(FinderData *data, const std::string &entry, Dir &dir);
 
   Filesystem *radosFs;
 };
