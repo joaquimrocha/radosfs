@@ -3283,6 +3283,51 @@ TEST_F(RadosFsTest, Find)
   EXPECT_EQ(0, dir.find(results, "name!=\"^.*f.*\" name='^.*0.*'"));
 
   EXPECT_EQ(1, results.size());
+
+  results.clear();
+
+  // Find contents based on matching metadata
+
+  dir.setPath("/d0/d2/");
+
+  dir.update();
+
+  std::set<std::string> entries;
+  ASSERT_EQ(0, dir.entryList(entries));
+
+  std::string mtdKey = "stamp";
+
+  EXPECT_EQ(0, dir.find(results, "mtd != '" + mtdKey + "'"));
+
+  EXPECT_EQ(entries.size(), results.size());
+
+  dir.setMetadata("f0", mtdKey, "0.42");
+
+  results.clear();
+
+  EXPECT_EQ(0, dir.find(results, "mtd != '" + mtdKey + "'"));
+
+  EXPECT_EQ(entries.size() - 1, results.size());
+
+  results.clear();
+
+  EXPECT_EQ(0, dir.find(results, "mtd = '" + mtdKey + "'"));
+
+  EXPECT_EQ(1, results.size());
+
+  results.clear();
+
+  EXPECT_EQ(0, dir.find(results, "mtd." + mtdKey + " = '0.42'"));
+
+  EXPECT_EQ(1, results.size());
+
+  dir.setMetadata("f0", mtdKey, "1.42");
+
+  results.clear();
+
+  EXPECT_EQ(0, dir.find(results, "mtd." + mtdKey + " != '^0.*'"));
+
+  EXPECT_EQ(1, results.size());
 }
 
 TEST_F(RadosFsTest, PoolAlignment)
