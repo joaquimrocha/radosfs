@@ -67,7 +67,7 @@ checkEntryNameRegex(FinderData *data, const Finder::FindOptions option,
   if (exp == "")
     return -EINVAL;
 
-  if (data->args->at(option).valueInt == 1)
+  if (data->args->at(option).valueNum == 1)
     flags = REG_ICASE;
 
   ret = regcomp(regex, exp.c_str(), flags);
@@ -113,7 +113,7 @@ Finder::checkEntrySize(FinderData *data, const std::string &entry,
     if (data->args->count(option) == 0)
       continue;
 
-    off_t size = data->args->at(option).valueInt;
+    off_t size = data->args->at(option).valueNum;
 
     if (buff.st_nlink == 0)
     {
@@ -189,7 +189,7 @@ Finder::checkEntryMtd(FinderData *data, const std::string &entry,
     if (ret == 0)
     {
       regex_t regex;
-      ret = checkEntryRegex(arg.valueStr, arg.valueInt == 1, &regex);
+      ret = checkEntryRegex(arg.valueStr, arg.valueNum == 1, &regex);
 
       if (ret != 0)
       {
@@ -231,7 +231,7 @@ Finder::checkXAttrKeyPresence(FinderArg &arg, FindOptions option,
                               const std::map<std::string, std::string> &xattrs)
 {
   regex_t regex;
-  int ret = checkEntryRegex(arg.valueStr, arg.valueInt == 1, &regex);
+  int ret = checkEntryRegex(arg.valueStr, arg.valueNum == 1, &regex);
 
   if (ret != 0)
   {
@@ -295,7 +295,7 @@ Finder::checkEntryXAttrs(FinderData *data, const std::string &entry, Dir &dir)
       if (ret >= 0)
       {
         regex_t regex;
-        ret = checkEntryRegex(arg.valueStr, arg.valueInt == 1, &regex);
+        ret = checkEntryRegex(arg.valueStr, arg.valueNum == 1, &regex);
 
         if (ret != 0)
         {

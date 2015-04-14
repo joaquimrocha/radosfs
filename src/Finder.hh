@@ -17,7 +17,7 @@ RADOS_FS_BEGIN_NAMESPACE
 typedef struct
 {
   std::string key;
-  int valueInt;
+  float valueNum;
   std::string valueStr;
 } FinderArg;
 

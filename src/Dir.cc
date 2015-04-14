@@ -965,13 +965,13 @@ Dir::find(std::set<std::string> &results, const std::string args)
         option = Finder::FIND_NAME_NE;
 
       if (isIName)
-        arg.valueInt = 1;
+        arg.valueNum = 1;
       else
-        arg.valueInt = 0;
+        arg.valueNum = 0;
     }
     else if (key == FINDER_KEY_SIZE)
     {
-      arg.valueInt = atoi(value.c_str());
+      arg.valueNum = atof(value.c_str());
 
       if (op == FINDER_EQ_SYM)
         option = Finder::FIND_SIZE_EQ;
