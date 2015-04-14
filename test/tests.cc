@@ -3372,6 +3372,27 @@ TEST_F(RadosFsTest, Find)
   EXPECT_EQ(0, dir.find(results, "xattr." + xattrKey + " != '^0.*'"));
 
   EXPECT_EQ(1, results.size());
+
+  ASSERT_EQ(0, radosFs.setXAttr(dir.path() + "f1", xattrKey, "3"));
+
+  results.clear();
+
+  EXPECT_EQ(0, dir.find(results, "xattrN." + xattrKey + " <= '2'"));
+
+  EXPECT_EQ(1, results.size());
+
+  results.clear();
+
+  EXPECT_EQ(0, dir.find(results, "xattrN." + xattrKey + " <= '4'"));
+
+  EXPECT_EQ(2, results.size());
+
+  results.clear();
+
+  EXPECT_EQ(0, dir.find(results, "xattrN." + xattrKey + " > '1.42' xattrN." +
+                        xattrKey + " < 4.1"));
+
+  EXPECT_EQ(1, results.size());
 }
 
 TEST_F(RadosFsTest, PoolAlignment)
