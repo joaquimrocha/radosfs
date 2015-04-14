@@ -69,6 +69,7 @@
 #define FINDER_KEY_SIZE "size"
 #define FINDER_KEY_MTD "mtd"
 #define FINDER_KEY_XATTR "xattr"
+#define FINDER_KEY_XATTR_NUM FINDER_KEY_XATTR "N"
 #define FINDER_EQ_SYM "="
 #define FINDER_NE_SYM "!="
 #define FINDER_GT_SYM ">"

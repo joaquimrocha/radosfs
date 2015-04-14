@@ -261,11 +261,82 @@ Finder::checkXAttrKeyPresence(FinderArg &arg, FindOptions option,
 }
 
 int
+Finder::compareEntryStrValue(FinderArg &arg, const std::string &entry,
+                             FindOptions option, const std::string &value,
+                             Dir &dir)
+{
+  regex_t regex;
+  int ret = checkEntryRegex(arg.valueStr, arg.valueNum == 1, &regex);
+
+  if (ret != 0)
+  {
+    radosfs_debug("Error making regex for %s on directory '%s' for entry '%s'.",
+                  arg.valueStr.c_str(), dir.path().c_str(),
+                  entry.c_str());
+    return -EINVAL;
+  }
+
+  ret = makeRegexFromExp(arg.valueStr, regex, value);
+
+  regfree(&regex);
+
+  if ((option == FIND_XATTR_EQ && ret == 0) ||
+      (option == FIND_XATTR_NE && ret == REG_NOMATCH))
+  {
+    return 0;
+  }
+
+  return -1;
+}
+
+int
+Finder::compareEntryNumValue(FinderArg &arg, const std::string &entry,
+                             FindOptions option, float value, Dir &dir)
+{
+  int ret = -1;
+  switch(option)
+  {
+    case FIND_XATTR_EQ:
+      if (value == arg.valueNum)
+        ret = 0;
+      break;
+    case FIND_XATTR_GE:
+      if (value >= arg.valueNum)
+        ret = 0;
+      break;
+    case FIND_XATTR_GT:
+      if (value > arg.valueNum)
+        ret = 0;
+      break;
+    case FIND_XATTR_LT:
+      if (value < arg.valueNum)
+        ret = 0;
+      break;
+    case FIND_XATTR_LE:
+      if (value <= arg.valueNum)
+        ret = 0;
+      break;
+    case FIND_XATTR_NE:
+      if (value != arg.valueNum)
+        ret = 0;
+      break;
+    default:
+      break;
+  }
+
+  return ret;
+}
+
+int
 Finder::checkEntryXAttrs(FinderData *data, const std::string &entry, Dir &dir)
 {
   int ret = 0;
   const int mtdOptions[] = {FIND_XATTR_EQ,
                             FIND_XATTR_NE,
+                            FIND_XATTR_GT,
+                            FIND_XATTR_GE,
+                            FIND_XATTR_LT,
+                            FIND_XATTR_LE,
                             0
                            };
 
@@ -285,8 +356,15 @@ Finder::checkEntryXAttrs(FinderData *data, const std::string &entry, Dir &dir)
 
     if (checkingName)
     {
-      radosFs->getXAttrsMap(dir.path() + entry, xattrs);
-      ret = checkXAttrKeyPresence(arg, option, xattrs);
+      if ((option != FIND_XATTR_EQ) && (option != FIND_XATTR_NE))
+      {
+        ret = -EINVAL;
+      }
+      else
+      {
+        radosFs->getXAttrsMap(dir.path() + entry, xattrs);
+        ret = checkXAttrKeyPresence(arg, option, xattrs);
+      }
     }
     else
     {
@@ -294,28 +372,19 @@ Finder::checkEntryXAttrs(FinderData *data, const std::string &entry, Dir &dir)
 
       if (ret >= 0)
       {
-        regex_t regex;
-        ret = checkEntryRegex(arg.valueStr, arg.valueNum == 1, &regex);
-
-        if (ret != 0)
+        if (arg.options & FinderArg::FINDER_OPT_CMP_NUM)
         {
-          radosfs_debug("Error making regex for %s on directory '%s'.",
-                        arg.valueStr.c_str(), dir.path().c_str());
-          return -EINVAL;
+          // The value will be 0 if the xattribute value is empty. Perhaps this
+          // behavior might not fit every use case so it might need to be
+          // changed in the future.
+
+          float value = atof(mtdValue.c_str());
+          ret = compareEntryNumValue(arg, entry, option, value, dir);
         }
-
-        ret = makeRegexFromExp(arg.valueStr, regex, mtdValue);
-
-        regfree(&regex);
-
-        if ((option == FIND_XATTR_EQ && ret == 0) ||
-            (option == FIND_XATTR_NE && ret == REG_NOMATCH))
+        else
         {
-          ret = 0;
-          continue;
+          ret = compareEntryStrValue(arg, entry, option, mtdValue, dir);
         }
-
-        ret = -1;
       }
     }
 

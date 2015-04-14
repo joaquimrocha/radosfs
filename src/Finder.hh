@@ -14,12 +14,24 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
-typedef struct
+struct FinderArg
 {
+  enum Options {
+    FINDER_OPT_NONE = 0,
+    FINDER_OPT_CMP_NUM = 1 << 0,
+    FINDER_OPT_ICASE = 1 << 1
+  };
+
+  FinderArg(void)
+    : valueNum(.0),
+      options(0)
+  {}
+
   std::string key;
   float valueNum;
   std::string valueStr;
-} FinderArg;
+  int options;
+};
 
 typedef struct _FinderData FinderData;
 
@@ -37,6 +49,10 @@ public:
     FIND_MTD_NE,
     FIND_XATTR_EQ,
     FIND_XATTR_NE,
+    FIND_XATTR_GT,
+    FIND_XATTR_GE,
+    FIND_XATTR_LT,
+    FIND_XATTR_LE,
     FIND_SIZE_EQ,
     FIND_SIZE_NE,
     FIND_SIZE_GT,
@@ -55,6 +71,14 @@ public:
   int checkEntryMtd(FinderData *data, const std::string &entry, Dir &dir);
 
   int checkEntryXAttrs(FinderData *data, const std::string &entry, Dir &dir);
+
+  int compareEntryStrValue(FinderArg &arg, const std::string &entry,
+                           FindOptions option, const std::string &value,
+                           Dir &dir);
+
+  int compareEntryNumValue(FinderArg &arg, const std::string &entry,
+                           FindOptions option, float value, Dir &dir);
+
 
   int checkXAttrKeyPresence(FinderArg &arg, FindOptions option,
                             const std::map<std::string, std::string> &xattrs);

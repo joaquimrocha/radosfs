@@ -1001,16 +1001,49 @@ Dir::find(std::set<std::string> &results, const std::string args)
     }
     else if (key.substr(0, strlen(FINDER_KEY_XATTR)) == FINDER_KEY_XATTR)
     {
+      const size_t xattrKeyLength = strlen(FINDER_KEY_XATTR);
+      const size_t xattrNKeyLength = strlen(FINDER_KEY_XATTR_NUM);
       arg.valueStr = value;
-      if (key.length() > strlen(FINDER_KEY_XATTR))
+      arg.valueNum = atof(value.c_str());
+
+      if (key.compare(0, xattrNKeyLength, FINDER_KEY_XATTR_NUM) == 0)
       {
-        arg.key = key.substr(strlen(FINDER_KEY_XATTR) + 1);
+        arg.key = key.substr(xattrNKeyLength + 1);
+        arg.options |= FinderArg::FINDER_OPT_CMP_NUM;
+      }
+      else if (key.length() > xattrKeyLength)
+      {
+        arg.key = key.substr(xattrKeyLength + 1);
       }
 
       if (op == FINDER_EQ_SYM)
+      {
         option = Finder::FIND_XATTR_EQ;
+      }
       else if (op == FINDER_NE_SYM)
+      {
         option = Finder::FIND_XATTR_NE;
+      }
+      else if (op == FINDER_GT_SYM)
+      {
+        option = Finder::FIND_XATTR_GT;
+        arg.options |= FinderArg::FINDER_OPT_CMP_NUM;
+      }
+      else if (op == FINDER_GE_SYM)
+      {
+        option = Finder::FIND_XATTR_GE;
+        arg.options |= FinderArg::FINDER_OPT_CMP_NUM;
+      }
+      else if (op == FINDER_LT_SYM)
+      {
+        option = Finder::FIND_XATTR_LT;
+        arg.options |= FinderArg::FINDER_OPT_CMP_NUM;
+      }
+      else if (op == FINDER_LE_SYM)
+      {
+        option = Finder::FIND_XATTR_LE;
+        arg.options |= FinderArg::FINDER_OPT_CMP_NUM;
+      }
     }
 
     finderArgs[option] = arg;
