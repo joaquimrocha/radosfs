@@ -2784,6 +2784,17 @@ TEST_F(RadosFsTest, Metadata)
 
   EXPECT_EQ(value, newValue);
 
+  // Get the map of metadata
+
+  std::map<std::string, std::string> mtdMap;
+  ASSERT_EQ(0, dir.getMetadataMap(basePath, mtdMap));
+
+  ASSERT_EQ(2, mtdMap.size());
+
+  ASSERT_EQ(1, mtdMap.count(key));
+
+  EXPECT_EQ(value, mtdMap[key]);
+
   // Get the metadata with an unauthorized user
 
   radosFs.setIds(TEST_UID, TEST_GID);
