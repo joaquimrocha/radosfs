@@ -3328,6 +3328,50 @@ TEST_F(RadosFsTest, Find)
   EXPECT_EQ(0, dir.find(results, "mtd." + mtdKey + " != '^0.*'"));
 
   EXPECT_EQ(1, results.size());
+
+  // Find contents based on matching xattrs
+
+  dir.setPath("/d0/d2/");
+
+  dir.update();
+
+  entries.clear();
+
+  ASSERT_EQ(0, dir.entryList(entries));
+
+  std::string xattrKey = "usr.xattr-stamp";
+
+  EXPECT_EQ(0, dir.find(results, "xattr != '" + xattrKey + "'"));
+
+  EXPECT_EQ(entries.size(), results.size());
+
+  ASSERT_EQ(0, radosFs.setXAttr(dir.path() + "f0", xattrKey, "0.42"));
+
+  results.clear();
+
+  EXPECT_EQ(0, dir.find(results, "xattr != '" + xattrKey + "'"));
+
+  EXPECT_EQ(entries.size() - 1, results.size());
+
+  results.clear();
+
+  EXPECT_EQ(0, dir.find(results, "xattr = '" + xattrKey.substr(0, 2) + ".*'"));
+
+  EXPECT_EQ(1, results.size());
+
+  results.clear();
+
+  EXPECT_EQ(0, dir.find(results, "xattr." + xattrKey + " = '0.42'"));
+
+  EXPECT_EQ(1, results.size());
+
+  results.clear();
+
+  ASSERT_EQ(0, radosFs.setXAttr(dir.path() + "f0", xattrKey, "1.42"));
+
+  EXPECT_EQ(0, dir.find(results, "xattr." + xattrKey + " != '^0.*'"));
+
+  EXPECT_EQ(1, results.size());
 }
 
 TEST_F(RadosFsTest, PoolAlignment)
