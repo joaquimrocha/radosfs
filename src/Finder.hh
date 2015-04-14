@@ -35,6 +35,8 @@ public:
     FIND_NAME_NE,
     FIND_MTD_EQ,
     FIND_MTD_NE,
+    FIND_XATTR_EQ,
+    FIND_XATTR_NE,
     FIND_SIZE_EQ,
     FIND_SIZE_NE,
     FIND_SIZE_GT,
@@ -51,6 +53,11 @@ public:
                      struct stat &buff);
 
   int checkEntryMtd(FinderData *data, const std::string &entry, Dir &dir);
+
+  int checkEntryXAttrs(FinderData *data, const std::string &entry, Dir &dir);
+
+  int checkXAttrKeyPresence(FinderArg &arg, FindOptions option,
+                            const std::map<std::string, std::string> &xattrs);
 
   Filesystem *radosFs;
 };

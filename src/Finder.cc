@@ -227,6 +227,106 @@ Finder::checkEntryMtd(FinderData *data, const std::string &entry,
 }
 
 int
+Finder::checkXAttrKeyPresence(FinderArg &arg, FindOptions option,
+                              const std::map<std::string, std::string> &xattrs)
+{
+  regex_t regex;
+  int ret = checkEntryRegex(arg.valueStr, arg.valueInt == 1, &regex);
+
+  if (ret != 0)
+  {
+    radosfs_debug("Error making regex for %s.",
+                  arg.valueStr.c_str());
+    return -EINVAL;
+  }
+
+  bool matched = false;
+
+  std::map<std::string, std::string>::const_iterator it;
+  for (it = xattrs.begin(); it != xattrs.end(); it++)
+  {
+    ret = makeRegexFromExp(arg.valueStr, regex, (*it).first);
+    if (ret == 0)
+    {
+      matched = true;
+      break;
+    }
+  }
+
+  if ((matched && option == FIND_XATTR_EQ) ||
+      (!matched && option == FIND_XATTR_NE))
+    return 0;
+
+  return -1;
+}
+
+int
+Finder::checkEntryXAttrs(FinderData *data, const std::string &entry, Dir &dir)
+{
+  int ret = 0;
+  const int mtdOptions[] = {FIND_XATTR_EQ,
+                            FIND_XATTR_NE,
+                            0
+                           };
+
+  for (int i = 0; mtdOptions[i] != 0; i++)
+  {
+    FindOptions option = static_cast<FindOptions>(mtdOptions[i]);
+
+    if (data->args->count(option) == 0)
+      continue;
+
+    FinderArg arg = data->args->at(option);
+
+    std::string mtdValue;
+    bool checkingName = arg.key.empty();
+    std::string key = checkingName ? arg.valueStr : arg.key;
+    std::map<std::string, std::string> xattrs;
+
+    if (checkingName)
+    {
+      radosFs->getXAttrsMap(dir.path() + entry, xattrs);
+      ret = checkXAttrKeyPresence(arg, option, xattrs);
+    }
+    else
+    {
+      ret = radosFs->getXAttr(dir.path() + entry, key, mtdValue);
+
+      if (ret >= 0)
+      {
+        regex_t regex;
+        ret = checkEntryRegex(arg.valueStr, arg.valueInt == 1, &regex);
+
+        if (ret != 0)
+        {
+          radosfs_debug("Error making regex for %s on directory '%s'.",
+                        arg.valueStr.c_str(), dir.path().c_str());
+          return -EINVAL;
+        }
+
+        ret = makeRegexFromExp(arg.valueStr, regex, mtdValue);
+
+        regfree(&regex);
+
+        if ((option == FIND_XATTR_EQ && ret == 0) ||
+            (option == FIND_XATTR_NE && ret == REG_NOMATCH))
+        {
+          ret = 0;
+          continue;
+        }
+
+        ret = -1;
+      }
+    }
+
+    if (ret != 0)
+      break;
+  }
+
+  return ret;
+}
+
+int
 Finder::find(FinderData *data)
 {
   int ret;
@@ -302,6 +402,14 @@ Finder::find(FinderData *data)
     }
 
     ret = checkEntryMtd(data, entry, dir);
+
+    if (ret != 0)
+    {
+      ret = 0;
+      continue;
+    }
+
+    ret = checkEntryXAttrs(data, entry, dir);
 
     if (ret != 0)
     {

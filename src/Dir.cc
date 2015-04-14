@@ -999,6 +999,19 @@ Dir::find(std::set<std::string> &results, const std::string args)
       else if (op == FINDER_NE_SYM)
         option = Finder::FIND_MTD_NE;
     }
+    else if (key.substr(0, strlen(FINDER_KEY_XATTR)) == FINDER_KEY_XATTR)
+    {
+      arg.valueStr = value;
+      if (key.length() > strlen(FINDER_KEY_XATTR))
+      {
+        arg.key = key.substr(strlen(FINDER_KEY_XATTR) + 1);
+      }
+
+      if (op == FINDER_EQ_SYM)
+        option = Finder::FIND_XATTR_EQ;
+      else if (op == FINDER_NE_SYM)
+        option = Finder::FIND_XATTR_NE;
+    }
 
     finderArgs[option] = arg;
 
