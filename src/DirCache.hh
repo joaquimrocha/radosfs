@@ -54,6 +54,8 @@ public:
   int getMetadata(const std::string &entry,
                   const std::string &key,
                   std::string &value);
+  int getMetadataMap(const std::string &entry,
+                     std::map<std::string, std::string> &mtdMap);
   int getContentsSize(uint64_t *size) const;
 
 private:

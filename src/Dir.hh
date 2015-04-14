@@ -81,6 +81,9 @@ public:
                   const std::string &key,
                   std::string &value);
 
+  int getMetadataMap(const std::string &entry,
+                     std::map<std::string, std::string> &mtdMap);
+
   int removeMetadata(const std::string &entry, const std::string &key);
 
   int find(std::set<std::string> &results, const std::string args);

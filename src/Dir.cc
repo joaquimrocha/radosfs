@@ -878,6 +878,32 @@ Dir::getMetadata(const std::string &entry, const std::string &key,
 }
 
 int
+Dir::getMetadataMap(const std::string &entry,
+                    std::map<std::string, std::string> &mtdMap)
+{
+  if (isLink())
+  {
+    if (mPriv->target)
+      return mPriv->target->getMetadataMap(entry, mtdMap);
+
+    radosfs_debug("No target for link %s", path().c_str());
+    return -ENOLINK;
+  }
+
+  update();
+
+  if (!isReadable())
+    return -EACCES;
+
+  if (mPriv->dirInfo)
+  {
+    return mPriv->dirInfo->getMetadataMap(entry, mtdMap);
+  }
+
+  return -EOPNOTSUPP;
+}
+
+int
 Dir::removeMetadata(const std::string &entry, const std::string &key)
 {
   if (isLink())

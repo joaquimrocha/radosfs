@@ -299,6 +299,23 @@ DirCache::getMetadata(const std::string &entry,
   return ret;
 }
 
+int
+DirCache::getMetadataMap(const std::string &entry,
+                         std::map<std::string, std::string> &mtdMap)
+{
+  int ret = -ENOENT;
+  boost::unique_lock<boost::mutex> lock(mContentsMutex);
+  std::map<std::string, DirEntry>::iterator it = mContents.find(entry);
+
+  if (it != mContents.end())
+  {
+    mtdMap = (*it).second.metadata;
+    ret = 0;
+  }
+
+  return ret;
+}
+
 void
 DirCache::clear(void)
 {
