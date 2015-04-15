@@ -108,45 +108,62 @@ Finder::checkEntrySize(FinderArg &arg, FindOptions option,
 }
 
 int
-Finder::checkEntryMtd(FinderArg &arg, FindOptions option,
+Finder::checkEntryMtd(FinderArg &arg, FindOptions option, FindOptions mtdType,
                       const std::string &entry, Dir &dir)
 {
   int ret = 0;
   std::string mtdValue;
   bool checkingName = arg.key.empty();
   std::string key = checkingName ? arg.valueStr : arg.key;
+  std::map<std::string, std::string> mtdMap;
 
-  ret = dir.getMetadata(entry, key, mtdValue);
-
-  if (ret == 0)
+  if (checkingName)
   {
-    regex_t regex;
-    bool icase = arg.options & FinderArg::FINDER_OPT_CMP_NUM;
-    ret = makeExpRegex(arg.valueStr, icase, &regex);
-
-    if (ret != 0)
+    if ((option != (mtdType | FIND_EQ)) && (option != (mtdType | FIND_NE)))
     {
-      radosfs_debug("Error making regex for %s on directory '%s'.",
-                    arg.valueStr.c_str(), dir.path().c_str());
-      return -EINVAL;
+      ret = -EINVAL;
     }
-
-    if (checkingName)
-      ret = checkEntryRegex(arg.valueStr, key, option, regex);
     else
-      ret = checkEntryRegex(arg.valueStr, mtdValue, option, regex);
+    {
+      if (mtdType == FIND_MTD)
+        dir.getMetadataMap(entry, mtdMap);
+      else
+        radosFs->getXAttrsMap(dir.path() + entry, mtdMap);
+
+      ret = checkMtdKeyPresence(arg, option, mtdMap);
+    }
   }
-  else if (checkingName && option == FIND_MTD_NE)
+  else
   {
-    ret = 0;
+    if (mtdType == FIND_MTD)
+      ret = dir.getMetadata(entry, key, mtdValue);
+    else
+      ret = radosFs->getXAttr(dir.path() + entry, key, mtdValue);
+
+    if (ret >= 0)
+    {
+      if (arg.options & FinderArg::FINDER_OPT_CMP_NUM)
+      {
+        // The value will be 0 if the metadata value is empty. Perhaps this
+        // behavior might not fit every use case so it might need to be
+        // changed in the future.
+
+        float value = atof(mtdValue.c_str());
+        ret = compareEntryNumValue(arg, option, value);
+      }
+      else
+      {
+        ret = compareEntryStrValue(arg, entry, option, mtdValue, dir);
+      }
+    }
   }
 
   return ret;
 }
 
 int
-Finder::checkXAttrKeyPresence(FinderArg &arg, FindOptions option,
-                              const std::map<std::string, std::string> &xattrs)
+Finder::checkMtdKeyPresence(FinderArg &arg, FindOptions option,
+                            const std::map<std::string, std::string> &mtd)
 {
   regex_t regex;
   bool icase = arg.options & FinderArg::FINDER_OPT_ICASE;
@@ -162,7 +179,7 @@ Finder::checkXAttrKeyPresence(FinderArg &arg, FindOptions option,
   bool matched = false;
 
   std::map<std::string, std::string>::const_iterator it;
-  for (it = xattrs.begin(); it != xattrs.end(); it++)
+  for (it = mtd.begin(); it != mtd.end(); it++)
   {
     ret = runRegex(arg.valueStr, regex, (*it).first);
     if (ret == 0)
@@ -172,8 +189,8 @@ Finder::checkXAttrKeyPresence(FinderArg &arg, FindOptions option,
     }
   }
 
-  if ((matched && option == FIND_XATTR_EQ) ||
-      (!matched && option == FIND_XATTR_NE))
+  if ((matched && (option & FIND_EQ)) ||
+      (!matched && (option & FIND_NE)))
     return 0;
 
   return -1;
@@ -219,53 +236,6 @@ Finder::compareEntryNumValue(FinderArg &arg, FindOptions option, float value)
   else if ((option & FIND_GT) && (value > arg.valueNum))
   {
     ret = 0;
-  }
-
-  return ret;
-}
-
-int
-Finder::checkEntryXAttrs(FinderArg &arg, FindOptions option,
-                         const std::string &entry, Dir &dir)
-{
-  int ret = 0;
-  std::string mtdValue;
-  bool checkingName = arg.key.empty();
-  std::string key = checkingName ? arg.valueStr : arg.key;
-  std::map<std::string, std::string> xattrs;
-
-  if (checkingName)
-  {
-    if ((option != FIND_XATTR_EQ) && (option != FIND_XATTR_NE))
-    {
-      ret = -EINVAL;
-    }
-    else
-    {
-      radosFs->getXAttrsMap(dir.path() + entry, xattrs);
-      ret = checkXAttrKeyPresence(arg, option, xattrs);
-    }
-  }
-  else
-  {
-    ret = radosFs->getXAttr(dir.path() + entry, key, mtdValue);
-
-    if (ret >= 0)
-    {
-      if (arg.options & FinderArg::FINDER_OPT_CMP_NUM)
-      {
-        // The value will be 0 if the xattribute value is empty. Perhaps this
-        // behavior might not fit every use case so it might need to be
-        // changed in the future.
-
-        float value = atof(mtdValue.c_str());
-        ret = compareEntryNumValue(arg, option, value);
-      }
-      else
-      {
-        ret = compareEntryStrValue(arg, entry, option, mtdValue, dir);
-      }
-    }
   }
 
   return ret;
@@ -330,11 +300,11 @@ Finder::find(FinderData *data)
       }
       else if (option & FIND_MTD)
       {
-        ret = checkEntryMtd(arg, option, entry, dir);
+        ret = checkEntryMtd(arg, option, FIND_MTD, entry, dir);
       }
       else if (option & FIND_XATTR)
       {
-        ret = checkEntryXAttrs(arg, option, entry, dir);
+        ret = checkEntryMtd(arg, option, FIND_XATTR, entry, dir);
       }
 
       if (ret != 0)

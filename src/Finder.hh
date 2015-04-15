@@ -82,11 +82,8 @@ public:
                      const std::string &entry, const Dir &dir,
                      struct stat &buff);
 
-  int checkEntryMtd(FinderArg &arg, FindOptions option,
+  int checkEntryMtd(FinderArg &arg, FindOptions option, FindOptions mtdType,
                     const std::string &entry, Dir &dir);
-
-  int checkEntryXAttrs(FinderArg &arg, FindOptions option,
-                       const std::string &entry, Dir &dir);
 
   int checkEntryName(FinderArg &arg, FindOptions option,
                      const std::string &entry);
@@ -98,7 +95,7 @@ public:
   int compareEntryNumValue(FinderArg &arg, FindOptions option, float value);
 
 
-  int checkXAttrKeyPresence(FinderArg &arg, FindOptions option,
+  int checkMtdKeyPresence(FinderArg &arg, FindOptions option,
                             const std::map<std::string, std::string> &xattrs);
 
   Filesystem *radosFs;
