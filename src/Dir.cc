@@ -950,6 +950,62 @@ Dir::removeMetadata(const std::string &entry, const std::string &key)
   return -1;
 }
 
+static Finder::FindOptions
+setupMtdFindArg(FinderArg &arg, Finder::FindOptions mtdType,
+                const std::string &keyword, bool numeric, const std::string &op,
+                const std::string &key, const std::string &value)
+{
+  arg.valueStr = value;
+  arg.valueNum = atof(value.c_str());
+
+  // Strip the keyword (e.g. "mtd") from the key.
+  if (key.length() > keyword.length())
+  {
+    // We strip one extra char because of the dot, e.g. mtd.example
+    arg.key = key.substr(keyword.length() + 1);
+  }
+  else
+  {
+    arg.key = key.substr(key.length());
+  }
+
+  if (numeric)
+    arg.options |= FinderArg::FINDER_OPT_CMP_NUM;
+
+  int option = mtdType;
+
+  if (op == FINDER_EQ_SYM)
+  {
+    option |= Finder::FIND_EQ;
+  }
+  else if (op == FINDER_NE_SYM)
+  {
+    option |= Finder::FIND_NE;
+  }
+  else if (op == FINDER_GT_SYM)
+  {
+    option |= Finder::FIND_GT;
+    arg.options |= FinderArg::FINDER_OPT_CMP_NUM;
+  }
+  else if (op == FINDER_GE_SYM)
+  {
+    option |= Finder::FIND_GE;
+    arg.options |= FinderArg::FINDER_OPT_CMP_NUM;
+  }
+  else if (op == FINDER_LT_SYM)
+  {
+    option |= Finder::FIND_LT;
+    arg.options |= FinderArg::FINDER_OPT_CMP_NUM;
+  }
+  else if (op == FINDER_LE_SYM)
+  {
+    option |= Finder::FIND_LE;
+    arg.options |= FinderArg::FINDER_OPT_CMP_NUM;
+  }
+
+  return static_cast<Finder::FindOptions>(option);
+}
+
 int
 Dir::find(std::set<std::string> &results, const std::string args)
 {
@@ -1010,64 +1066,33 @@ Dir::find(std::set<std::string> &results, const std::string args)
       else if (op == FINDER_LT_SYM)
         option = Finder::FIND_SIZE_LT;
     }
-    else if (key.substr(0, strlen(FINDER_KEY_MTD)) == FINDER_KEY_MTD)
+    else if (key.compare(0, strlen(FINDER_KEY_MTD), FINDER_KEY_MTD) == 0)
     {
-      arg.valueStr = value;
-      if (key.length() > strlen(FINDER_KEY_MTD))
-      {
-        arg.key = key.substr(strlen(FINDER_KEY_MTD) + 1);
-      }
+      size_t keyLength = strlen(FINDER_KEY_MTD);
+      size_t numKeyLength = strlen(FINDER_KEY_MTD_NUM);
 
-      if (op == FINDER_EQ_SYM)
-        option = Finder::FIND_MTD_EQ;
-      else if (op == FINDER_NE_SYM)
-        option = Finder::FIND_MTD_NE;
+      // The numeric version of the keyword only appends a suffix so we
+      // just need to compare the strings from the length of the original
+      // keyword
+      bool isNumeric = key.compare(keyLength, numKeyLength - keyLength,
+                                   FINDER_KEY_MTD_NUM + keyLength) == 0;
+      option = setupMtdFindArg(arg, Finder::FIND_MTD,
+                               isNumeric ? FINDER_KEY_MTD_NUM : FINDER_KEY_MTD,
+                               isNumeric, op, key, value);
     }
-    else if (key.substr(0, strlen(FINDER_KEY_XATTR)) == FINDER_KEY_XATTR)
+    else if (key.compare(0, strlen(FINDER_KEY_XATTR), FINDER_KEY_XATTR) == 0)
     {
-      const size_t xattrKeyLength = strlen(FINDER_KEY_XATTR);
-      const size_t xattrNKeyLength = strlen(FINDER_KEY_XATTR_NUM);
-      arg.valueStr = value;
-      arg.valueNum = atof(value.c_str());
+      size_t keyLength = strlen(FINDER_KEY_XATTR);
+      size_t numKeyLength = strlen(FINDER_KEY_XATTR_NUM);
 
-      if (key.compare(0, xattrNKeyLength, FINDER_KEY_XATTR_NUM) == 0)
-      {
-        arg.key = key.substr(xattrNKeyLength + 1);
-        arg.options |= FinderArg::FINDER_OPT_CMP_NUM;
-      }
-      else if (key.length() > xattrKeyLength)
-      {
-        arg.key = key.substr(xattrKeyLength + 1);
-      }
-
-      if (op == FINDER_EQ_SYM)
-      {
-        option = Finder::FIND_XATTR_EQ;
-      }
-      else if (op == FINDER_NE_SYM)
-      {
-        option = Finder::FIND_XATTR_NE;
-      }
-      else if (op == FINDER_GT_SYM)
-      {
-        option = Finder::FIND_XATTR_GT;
-        arg.options |= FinderArg::FINDER_OPT_CMP_NUM;
-      }
-      else if (op == FINDER_GE_SYM)
-      {
-        option = Finder::FIND_XATTR_GE;
-        arg.options |= FinderArg::FINDER_OPT_CMP_NUM;
-      }
-      else if (op == FINDER_LT_SYM)
-      {
-        option = Finder::FIND_XATTR_LT;
-        arg.options |= FinderArg::FINDER_OPT_CMP_NUM;
-      }
-      else if (op == FINDER_LE_SYM)
-      {
-        option = Finder::FIND_XATTR_LE;
-        arg.options |= FinderArg::FINDER_OPT_CMP_NUM;
-      }
+      // The numeric version of the keyword only appends a suffix so we
+      // just need to compare the strings from the length of the original
+      // keyword
+      bool isNumeric = key.compare(keyLength, numKeyLength - keyLength,
+                                   FINDER_KEY_XATTR_NUM + keyLength) == 0;
+      option = setupMtdFindArg(arg, Finder::FIND_XATTR,
+                               isNumeric ? FINDER_KEY_XATTR_NUM : FINDER_KEY_XATTR,
+                               isNumeric, op, key, value);
     }
 
     finderArgs[option] = arg;
