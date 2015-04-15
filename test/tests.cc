@@ -3340,6 +3340,46 @@ TEST_F(RadosFsTest, Find)
 
   EXPECT_EQ(1, results.size());
 
+  results.clear();
+
+  EXPECT_EQ(0, dir.find(results, "mtd = '^" + mtdKey.substr(0, 2)  + ".*'"));
+
+  EXPECT_EQ(1, results.size());
+
+  dir.setMetadata("f1", mtdKey, "3");
+
+  results.clear();
+
+  EXPECT_EQ(0, dir.find(results, "mtd." + mtdKey + " = '3.0'"));
+
+  EXPECT_EQ(0, results.size());
+
+  results.clear();
+
+  EXPECT_EQ(0, dir.find(results, "mtdN." + mtdKey + " < '2'"));
+
+  EXPECT_EQ(1, results.size());
+
+  results.clear();
+
+  EXPECT_EQ(0, dir.find(results, "mtdN." + mtdKey + " > '2' "
+                                 "mtdN." + mtdKey + " <= '3'"));
+
+  EXPECT_EQ(1, results.size());
+
+  results.clear();
+
+  EXPECT_EQ(0, dir.find(results, "mtdN." + mtdKey + " > '2' "
+                                 "mtdN." + mtdKey + " < '3'"));
+
+  EXPECT_EQ(0, results.size());
+
+  results.clear();
+
+  EXPECT_EQ(0, dir.find(results, "mtdN." + mtdKey + " < '4'"));
+
+  EXPECT_EQ(2, results.size());
+
   // Find contents based on matching xattrs
 
   dir.setPath("/d0/d2/");
