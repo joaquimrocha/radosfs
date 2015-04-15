@@ -991,9 +991,7 @@ Dir::find(std::set<std::string> &results, const std::string args)
         option = Finder::FIND_NAME_NE;
 
       if (isIName)
-        arg.valueNum = 1;
-      else
-        arg.valueNum = 0;
+        arg.options |= FinderArg::FINDER_OPT_ICASE;
     }
     else if (key == FINDER_KEY_SIZE)
     {

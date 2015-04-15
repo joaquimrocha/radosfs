@@ -121,7 +121,8 @@ Finder::checkEntryMtd(FinderArg &arg, FindOptions option,
   if (ret == 0)
   {
     regex_t regex;
-    ret = makeExpRegex(arg.valueStr, arg.valueNum == 1, &regex);
+    bool icase = arg.options & FinderArg::FINDER_OPT_CMP_NUM;
+    ret = makeExpRegex(arg.valueStr, icase, &regex);
 
     if (ret != 0)
     {
@@ -148,7 +149,8 @@ Finder::checkXAttrKeyPresence(FinderArg &arg, FindOptions option,
                               const std::map<std::string, std::string> &xattrs)
 {
   regex_t regex;
-  int ret = makeExpRegex(arg.valueStr, arg.valueNum == 1, &regex);
+  bool icase = arg.options & FinderArg::FINDER_OPT_ICASE;
+  int ret = makeExpRegex(arg.valueStr, icase, &regex);
 
   if (ret != 0)
   {
@@ -183,7 +185,8 @@ Finder::compareEntryStrValue(FinderArg &arg, const std::string &entry,
                              Dir &dir)
 {
   regex_t regex;
-  int ret = makeExpRegex(arg.valueStr, arg.valueNum == 1, &regex);
+  bool icase = arg.options & FinderArg::FINDER_OPT_ICASE;
+  int ret = makeExpRegex(arg.valueStr, icase, &regex);
 
   if (ret != 0)
   {
@@ -273,7 +276,8 @@ Finder::checkEntryName(FinderArg &arg, FindOptions option,
                        const std::string &entry)
 {
   regex_t regex;
-  int ret = makeExpRegex(arg.valueStr, arg.valueNum == 1, &regex);
+  bool icase = arg.options & FinderArg::FINDER_OPT_ICASE;
+  int ret = makeExpRegex(arg.valueStr, icase, &regex);
 
   if (ret == 0)
   {
