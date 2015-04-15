@@ -43,41 +43,59 @@ public:
 
   enum FindOptions
   {
-    FIND_NAME_EQ,
-    FIND_NAME_NE,
-    FIND_MTD_EQ,
-    FIND_MTD_NE,
-    FIND_XATTR_EQ,
-    FIND_XATTR_NE,
-    FIND_XATTR_GT,
-    FIND_XATTR_GE,
-    FIND_XATTR_LT,
-    FIND_XATTR_LE,
-    FIND_SIZE_EQ,
-    FIND_SIZE_NE,
-    FIND_SIZE_GT,
-    FIND_SIZE_GE,
-    FIND_SIZE_LT,
-    FIND_SIZE_LE
+    FIND_EQ = 1 << 0,
+    FIND_NE = 1 << 2,
+    FIND_LT = 1 << 3,
+    FIND_GT = 1 << 4,
+    FIND_NAME = 1 << 5,
+    FIND_MTD = 1 << 6,
+    FIND_XATTR = 1 << 7,
+    FIND_SIZE = 1 << 8,
+    FIND_GE = FIND_GT | FIND_EQ,
+    FIND_LE = FIND_LT | FIND_EQ,
+
+    FIND_NAME_EQ = FIND_NAME | FIND_EQ,
+    FIND_NAME_NE = FIND_NAME | FIND_NE,
+    FIND_XATTR_EQ = FIND_XATTR | FIND_EQ,
+    FIND_XATTR_NE = FIND_XATTR | FIND_NE,
+    FIND_XATTR_GT = FIND_XATTR | FIND_GT,
+    FIND_XATTR_GE = FIND_XATTR | FIND_GE,
+    FIND_XATTR_LT = FIND_XATTR | FIND_LT,
+    FIND_XATTR_LE = FIND_XATTR | FIND_LE,
+    FIND_SIZE_EQ = FIND_SIZE | FIND_EQ,
+    FIND_SIZE_NE = FIND_SIZE | FIND_NE,
+    FIND_SIZE_GT = FIND_SIZE | FIND_GT,
+    FIND_SIZE_GE = FIND_SIZE | FIND_GE,
+    FIND_SIZE_LT = FIND_SIZE | FIND_LT,
+    FIND_SIZE_LE = FIND_SIZE | FIND_LE,
+    FIND_MTD_EQ = FIND_MTD | FIND_EQ,
+    FIND_MTD_NE = FIND_MTD | FIND_NE,
+    FIND_MTD_GT = FIND_MTD | FIND_GT,
+    FIND_MTD_GE = FIND_MTD | FIND_GE,
+    FIND_MTD_LT = FIND_MTD | FIND_LT,
+    FIND_MTD_LE = FIND_MTD | FIND_LE
   };
 
   int find(FinderData *data);
 
-  int checkEntrySize(FinderData *data,
-                     const std::string &entry,
-                     const Dir &dir,
+  int checkEntrySize(FinderArg &arg, FindOptions option,
+                     const std::string &entry, const Dir &dir,
                      struct stat &buff);
 
-  int checkEntryMtd(FinderData *data, const std::string &entry, Dir &dir);
+  int checkEntryMtd(FinderArg &arg, FindOptions option,
+                    const std::string &entry, Dir &dir);
 
-  int checkEntryXAttrs(FinderData *data, const std::string &entry, Dir &dir);
+  int checkEntryXAttrs(FinderArg &arg, FindOptions option,
+                       const std::string &entry, Dir &dir);
+
+  int checkEntryName(FinderArg &arg, FindOptions option,
+                     const std::string &entry);
 
   int compareEntryStrValue(FinderArg &arg, const std::string &entry,
                            FindOptions option, const std::string &value,
                            Dir &dir);
 
-  int compareEntryNumValue(FinderArg &arg, const std::string &entry,
-                           FindOptions option, float value, Dir &dir);
+  int compareEntryNumValue(FinderArg &arg, FindOptions option, float value);
 
 
   int checkXAttrKeyPresence(FinderArg &arg, FindOptions option,
