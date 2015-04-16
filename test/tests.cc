@@ -3410,13 +3410,21 @@ TEST_F(RadosFsTest, Find)
 
   EXPECT_EQ(entries.size(), results.size());
 
-  ASSERT_EQ(0, radosFs.setXAttr(dir.path() + "f0", xattrKey, "0.42"));
+  ASSERT_EQ(0, radosFs.setXAttr(dir.path() + "f0", xattrKey, "sTaMpVaLuE"));
 
   results.clear();
 
   EXPECT_EQ(0, dir.find(results, "xattr != '" + xattrKey + "'"));
 
   EXPECT_EQ(entries.size() - 1, results.size());
+
+  results.clear();
+
+  EXPECT_EQ(0, dir.find(results, "ixattr." + xattrKey + " = 'stampvalue'"));
+
+  EXPECT_EQ(1, results.size());
+
+  ASSERT_EQ(0, radosFs.setXAttr(dir.path() + "f0", xattrKey, "0.42"));
 
   results.clear();
 
