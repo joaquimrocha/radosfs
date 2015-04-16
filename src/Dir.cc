@@ -1094,6 +1094,18 @@ Dir::find(std::set<std::string> &results, const std::string args)
                                isNumeric ? FINDER_KEY_XATTR_NUM : FINDER_KEY_XATTR,
                                isNumeric, op, key, value);
     }
+    else if (key.compare(0, strlen(FINDER_KEY_IMTD), FINDER_KEY_IMTD) == 0)
+    {
+      option = setupMtdFindArg(arg, Finder::FIND_MTD, FINDER_KEY_IMTD, false, op,
+                               key, value);
+      arg.options = FinderArg::FINDER_OPT_ICASE;
+    }
+    else if (key.compare(0, strlen(FINDER_KEY_IXATTR), FINDER_KEY_IXATTR) == 0)
+    {
+      option = setupMtdFindArg(arg, Finder::FIND_XATTR, FINDER_KEY_IXATTR, false,
+                               op, key, value);
+      arg.options = FinderArg::FINDER_OPT_ICASE;
+    }
 
     finderArgs[option] = arg;
 
