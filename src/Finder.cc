@@ -231,7 +231,7 @@ Finder::compareEntryNumValue(FinderArg &arg, FindOptions option, float value)
 
   if ((option & FIND_EQ) && (value == arg.valueNum))
   {
-      ret = 0;
+    ret = 0;
   }
   else if ((option & FIND_NE) && (value != arg.valueNum))
   {
