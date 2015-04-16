@@ -3312,7 +3312,7 @@ TEST_F(RadosFsTest, Find)
 
   EXPECT_EQ(entries.size(), results.size());
 
-  dir.setMetadata("f0", mtdKey, "0.42");
+  dir.setMetadata("f0", mtdKey, "StAmPvAlUe");
 
   results.clear();
 
@@ -3325,6 +3325,20 @@ TEST_F(RadosFsTest, Find)
   EXPECT_EQ(0, dir.find(results, "mtd = '" + mtdKey + "'"));
 
   EXPECT_EQ(1, results.size());
+
+  results.clear();
+
+  EXPECT_EQ(0, dir.find(results, "mtd." + mtdKey + " = 'stampvalue'"));
+
+  EXPECT_EQ(0, results.size());
+
+  results.clear();
+
+  EXPECT_EQ(0, dir.find(results, "imtd." + mtdKey + " = 'stampvalue'"));
+
+  EXPECT_EQ(1, results.size());
+
+  dir.setMetadata("f0", mtdKey, "0.42");
 
   results.clear();
 
