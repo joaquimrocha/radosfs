@@ -1167,6 +1167,8 @@ inodeBackLinkCb(rados_completion_t comp, void *arg)
   // didn't because it had already been set (operation canceled)
   if (ret == 0 || ret == -ECANCELED)
     io->setHasBackLink(true);
+
+  rados_aio_release(comp);
 }
 
 int
