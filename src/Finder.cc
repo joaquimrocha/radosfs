@@ -75,8 +75,6 @@ checkEntryRegex(const std::string &value, const std::string &valueToCompare,
 {
   int ret = runRegex(value, regex, valueToCompare);
 
-  regfree(&regex);
-
   if (((option & Finder::FIND_EQ) && ret == 0) ||
       ((option & Finder::FIND_NE) && ret == REG_NOMATCH))
   {
@@ -173,6 +171,8 @@ Finder::checkMtdKeyPresence(FinderArg &arg, FindOptions option,
   {
     radosfs_debug("Error making regex for %s.",
                   arg.valueStr.c_str());
+    regfree(&regex);
+
     return -EINVAL;
   }
 
@@ -188,6 +188,8 @@ Finder::checkMtdKeyPresence(FinderArg &arg, FindOptions option,
       break;
     }
   }
+
+  regfree(&regex);
 
   if ((matched && (option & FIND_EQ)) ||
       (!matched && (option & FIND_NE)))
@@ -210,10 +212,16 @@ Finder::compareEntryStrValue(FinderArg &arg, const std::string &entry,
     radosfs_debug("Error making regex for %s on directory '%s' for entry '%s'.",
                   arg.valueStr.c_str(), dir.path().c_str(),
                   entry.c_str());
-    return -EINVAL;
+    ret = -EINVAL;
+    goto bailout;
   }
 
-  return checkEntryRegex(arg.valueStr, value, option, regex);
+  ret = checkEntryRegex(arg.valueStr, value, option, regex);
+
+bailout:
+  regfree(&regex);
+
+  return ret;
 }
 
 int
@@ -253,6 +261,8 @@ Finder::checkEntryName(FinderArg &arg, FindOptions option,
   {
     ret = checkEntryRegex(arg.valueStr, entry, option, regex);
   }
+
+  regfree(&regex);
 
   return ret;
 }
