@@ -1959,6 +1959,8 @@ TEST_F(RadosFsTest, RenameFile)
   ASSERT_EQ(path, file.path());
 
   testFileInodeBackLink(file.path());
+
+  delete[] fileContsBuff;
 }
 
 bool
