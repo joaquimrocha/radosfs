@@ -626,16 +626,27 @@ int
 setXAttrFromPath(Stat &stat, uid_t uid, gid_t gid, const std::string &attrName,
                  const std::string &value)
 {
+  bool needsPrefix = false;
   int ret = checkPermissionsForXAttr(stat.statBuff, attrName, uid, gid,
                                      O_WRONLY);
 
   if (ret != 0)
-    return ret;
+  {
+    if (ret == -EINVAL)
+      needsPrefix = true;
+    else
+      return ret;
+  }
 
   librados::ObjectWriteOperation writeOp;
 
   std::map<std::string, librados::bufferlist> omap;
-  omap[attrName].append(value);
+
+  if (needsPrefix)
+    omap[XATTR_USER_PREFIX + attrName].append(value);
+  else
+    omap[attrName].append(value);
+
   writeOp.omap_set(omap);
 
   ret = stat.pool->ioctx.operate(stat.translatedPath, &writeOp);
