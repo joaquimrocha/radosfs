@@ -208,15 +208,11 @@ RadosFsTest::testXAttrInFsInfo(radosfs::FsObj &info)
   radosFs.setIds(TEST_UID, TEST_GID);
 
   std::string xAttrValue;
-  EXPECT_EQ(-EINVAL, info.getXAttr(XATTR_PERMISSIONS, xAttrValue));
-
-  // Get an invalid xattr
-
-  EXPECT_EQ(-EINVAL, info.getXAttr("invalid", xAttrValue));
+  EXPECT_EQ(-ENODATA, info.getXAttr(XATTR_PERMISSIONS, xAttrValue));
 
   // Get an inexistent xattr
 
-  EXPECT_LT(info.getXAttr("usr.inexistent", xAttrValue), 0);
+  EXPECT_EQ(-ENODATA, info.getXAttr("inexistent", xAttrValue));
 
   // Set a user attribute
 

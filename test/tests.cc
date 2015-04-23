@@ -2203,15 +2203,11 @@ TEST_F(RadosFsTest, XAttrs)
 
   EXPECT_EQ(0, file.create((S_IRWXU | S_IRGRP | S_IROTH)));
 
-  // Get an invalid xattr
+  // Get an inexistent
 
   std::string xAttrValue;
 
-  EXPECT_EQ(-EINVAL, radosFs.getXAttr(fileName, "invalid", xAttrValue));
-
-  // Get an inexistent
-
-  EXPECT_LT(radosFs.getXAttr(fileName, "usr.inexistent", xAttrValue), 0);
+  EXPECT_EQ(-ENODATA, radosFs.getXAttr(fileName, "inexistent", xAttrValue));
 
   // Set a user attribute
 
@@ -2237,7 +2233,16 @@ TEST_F(RadosFsTest, XAttrs)
 
   // Get the attribute set above
 
+  std::string xAttrValue1;
+
   EXPECT_EQ(value.length(), radosFs.getXAttr(fileName, attr, xAttrValue));
+
+  // Verify that using the xattr with or without the "usr." prefix is the same
+
+  EXPECT_EQ(xAttrValue.length(), radosFs.getXAttr(fileName, "attr",
+                                                  xAttrValue1));
+
+  EXPECT_EQ(xAttrValue, xAttrValue1);
 
   // Check the attribtue's value
 
