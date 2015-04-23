@@ -668,24 +668,36 @@ getXAttrFromPath(librados::IoCtx &ioctx,
                  const std::string &attrName,
                  std::string &value)
 {
+  std::string realAttrName(attrName);
   int ret = checkPermissionsForXAttr(statBuff, attrName, uid, gid, O_RDONLY);
 
   if (ret != 0)
-    return ret;
+  {
+    if (ret == -EINVAL)
+    {
+      // If the argument was invalid, it means it didn't have a valid prefix, so
+      // we set the usr prefix by default
+      realAttrName = XATTR_USER_PREFIX + attrName;
+    }
+    else
+    {
+      return ret;
+    }
+  }
 
   std::set<std::string> keys;
   std::map<std::string, librados::bufferlist> omap;
 
-  keys.insert(attrName);
+  keys.insert(realAttrName);
   ret = ioctx.omap_get_vals_by_keys(path, keys, &omap);
 
-  if (omap.count(attrName) == 0)
+  if (omap.count(realAttrName) == 0)
     ret = -ENODATA;
 
   if (ret < 0)
     return ret;
 
-  librados::bufferlist buff = omap[attrName];
+  librados::bufferlist buff = omap[realAttrName];
   value = std::string(buff.c_str(), buff.length());
 
   return value.length();
