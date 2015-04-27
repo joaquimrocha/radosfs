@@ -41,6 +41,7 @@ FilesystemPriv::FilesystemPriv(Filesystem *radosFs)
     dirCompactRatio(DEFAULT_DIR_COMPACT_RATIO),
     fileStripeSize(FILE_STRIPE_SIZE),
     lockFiles(true),
+    numGenericWorkers(DEFAULT_NUM_WORKER_THREADS),
     ioService(new boost::asio::io_service),
     asyncWork(new boost::asio::io_service::work(*ioService)),
     fileOpsIdleChecker(boost::bind(&FilesystemPriv::checkFileLocks, this))
@@ -417,8 +418,18 @@ FilesystemPriv::removeDirInode(const std::string &path)
 void
 FilesystemPriv::launchThreads(void)
 {
-  size_t currentLaunchedThreads = generalWorkerThreads.size();
-  size_t threadsToLaunch = DEFAULT_NUM_WORKER_THREADS - currentLaunchedThreads;
+  size_t threadsToLaunch = DEFAULT_NUM_WORKER_THREADS;
+
+  {
+    size_t currentLaunchedThreads = generalWorkerThreads.size();
+    boost::unique_lock<boost::mutex> lock(genericWorkersMutex);
+
+    if (numGenericWorkers <= currentLaunchedThreads)
+      return;
+
+    threadsToLaunch = numGenericWorkers - currentLaunchedThreads;
+  }
+
   while (threadsToLaunch-- > 0)
   {
     generalWorkerThreads.create_thread(
@@ -1946,6 +1957,28 @@ Filesystem::getInodeAndPool(const std::string &path, std::string *inode,
   }
 
   return ret;
+}
+
+void
+Filesystem::setNumGenericWorkers(size_t numWorkers)
+{
+  if (numWorkers < MIN_NUM_WORKER_THREADS)
+  {
+    radosfs_debug("Error: Cannot set the number of generic worker threads to 0. "
+                  "Setting the number to the minimum allowed instead (minimum "
+                  "is 1).");
+    numWorkers = MIN_NUM_WORKER_THREADS;
+  }
+
+  boost::unique_lock<boost::mutex> lock(mPriv->genericWorkersMutex);
+  mPriv->numGenericWorkers = numWorkers;
+}
+
+size_t
+Filesystem::numGenericWorkers(void)
+{
+  boost::unique_lock<boost::mutex> lock(mPriv->genericWorkersMutex);
+  return mPriv->numGenericWorkers;
 }
 
 RADOS_FS_END_NAMESPACE

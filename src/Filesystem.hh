@@ -148,6 +148,10 @@ public:
   int getInodeAndPool(const std::string &path, std::string *inode,
                       std::string *pool);
 
+  void setNumGenericWorkers(size_t numWorkers);
+
+  size_t numGenericWorkers(void);
+
 private:
   FilesystemPriv *mPriv;
 
