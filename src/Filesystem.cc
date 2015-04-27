@@ -1980,8 +1980,15 @@ Filesystem::setNumGenericWorkers(size_t numWorkers)
     numWorkers = MIN_NUM_WORKER_THREADS;
   }
 
-  boost::unique_lock<boost::mutex> lock(mPriv->genericWorkersMutex);
-  mPriv->numGenericWorkers = numWorkers;
+  {
+    boost::unique_lock<boost::mutex> lock(mPriv->genericWorkersMutex);
+    mPriv->numGenericWorkers = numWorkers;
+  }
+
+  size_t currentNumWorkers = mPriv->generalWorkerThreads.size();
+
+  if (currentNumWorkers > 0 && currentNumWorkers != numWorkers)
+    mPriv->launchThreads();
 }
 
 size_t
