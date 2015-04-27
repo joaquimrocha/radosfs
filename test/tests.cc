@@ -297,6 +297,54 @@ TEST_F(RadosFsTest, PathsLength)
   EXPECT_EQ(-ENAMETOOLONG, file.createLink(otherDir.path() + "file-link"));
 }
 
+TEST_F(RadosFsTest, GenericWorkerThreads)
+{
+  AddPool();
+
+  // Set the number of worker threads as zero to check if the minimum is set
+  // instead
+
+  radosFs.setNumGenericWorkers(0);
+
+  // Call an operation that triggers the launch of the generic worker threads
+
+  radosfs::File file(&radosFs, "/file");
+
+  ASSERT_EQ(0, file.create());
+
+  file.write("CERN", 0, 2);
+  file.write("CERN", 2, 2);
+  file.sync();
+
+  EXPECT_EQ(MIN_NUM_WORKER_THREADS, radosFsPriv()->numGenericWorkers);
+  EXPECT_EQ(MIN_NUM_WORKER_THREADS, radosFsPriv()->generalWorkerThreads.size());
+
+  // Increase number of worker threads
+
+  size_t numWorkers = DEFAULT_NUM_WORKER_THREADS;
+
+  radosFs.setNumGenericWorkers(numWorkers);
+
+  file.write("CERN", 0, 2);
+  file.write("CERN", 2, 2);
+  file.sync();
+
+  EXPECT_EQ(numWorkers, radosFsPriv()->numGenericWorkers);
+  EXPECT_EQ(numWorkers, radosFsPriv()->generalWorkerThreads.size());
+
+  // Diminish number of worker threads
+
+  numWorkers = DEFAULT_NUM_WORKER_THREADS / 2;
+
+  radosFs.setNumGenericWorkers(numWorkers);
+
+  file.write("CERN", 0, 2);
+  file.write("CERN", 2, 2);
+
+  EXPECT_EQ(numWorkers, radosFsPriv()->numGenericWorkers);
+  EXPECT_EQ(numWorkers, radosFsPriv()->generalWorkerThreads.size());
+}
+
 TEST_F(RadosFsTest, CreateDir)
 {
   AddPool();
