@@ -419,21 +419,31 @@ void
 FilesystemPriv::launchThreads(void)
 {
   size_t threadsToLaunch = DEFAULT_NUM_WORKER_THREADS;
+  size_t currentLaunchedThreads = generalWorkerThreads.size();
 
   {
-    size_t currentLaunchedThreads = generalWorkerThreads.size();
     boost::unique_lock<boost::mutex> lock(genericWorkersMutex);
 
-    if (numGenericWorkers <= currentLaunchedThreads)
-      return;
-
-    threadsToLaunch = numGenericWorkers - currentLaunchedThreads;
+    threadsToLaunch = numGenericWorkers;
   }
 
-  while (threadsToLaunch-- > 0)
+  while (threadsToLaunch < currentLaunchedThreads)
   {
-    generalWorkerThreads.create_thread(
-          boost::bind(&FilesystemPriv::generalWorkerThread, this, ioService));
+    boost::thread *thread = genericWorkersList.back();
+    genericWorkersList.pop_back();
+    currentLaunchedThreads--;
+
+    generalWorkerThreads.remove_thread(thread);
+    delete thread;
+  }
+
+  while (threadsToLaunch > currentLaunchedThreads)
+  {
+    boost::thread *thread = generalWorkerThreads.create_thread(
+                              boost::bind(&FilesystemPriv::generalWorkerThread,
+                                          this, ioService));
+    genericWorkersList.push_back(thread);
+    currentLaunchedThreads++;
   }
 }
 

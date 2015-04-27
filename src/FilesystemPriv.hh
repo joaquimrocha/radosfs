@@ -242,6 +242,7 @@ public:
   bool lockFiles;
   boost::mutex genericWorkersMutex;
   size_t numGenericWorkers;
+  std::list<boost::thread *> genericWorkersList;
   boost::shared_ptr<boost::asio::io_service> ioService;
   boost::shared_ptr<boost::asio::io_service::work> asyncWork;
   boost::thread_group generalWorkerThreads;
