@@ -72,7 +72,7 @@ public:
            const std::string &configurationFile = "");
 
   int addDataPool(const std::string &name, const std::string &prefix,
-                  size_t size = 0);
+                  size_t size = 1024);
 
   int removeDataPool(const std::string &name);
 
