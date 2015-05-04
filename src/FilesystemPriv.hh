@@ -239,7 +239,6 @@ public:
   float dirCompactRatio;
   Logger logger;
   size_t fileChunkSize;
-  bool lockFiles;
   boost::mutex genericWorkersMutex;
   size_t numGenericWorkers;
   std::list<boost::thread *> genericWorkersList;

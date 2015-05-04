@@ -140,9 +140,6 @@ public:
   void setFileChunkSize(const size_t size);
   size_t fileChunkSize(void) const;
 
-  void setFileLocking(bool lock);
-  bool fileLocking(void) const;
-
   FsObj * getFsObj(const std::string &path);
 
   int getInodeAndPool(const std::string &path, std::string *inode,

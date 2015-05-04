@@ -40,7 +40,6 @@ FilesystemPriv::FilesystemPriv(Filesystem *radosFs)
     initialized(false),
     dirCompactRatio(DEFAULT_DIR_COMPACT_RATIO),
     fileChunkSize(FILE_CHUNK_SIZE),
-    lockFiles(true),
     numGenericWorkers(DEFAULT_NUM_WORKER_THREADS),
     ioService(new boost::asio::io_service),
     asyncWork(new boost::asio::io_service::work(*ioService)),
@@ -1906,19 +1905,6 @@ size_t
 Filesystem::fileChunkSize(void) const
 {
   return mPriv->fileChunkSize;
-}
-
-
-void
-Filesystem::setFileLocking(bool lock)
-{
-  mPriv->lockFiles = lock;
-}
-
-bool
-Filesystem::fileLocking(void) const
-{
-  return mPriv->lockFiles;
 }
 
 FsObj *
