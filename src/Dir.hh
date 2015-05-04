@@ -86,7 +86,7 @@ public:
 
   int removeMetadata(const std::string &entry, const std::string &key);
 
-  int find(std::set<std::string> &results, const std::string args);
+  int find(const std::string args, std::set<std::string> &results);
 
   int chmod(long int permissions);
 

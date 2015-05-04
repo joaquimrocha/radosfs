@@ -3313,7 +3313,7 @@ TEST_F(RadosFsTest, Find)
 
   // Find contents using an empty search string
 
-  EXPECT_EQ(-EINVAL, dir.find(results, ""));
+  EXPECT_EQ(-EINVAL, dir.find("", results));
 
   // Find contents whose name begins with a "d" and measure its time
   // (all directories)
@@ -3322,7 +3322,7 @@ TEST_F(RadosFsTest, Find)
 
   clock_gettime(CLOCK_REALTIME, &startTime);
 
-  int ret = dir.find(results, "name=\"^d.*\"");
+  int ret = dir.find("name=\"^d.*\"", results);
 
   clock_gettime(CLOCK_REALTIME, &endTime);
 
@@ -3340,7 +3340,7 @@ TEST_F(RadosFsTest, Find)
 
   // Find contents whose name begins with a "f" (all files)
 
-  EXPECT_EQ(0, dir.find(results, "name=\"^f.*\""));
+  EXPECT_EQ(0, dir.find("name=\"^f.*\"", results));
 
   int numFiles = 1;
   for (int i = levels - 1; i > 0; i--)
@@ -3354,7 +3354,7 @@ TEST_F(RadosFsTest, Find)
 
   // Find contents whose size is 0 (all files + dirs of the last level)
 
-  EXPECT_EQ(0, dir.find(results, "size = 0"));
+  EXPECT_EQ(0, dir.find("size = 0", results));
 
   EXPECT_EQ(numFiles + pow(numDirsPerLevel, levels), results.size());
 
@@ -3373,7 +3373,7 @@ TEST_F(RadosFsTest, Find)
 
   // Find contents whose size is 100 and name begins with "new"
 
-  EXPECT_EQ(0, dir.find(results, "name=\"^new.*\" size = 100"));
+  EXPECT_EQ(0, dir.find("name=\"^new.*\" size = 100", results));
 
   EXPECT_EQ(1, results.size());
 
@@ -3381,7 +3381,7 @@ TEST_F(RadosFsTest, Find)
 
   // Find contents whose size is 100 and name begins with "f"
 
-  EXPECT_EQ(0, dir.find(results, "name=\"^.*f.*\" size = 100"));
+  EXPECT_EQ(0, dir.find("name=\"^.*f.*\" size = 100", results));
 
   EXPECT_EQ(1, results.size());
 
@@ -3389,7 +3389,7 @@ TEST_F(RadosFsTest, Find)
 
   // Find contents whose size is 100
 
-  EXPECT_EQ(0, dir.find(results, "size = 100"));
+  EXPECT_EQ(0, dir.find("size = 100", results));
 
   EXPECT_EQ(2, results.size());
 
@@ -3397,7 +3397,7 @@ TEST_F(RadosFsTest, Find)
 
   // Find contents whose size is 100 and the name contains an "f"
 
-  EXPECT_EQ(0, dir.find(results, "iname='.*f.*' size = \"100\""));
+  EXPECT_EQ(0, dir.find("iname='.*f.*' size = \"100\"", results));
 
   EXPECT_EQ(2, results.size());
 
@@ -3407,7 +3407,7 @@ TEST_F(RadosFsTest, Find)
 
   dir.setPath("/d0/d0/");
 
-  EXPECT_EQ(0, dir.find(results, "name!=\"^.*f.*\" name='^.*0.*'"));
+  EXPECT_EQ(0, dir.find("name!=\"^.*f.*\" name='^.*0.*'", results));
 
   EXPECT_EQ(1, results.size());
 
@@ -3424,7 +3424,7 @@ TEST_F(RadosFsTest, Find)
 
   std::string mtdKey = "stamp";
 
-  EXPECT_EQ(0, dir.find(results, "mtd != '" + mtdKey + "'"));
+  EXPECT_EQ(0, dir.find("mtd != '" + mtdKey + "'", results));
 
   EXPECT_EQ(entries.size(), results.size());
 
@@ -3432,25 +3432,25 @@ TEST_F(RadosFsTest, Find)
 
   results.clear();
 
-  EXPECT_EQ(0, dir.find(results, "mtd != '" + mtdKey + "'"));
+  EXPECT_EQ(0, dir.find("mtd != '" + mtdKey + "'", results));
 
   EXPECT_EQ(entries.size() - 1, results.size());
 
   results.clear();
 
-  EXPECT_EQ(0, dir.find(results, "mtd = '" + mtdKey + "'"));
+  EXPECT_EQ(0, dir.find("mtd = '" + mtdKey + "'", results));
 
   EXPECT_EQ(1, results.size());
 
   results.clear();
 
-  EXPECT_EQ(0, dir.find(results, "mtd." + mtdKey + " = 'stampvalue'"));
+  EXPECT_EQ(0, dir.find("mtd." + mtdKey + " = 'stampvalue'", results));
 
   EXPECT_EQ(0, results.size());
 
   results.clear();
 
-  EXPECT_EQ(0, dir.find(results, "imtd." + mtdKey + " = 'stampvalue'"));
+  EXPECT_EQ(0, dir.find("imtd." + mtdKey + " = 'stampvalue'", results));
 
   EXPECT_EQ(1, results.size());
 
@@ -3458,7 +3458,7 @@ TEST_F(RadosFsTest, Find)
 
   results.clear();
 
-  EXPECT_EQ(0, dir.find(results, "mtd." + mtdKey + " = '0.42'"));
+  EXPECT_EQ(0, dir.find("mtd." + mtdKey + " = '0.42'", results));
 
   EXPECT_EQ(1, results.size());
 
@@ -3466,13 +3466,13 @@ TEST_F(RadosFsTest, Find)
 
   results.clear();
 
-  EXPECT_EQ(0, dir.find(results, "mtd." + mtdKey + " != '^0.*'"));
+  EXPECT_EQ(0, dir.find("mtd." + mtdKey + " != '^0.*'", results));
 
   EXPECT_EQ(1, results.size());
 
   results.clear();
 
-  EXPECT_EQ(0, dir.find(results, "mtd = '^" + mtdKey.substr(0, 2)  + ".*'"));
+  EXPECT_EQ(0, dir.find("mtd = '^" + mtdKey.substr(0, 2)  + ".*'", results));
 
   EXPECT_EQ(1, results.size());
 
@@ -3480,33 +3480,33 @@ TEST_F(RadosFsTest, Find)
 
   results.clear();
 
-  EXPECT_EQ(0, dir.find(results, "mtd." + mtdKey + " = '3.0'"));
+  EXPECT_EQ(0, dir.find("mtd." + mtdKey + " = '3.0'", results));
 
   EXPECT_EQ(0, results.size());
 
   results.clear();
 
-  EXPECT_EQ(0, dir.find(results, "mtdN." + mtdKey + " < '2'"));
+  EXPECT_EQ(0, dir.find("mtdN." + mtdKey + " < '2'", results));
 
   EXPECT_EQ(1, results.size());
 
   results.clear();
 
-  EXPECT_EQ(0, dir.find(results, "mtdN." + mtdKey + " > '2' "
-                                 "mtdN." + mtdKey + " <= '3'"));
+  EXPECT_EQ(0, dir.find("mtdN." + mtdKey + " > '2' mtdN." + mtdKey + " <= '3'",
+                        results));
 
   EXPECT_EQ(1, results.size());
 
   results.clear();
 
-  EXPECT_EQ(0, dir.find(results, "mtdN." + mtdKey + " > '2' "
-                                 "mtdN." + mtdKey + " < '3'"));
+  EXPECT_EQ(0, dir.find("mtdN." + mtdKey + " > '2' mtdN." + mtdKey + " < '3'",
+                        results));
 
   EXPECT_EQ(0, results.size());
 
   results.clear();
 
-  EXPECT_EQ(0, dir.find(results, "mtdN." + mtdKey + " < '4'"));
+  EXPECT_EQ(0, dir.find("mtdN." + mtdKey + " < '4'", results));
 
   EXPECT_EQ(2, results.size());
 
@@ -3522,7 +3522,7 @@ TEST_F(RadosFsTest, Find)
 
   std::string xattrKey = "usr.xattr-stamp";
 
-  EXPECT_EQ(0, dir.find(results, "xattr != '" + xattrKey + "'"));
+  EXPECT_EQ(0, dir.find("xattr != '" + xattrKey + "'", results));
 
   EXPECT_EQ(entries.size(), results.size());
 
@@ -3530,13 +3530,13 @@ TEST_F(RadosFsTest, Find)
 
   results.clear();
 
-  EXPECT_EQ(0, dir.find(results, "xattr != '" + xattrKey + "'"));
+  EXPECT_EQ(0, dir.find("xattr != '" + xattrKey + "'", results));
 
   EXPECT_EQ(entries.size() - 1, results.size());
 
   results.clear();
 
-  EXPECT_EQ(0, dir.find(results, "ixattr." + xattrKey + " = 'stampvalue'"));
+  EXPECT_EQ(0, dir.find("ixattr." + xattrKey + " = 'stampvalue'", results));
 
   EXPECT_EQ(1, results.size());
 
@@ -3544,13 +3544,13 @@ TEST_F(RadosFsTest, Find)
 
   results.clear();
 
-  EXPECT_EQ(0, dir.find(results, "xattr = '" + xattrKey.substr(0, 2) + ".*'"));
+  EXPECT_EQ(0, dir.find("xattr = '" + xattrKey.substr(0, 2) + ".*'", results));
 
   EXPECT_EQ(1, results.size());
 
   results.clear();
 
-  EXPECT_EQ(0, dir.find(results, "xattr." + xattrKey + " = '0.42'"));
+  EXPECT_EQ(0, dir.find("xattr." + xattrKey + " = '0.42'", results));
 
   EXPECT_EQ(1, results.size());
 
@@ -3558,7 +3558,7 @@ TEST_F(RadosFsTest, Find)
 
   ASSERT_EQ(0, radosFs.setXAttr(dir.path() + "f0", xattrKey, "1.42"));
 
-  EXPECT_EQ(0, dir.find(results, "xattr." + xattrKey + " != '^0.*'"));
+  EXPECT_EQ(0, dir.find("xattr." + xattrKey + " != '^0.*'", results));
 
   EXPECT_EQ(1, results.size());
 
@@ -3566,20 +3566,20 @@ TEST_F(RadosFsTest, Find)
 
   results.clear();
 
-  EXPECT_EQ(0, dir.find(results, "xattrN." + xattrKey + " <= '2'"));
+  EXPECT_EQ(0, dir.find("xattrN." + xattrKey + " <= '2'", results));
 
   EXPECT_EQ(1, results.size());
 
   results.clear();
 
-  EXPECT_EQ(0, dir.find(results, "xattrN." + xattrKey + " <= '4'"));
+  EXPECT_EQ(0, dir.find("xattrN." + xattrKey + " <= '4'", results));
 
   EXPECT_EQ(2, results.size());
 
   results.clear();
 
-  EXPECT_EQ(0, dir.find(results, "xattrN." + xattrKey + " > '1.42' xattrN." +
-                        xattrKey + " < 4.1"));
+  EXPECT_EQ(0, dir.find("xattrN." + xattrKey + " > '1.42' xattrN." +
+                        xattrKey + " < 4.1", results));
 
   EXPECT_EQ(1, results.size());
 }

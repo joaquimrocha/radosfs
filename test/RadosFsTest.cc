@@ -81,7 +81,7 @@ RadosFsTest::TearDown()
 void
 RadosFsTest::AddPool(int numExtraPools)
 {
-  int ret = radosFs.addDataPool(TEST_POOL, "/", 1000);
+  int ret = radosFs.addDataPool(TEST_POOL, "/");
 
   EXPECT_EQ(0, ret);
 
@@ -101,7 +101,7 @@ RadosFsTest::AddPool(int numExtraPools)
 
     radosFsPriv()->radosCluster.pool_create(poolName.c_str());
 
-    ret = radosFs.addDataPool(poolName, "/", 1000);
+    ret = radosFs.addDataPool(poolName, "/");
 
     EXPECT_EQ(0, ret);
 

@@ -1007,12 +1007,12 @@ setupMtdFindArg(FinderArg &arg, Finder::FindOptions mtdType,
 }
 
 int
-Dir::find(std::set<std::string> &results, const std::string args)
+Dir::find(const std::string args, std::set<std::string> &results)
 {
   if (isLink())
   {
     if (mPriv->target)
-      return mPriv->target->find(results, args);
+      return mPriv->target->find(args, results);
 
     radosfs_debug("No target for link %s", path().c_str());
     return -ENOLINK;
