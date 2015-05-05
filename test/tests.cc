@@ -1302,7 +1302,7 @@ TEST_F(RadosFsTest, FileInodeDirect)
 
   ASSERT_EQ(contentsSize / 2, file.read(buff, 0, contentsSize / 2));
 
-  EXPECT_EQ(0, strcmp(contents, buff));
+  EXPECT_EQ(0, strncmp(contents, buff, contentsSize / 2));
 
   // Stat from the registered file and check it
 
