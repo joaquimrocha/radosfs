@@ -29,26 +29,26 @@
 RADOS_FS_BEGIN_NAMESPACE
 
 FileInodePriv::FileInodePriv(Filesystem *fs, const std::string &poolName,
-                             const std::string &name, const size_t stripeSize)
+                             const std::string &name, const size_t chunkSize)
   : fs(fs),
     name(name)
 {
   PoolSP pool = fs->mPriv->getDataPoolFromName(poolName);
-  size_t stripe = alignStripeSize(stripeSize, pool->alignment);
+  size_t chunk = alignChunkSize(chunkSize, pool->alignment);
 
   if (pool)
-    io = FileIOSP(new FileIO(fs, pool, name, stripe));
+    io = FileIOSP(new FileIO(fs, pool, name, chunk));
 }
 
 FileInodePriv::FileInodePriv(Filesystem *fs, PoolSP &pool,
-                             const std::string &name, const size_t stripeSize)
+                             const std::string &name, const size_t chunkSize)
   : fs(fs),
     name(name)
 {
-  size_t stripe = alignStripeSize(stripeSize, pool->alignment);
+  size_t chunk = alignChunkSize(chunkSize, pool->alignment);
 
   if (pool)
-    io = FileIOSP(new FileIO(fs, pool, name, stripe));
+    io = FileIOSP(new FileIO(fs, pool, name, chunk));
 }
 
 FileInodePriv::FileInodePriv(Filesystem *fs, FileIOSP fileIO)
@@ -138,9 +138,9 @@ FileInodePriv::registerFile(const std::string &path, uid_t uid, gid_t gid,
   fileStat.statBuff.st_ctime = spec.tv_sec;
 
   std::stringstream stream;
-  stream << io->stripeSize();
+  stream << io->chunkSize();
 
-  fileStat.extraData[XATTR_FILE_STRIPE_SIZE] = stream.str();
+  fileStat.extraData[XATTR_FILE_CHUNK_SIZE] = stream.str();
 
   stream.str("");
 
@@ -167,22 +167,22 @@ FileInodePriv::setBackLink(const std::string &backLink)
 }
 
 FileInode::FileInode(Filesystem *fs, const std::string &pool)
-  : mPriv(new FileInodePriv(fs, pool, generateUuid(), fs->fileStripeSize()))
+  : mPriv(new FileInodePriv(fs, pool, generateUuid(), fs->fileChunkSize()))
 {}
 
 FileInode::FileInode(Filesystem *fs, const std::string &name,
                      const std::string &pool)
-  : mPriv(new FileInodePriv(fs, pool, name, fs->fileStripeSize()))
+  : mPriv(new FileInodePriv(fs, pool, name, fs->fileChunkSize()))
 {}
 
 FileInode::FileInode(Filesystem *fs, const std::string &name,
-                     const std::string &pool, const size_t stripeSize)
-  : mPriv(new FileInodePriv(fs, pool, name, stripeSize))
+                     const std::string &pool, const size_t chunkSize)
+  : mPriv(new FileInodePriv(fs, pool, name, chunkSize))
 {}
 
 FileInode::FileInode(Filesystem *fs, const std::string &pool,
-                     const size_t stripeSize)
-  : mPriv(new FileInodePriv(fs, pool, generateUuid(), stripeSize))
+                     const size_t chunkSize)
+  : mPriv(new FileInodePriv(fs, pool, generateUuid(), chunkSize))
 {}
 
 FileInode::FileInode(FileInodePriv *priv)

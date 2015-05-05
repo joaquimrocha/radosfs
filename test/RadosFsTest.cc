@@ -353,7 +353,7 @@ RadosFsTest::runInThread(void *contents)
 }
 
 radosfs::File *
-RadosFsTest::launchFileOpsMultipleClients(const size_t stripeSize,
+RadosFsTest::launchFileOpsMultipleClients(const size_t chunkSize,
                                           const std::string &fileName,
                                           FsActionInfo *client1Action,
                                           FsActionInfo *client2Action)
@@ -367,8 +367,8 @@ RadosFsTest::launchFileOpsMultipleClients(const size_t stripeSize,
   otherClient.addDataPool(TEST_POOL, "/", 50 * 1024);
   otherClient.addMetadataPool(TEST_POOL, "/");
 
-  radosFs.setFileStripeSize(stripeSize);
-  otherClient.setFileStripeSize(stripeSize);
+  radosFs.setFileChunkSize(chunkSize);
+  otherClient.setFileChunkSize(chunkSize);
 
   radosfs::File *file = new radosfs::File(&radosFs, fileName);
 

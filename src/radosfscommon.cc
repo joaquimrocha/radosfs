@@ -894,48 +894,48 @@ sanitizePath(const std::string &path)
 }
 
 std::string
-makeFileStripeName(const std::string &filePath, size_t stripeIndex)
+makeFileChunkName(const std::string &filePath, size_t chunkIndex)
 {
-  if (stripeIndex == 0)
+  if (chunkIndex == 0)
     return filePath;
 
-  char stripeNumHex[FILE_STRIPE_LENGTH];
-  sprintf(stripeNumHex, "%0*x", FILE_STRIPE_LENGTH, (unsigned int) stripeIndex);
+  char chunkNumHex[FILE_CHUNK_LENGTH];
+  sprintf(chunkNumHex, "%0*x", FILE_CHUNK_LENGTH, (unsigned int) chunkIndex);
 
   std::ostringstream stream;
-  stream << filePath << "//" << stripeNumHex;
+  stream << filePath << "//" << chunkNumHex;
 
   return stream.str();
 }
 
 bool
-nameIsStripe(const std::string &name)
+nameIsChunk(const std::string &name)
 {
   const size_t nameLength = name.length();
 
-  // we add 2 because of the // that comes before the stripe index
-  if (nameLength < FILE_STRIPE_LENGTH + 2)
+  // we add 2 because of the // that comes before the chunk index
+  if (nameLength < FILE_CHUNK_LENGTH + 2)
     return false;
 
-  return name[nameLength - FILE_STRIPE_LENGTH - 1] == PATH_SEP &&
-      name[nameLength - FILE_STRIPE_LENGTH - 2] == PATH_SEP;
+  return name[nameLength - FILE_CHUNK_LENGTH - 1] == PATH_SEP &&
+      name[nameLength - FILE_CHUNK_LENGTH - 2] == PATH_SEP;
 }
 
 bool
 nameIsInode(const std::string &name)
 {
   const size_t nameLength = name.length();
-  // we add 2 because of the // that comes before the stripe index
-  const size_t stripeLength = UUID_STRING_SIZE + FILE_STRIPE_LENGTH + 2;
+  // we add 2 because of the // that comes before the chunk index
+  const size_t chunkLength = UUID_STRING_SIZE + FILE_CHUNK_LENGTH + 2;
 
-  return ((nameLength == UUID_STRING_SIZE || nameLength == stripeLength) &&
+  return ((nameLength == UUID_STRING_SIZE || nameLength == chunkLength) &&
           name[0] != '/');
 }
 
 std::string
 getBaseInode(const std::string &name)
 {
-  // we add 2 because of the // that comes before the stripe index
+  // we add 2 because of the // that comes before the chunk index
   if (name.length() < UUID_STRING_SIZE)
   {
     return "";
@@ -1162,12 +1162,12 @@ hasTMTimeEnabled(mode_t mode)
   return (mode & TMTIME_MASK) != 0;
 }
 
-size_t alignStripeSize(size_t stripeSize, size_t alignment)
+size_t alignChunkSize(size_t chunkSize, size_t alignment)
 {
-  if (alignment == 0 || stripeSize % alignment == 0)
-    return stripeSize;
+  if (alignment == 0 || chunkSize % alignment == 0)
+    return chunkSize;
 
-  return alignment * (stripeSize / alignment);
+  return alignment * (chunkSize / alignment);
 }
 
 int statAndGetXAttrs(librados::IoCtx &ctx, const std::string &obj,
@@ -1208,10 +1208,10 @@ int statAndGetXAttrs(librados::IoCtx &ctx, const std::string &obj,
 std::string
 fileSizeToHex(size_t num)
 {
-  char stripeNumHex[XATTR_FILE_SIZE_LENGTH];
-  sprintf(stripeNumHex, "%0*x", XATTR_FILE_SIZE_LENGTH, (unsigned int) num);
+  char chunkNumHex[XATTR_FILE_SIZE_LENGTH];
+  sprintf(chunkNumHex, "%0*x", XATTR_FILE_SIZE_LENGTH, (unsigned int) num);
 
-  return std::string(stripeNumHex, XATTR_FILE_SIZE_LENGTH);
+  return std::string(chunkNumHex, XATTR_FILE_SIZE_LENGTH);
 }
 
 void

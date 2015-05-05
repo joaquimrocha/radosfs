@@ -176,9 +176,9 @@ int statFromXAttr(const std::string &path,
                   std::string &pool,
                   std::map<std::string, std::string> &extraData);
 
-std::string makeFileStripeName(const std::string &filePath, size_t stripeIndex);
+std::string makeFileChunkName(const std::string &filePath, size_t chunkIndex);
 
-bool nameIsStripe(const std::string &name);
+bool nameIsChunk(const std::string &name);
 
 bool nameIsInode(const std::string &name);
 
@@ -221,7 +221,7 @@ int getTimeFromXAttr(const Stat *stat, const std::string &xattr,
 
 bool hasTMTimeEnabled(mode_t mode);
 
-size_t alignStripeSize(size_t stripeSize, size_t alignment);
+size_t alignChunkSize(size_t chunkSize, size_t alignment);
 
 int statAndGetXAttrs(librados::IoCtx &ioctx, const std::string &obj,
                      u_int64_t *size, time_t *mtime,

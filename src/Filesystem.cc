@@ -39,7 +39,7 @@ FilesystemPriv::FilesystemPriv(Filesystem *radosFs)
   : radosFs(radosFs),
     initialized(false),
     dirCompactRatio(DEFAULT_DIR_COMPACT_RATIO),
-    fileStripeSize(FILE_STRIPE_SIZE),
+    fileChunkSize(FILE_CHUNK_SIZE),
     lockFiles(true),
     numGenericWorkers(DEFAULT_NUM_WORKER_THREADS),
     ioService(new boost::asio::io_service),
@@ -534,7 +534,7 @@ FilesystemPriv::statEntryInThread(std::string path, std::string entry,
   dataPool = getDataPool(path, pool);
   stat->pool = dataPool;
 
-  // We only have to check the file inode's stripes if the inline buffer's
+  // We only have to check the file inode's chunks if the inline buffer's
   // capacity is zero of it is completely filled up
   size_t capacity = getInlineBufferCapacityFromExtraData(stat->extraData);
   if (capacity > 0 && inlineBufferSize != capacity)
@@ -1261,19 +1261,19 @@ FilesystemPriv::getOrCreateFileIO(const std::string &path, const Stat *stat)
 
   if (!io)
   {
-    int stripeSize = 0;
+    int chunkSize = 0;
 
-    if (stat->extraData.count(XATTR_FILE_STRIPE_SIZE))
+    if (stat->extraData.count(XATTR_FILE_CHUNK_SIZE))
     {
-      stripeSize = atol(stat->extraData.at(XATTR_FILE_STRIPE_SIZE).c_str());
+      chunkSize = atol(stat->extraData.at(XATTR_FILE_CHUNK_SIZE).c_str());
     }
 
-    if (stripeSize == 0)
-      stripeSize = alignStripeSize(radosFs->fileStripeSize(),
+    if (chunkSize == 0)
+      chunkSize = alignChunkSize(radosFs->fileChunkSize(),
                                    stat->pool->alignment);
 
     io = FileIOSP(new FileIO(radosFs, stat->pool, stat->translatedPath,
-                             stat->path, stripeSize));
+                             stat->path, chunkSize));
 
     setFileIO(io);
   }
@@ -1888,24 +1888,24 @@ Filesystem::logLevel(void) const
 }
 
 void
-Filesystem::setFileStripeSize(const size_t size)
+Filesystem::setFileChunkSize(const size_t size)
 {
   size_t realSize = size;
 
   if (size == 0)
   {
     realSize = 1;
-    radosfs_debug("Cannot set the file stripe size as 0. Setting to %d.",
+    radosfs_debug("Cannot set the file chunk size as 0. Setting to %d.",
                   realSize);
   }
 
-  mPriv->fileStripeSize = realSize;
+  mPriv->fileChunkSize = realSize;
 }
 
 size_t
-Filesystem::fileStripeSize(void) const
+Filesystem::fileChunkSize(void) const
 {
-  return mPriv->fileStripeSize;
+  return mPriv->fileChunkSize;
 }
 
 

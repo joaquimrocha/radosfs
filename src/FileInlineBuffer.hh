@@ -33,10 +33,10 @@
 #include "AsyncOp.hh"
 #include "radosfscommon.h"
 
-#define FILE_STRIPE_LOCKER "file-stripe-locker"
-#define FILE_STRIPE_LOCKER_COOKIE_WRITE "file-stripe-locker-cookie-write"
-#define FILE_STRIPE_LOCKER_COOKIE_OTHER "file-stripe-locker-cookie-other"
-#define FILE_STRIPE_LOCKER_TAG "file-stripe-locker-tag"
+#define FILE_CHUNK_LOCKER "file-chunk-locker"
+#define FILE_CHUNK_LOCKER_COOKIE_WRITE "file-chunk-locker-cookie-write"
+#define FILE_CHUNK_LOCKER_COOKIE_OTHER "file-chunk-locker-cookie-other"
+#define FILE_CHUNK_LOCKER_TAG "file-chunk-locker-tag"
 #define FILE_LOCK_DURATION 120 // seconds
 
 RADOS_FS_BEGIN_NAMESPACE

@@ -35,8 +35,8 @@ public:
   FileInode(Filesystem *fs, const std::string &pool);
   FileInode(Filesystem *fs, const std::string &pool, const std::string &name);
   FileInode(Filesystem *fs, const std::string &pool, const std::string &name,
-            const size_t stripeSize);
-  FileInode(Filesystem *fs, const std::string &pool, const size_t stripeSize);
+            const size_t chunkSize);
+  FileInode(Filesystem *fs, const std::string &pool, const size_t chunkSize);
   virtual ~FileInode(void);
 
   ssize_t read(char *buff, off_t offset, size_t blen);

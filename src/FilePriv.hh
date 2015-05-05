@@ -54,11 +54,11 @@ public:
 
   void updateDataPool(const std::string &pool);
 
-  void setInode(const size_t stripeSize);
+  void setInode(const size_t chunkSize);
 
   FileIOSP getFileIO(void) const { return inode->mPriv->io; }
 
-  int create(int mode, uid_t uid, gid_t gid, size_t stripe);
+  int create(int mode, uid_t uid, gid_t gid, size_t chunk);
 
   File *fsFile;
   File *target;

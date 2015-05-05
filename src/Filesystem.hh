@@ -137,8 +137,8 @@ public:
 
   LogLevel logLevel(void) const;
 
-  void setFileStripeSize(const size_t size);
-  size_t fileStripeSize(void) const;
+  void setFileChunkSize(const size_t size);
+  size_t fileChunkSize(void) const;
 
   void setFileLocking(bool lock);
   bool fileLocking(void) const;

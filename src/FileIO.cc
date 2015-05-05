@@ -74,27 +74,27 @@ FileReadDataImp::addReturnValue(int value)
 }
 
 FileIO::FileIO(Filesystem *radosFs, const PoolSP pool, const std::string &iNode,
-               size_t stripeSize)
+               size_t chunkSize)
   : mRadosFs(radosFs),
     mPool(pool),
     mInode(iNode),
     mPath(""),
-    mStripeSize(stripeSize),
+    mChunkSize(chunkSize),
     mLazyRemoval(false),
     mLocker(""),
     mInlineBuffer(0),
     mHasBackLink(false)
 {
-  assert(mStripeSize != 0);
+  assert(mChunkSize != 0);
 }
 
 FileIO::FileIO(Filesystem *radosFs, const PoolSP pool, const std::string &iNode,
-               const std::string &path, size_t stripeSize)
+               const std::string &path, size_t chunkSize)
   : mRadosFs(radosFs),
     mPool(pool),
     mInode(iNode),
     mPath(path),
-    mStripeSize(stripeSize),
+    mChunkSize(chunkSize),
     mLazyRemoval(false),
     mLocker(""),
     mInlineBuffer(0),
@@ -102,7 +102,7 @@ FileIO::FileIO(Filesystem *radosFs, const PoolSP pool, const std::string &iNode,
     // to avoid trying to do it when needed
     mHasBackLink(mPath.empty())
 {
-  assert(mStripeSize != 0);
+  assert(mChunkSize != 0);
 }
 
 FileIO::~FileIO()
@@ -170,27 +170,27 @@ FileIO::getInlineAndInodeReadData(const std::vector<FileReadData> &intervals,
 }
 
 void
-FileIO::getReadDataPerStripe(const std::vector<FileReadDataImpSP> &intervals,
+FileIO::getReadDataPerChunk(const std::vector<FileReadDataImpSP> &intervals,
                    std::map<size_t, std::vector<FileReadDataImpSP> > *inodeData)
 {
   for (size_t i = 0; i < intervals.size(); i++)
   {
     FileReadDataImpSP readData(intervals[i]);
-    size_t stripeIndex =  readData->offset / mStripeSize;
-    off_t localOffset =  readData->offset % mStripeSize;
+    size_t chunkIndex =  readData->offset / mChunkSize;
+    off_t localOffset =  readData->offset % mChunkSize;
     const size_t originalLength = readData->length;
     size_t remainingLength = originalLength;
 
-    // Separate each FileReadData object that goes beyond one stripe in more
-    // objects so they can only fit one stripe
+    // Separate each FileReadData object that goes beyond one chunk in more
+    // objects so they can only fit one chunk
     while (remainingLength > 0)
     {
       FileReadDataImpSP data(new FileReadDataImp(*readData));
       data->opResult = -1;
       data->buff = readData->buff + originalLength - remainingLength;
       data->offset = localOffset;
-      data->length = std::min(mStripeSize - localOffset, remainingLength);
-      inodeData->operator[](stripeIndex++).push_back(data);
+      data->length = std::min(mChunkSize - localOffset, remainingLength);
+      inodeData->operator[](chunkIndex++).push_back(data);
       remainingLength -= data->length;
       localOffset = 0;
     }
@@ -285,11 +285,11 @@ FileIO::onReadInlineBufferCompleted(rados_completion_t comp, void *arg)
 void
 FileIO::onReadCompleted(rados_completion_t comp, void *arg)
 {
-  ReadStripeOpArgs *args = reinterpret_cast<ReadStripeOpArgs *>(arg);
+  ReadChunkOpArgs *args = reinterpret_cast<ReadChunkOpArgs *>(arg);
   const int ret = rados_aio_get_return_value(comp);
 
-  radosfs_debug("Reading inode's stripe #%u complete with retcode=%d (%s)",
-                args->fileStripe, ret, strerror(abs(ret)));
+  radosfs_debug("Reading inode's chunk #%u complete with retcode=%d (%s)",
+                args->fileChunk, ret, strerror(abs(ret)));
 
   for (size_t i = 0; i < args->readData.size(); i++)
   {
@@ -301,15 +301,15 @@ FileIO::onReadCompleted(rados_completion_t comp, void *arg)
       memcpy(data->buff, buff->c_str(), buff->length());
       data->addReturnValue(buff->length());
 
-      radosfs_debug("Setting %u bytes from stripe #%d for vector read request: "
-                    "offset=%u; length=%u;", buff->length(), args->fileStripe,
+      radosfs_debug("Setting %u bytes from chunk #%d for vector read request: "
+                    "offset=%u; length=%u;", buff->length(), args->fileChunk,
                     data->offset, data->length);
     }
 
     if (buff->length() < data->length)
     {
       size_t inodeSize = assignInodeSize(args);
-      const size_t byteOffset = args->fileStripe * args->fileIO->mStripeSize +
+      const size_t byteOffset = args->fileChunk * args->fileIO->mChunkSize +
                                 data->offset;
 
       assignRemainingReadData(data.get(), byteOffset, inodeSize, buff->length());
@@ -354,20 +354,20 @@ FileIO::vectorReadInlineBuffer( const std::vector<FileReadDataImpSP> &readData,
 }
 
 void
-FileIO::vectorReadStripe(size_t fileStripe,
-                         const std::vector<FileReadDataImpSP> &readDataVector,
-                         boost::shared_ptr<boost::shared_mutex> readOpMutex,
-                         AsyncOpSP asyncOp,
-                         boost::shared_ptr<ssize_t> inodeSize)
+FileIO::vectorReadChunk(size_t fileChunk,
+                        const std::vector<FileReadDataImpSP> &readDataVector,
+                        boost::shared_ptr<boost::shared_mutex> readOpMutex,
+                        AsyncOpSP asyncOp,
+                        boost::shared_ptr<ssize_t> inodeSize)
 {
-  ReadStripeOpArgs *readOp = new ReadStripeOpArgs;
-  readOp->fileStripe = fileStripe;
+  ReadChunkOpArgs *readOp = new ReadChunkOpArgs;
+  readOp->fileChunk = fileChunk;
   readOp->readOpMutex = readOpMutex;
   readOp->asyncOp = asyncOp;
   readOp->fileIO = this;
   readOp->inodeSize = inodeSize;
   librados::ObjectReadOperation op;
-  const std::string stripeName = makeFileStripeName(mInode, fileStripe);
+  const std::string chunkName = makeFileChunkName(mInode, fileChunk);
 
   for (size_t i = 0; i < readDataVector.size(); i++)
   {
@@ -378,15 +378,14 @@ FileIO::vectorReadStripe(size_t fileStripe,
     readOp->readData.push_back(dataAndResult);
 
     op.read(readData->offset, readData->length, readBuff, &readData->opResult);
-    radosfs_debug("Setting read op for the stripe %s . offset=%u; "
-                  "length=%u;", stripeName.c_str(), readData->offset,
-                  readData->length);
+    radosfs_debug("Setting read op for the chunk %s . offset=%u; length=%u;",
+                  chunkName.c_str(), readData->offset, readData->length);
   }
 
   librados::AioCompletion *completion = librados::Rados::aio_create_completion();
   completion->set_complete_callback(readOp, FileIO::onReadCompleted);
   asyncOp->mPriv->addCompletion(completion);
-  mPool->ioctx.aio_operate(stripeName, completion, &op, 0);
+  mPool->ioctx.aio_operate(chunkName, completion, &op, 0);
 }
 
 int
@@ -424,20 +423,20 @@ FileIO::read(const std::vector<FileReadData> &intervals, std::string *asyncOpId,
     vectorReadInlineBuffer(inlineReadData, readOpMutex, asyncOp, inodeSize);
   }
 
-  std::map<size_t, std::vector<FileReadDataImpSP> > dataPerStripe;
-  getReadDataPerStripe(inodeReadData, &dataPerStripe);
+  std::map<size_t, std::vector<FileReadDataImpSP> > dataPerChunk;
+  getReadDataPerChunk(inodeReadData, &dataPerChunk);
 
-  if (dataPerStripe.size() > 0)
+  if (dataPerChunk.size() > 0)
   {
-    radosfs_debug("Vector reading stripes. opId=%s", asyncOp->id().c_str());
+    radosfs_debug("Vector reading chunks. opId=%s", asyncOp->id().c_str());
     std::map<size_t, std::vector<FileReadDataImpSP> >::iterator it;
-    for (it = dataPerStripe.begin(); it != dataPerStripe.end(); it++)
+    for (it = dataPerChunk.begin(); it != dataPerChunk.end(); it++)
     {
-      size_t fileStripe = (*it).first;
+      size_t fileChunk = (*it).first;
       const std::vector<FileReadDataImpSP> &readDataVector = (*it).second;
 
-      vectorReadStripe(fileStripe, readDataVector, readOpMutex, asyncOp,
-                       inodeSize);
+      vectorReadChunk(fileChunk, readDataVector, readOpMutex, asyncOp,
+                      inodeSize);
     }
   }
 
@@ -494,7 +493,7 @@ FileIO::read(char *buff, off_t offset, size_t blen)
   if ((fileSize == -1) || (ret == fileSize))
   {
     size_t currentSize;
-    ret = getLastStripeIndexAndSize(&currentSize);
+    ret = getLastChunkIndexAndSize(&currentSize);
     fileSize = currentSize;
   }
 
@@ -507,29 +506,29 @@ FileIO::read(char *buff, off_t offset, size_t blen)
     return 0;
   }
 
-  off_t currentOffset =  offset % mStripeSize;
+  off_t currentOffset =  offset % mChunkSize;
   size_t bytesToRead = std::min(blen, (size_t) fileSize);
 
   while (bytesToRead  > 0)
   {
     librados::bufferlist readBuff;
-    const std::string &fileStripe = getStripePath(blen - bytesToRead  + offset);
-    const size_t length = std::min(mStripeSize - currentOffset, bytesToRead );
+    const std::string &fileChunk = getChunkPath(blen - bytesToRead  + offset);
+    const size_t length = std::min(mChunkSize - currentOffset, bytesToRead );
 
-    int ret = mPool->ioctx.read(fileStripe, readBuff, length, currentOffset);
+    int ret = mPool->ioctx.read(fileChunk, readBuff, length, currentOffset);
 
     if (ret > 0)
     {
       memcpy(buff, readBuff.c_str(), readBuff.length());
     }
 
-    radosfs_debug("Read %lu bytes starting from %lu in stripe %s: "
-                  "retcode=%d (%s)", length, currentOffset, fileStripe.c_str(),
+    radosfs_debug("Read %lu bytes starting from %lu in chunk %s: "
+                  "retcode=%d (%s)", length, currentOffset, fileChunk.c_str(),
                   ret, strerror(abs(ret)));
 
     currentOffset = 0;
 
-    // If the bytes read were less than expected or the stripe didn't exist,
+    // If the bytes read were less than expected or the chunk didn't exist,
     // it should assign null characters to the nonexistent length.
     if ((size_t) ret < length)
     {
@@ -546,7 +545,7 @@ FileIO::read(char *buff, off_t offset, size_t blen)
 
     bytesRead += length;
 
-    if (bytesToRead < mStripeSize)
+    if (bytesToRead < mChunkSize)
       break;
     else
       bytesToRead  -= length;
@@ -649,9 +648,9 @@ FileIO::lockShared(const std::string &uuid)
   timeval tm;
   tm.tv_sec = FILE_LOCK_DURATION;
   tm.tv_usec = 0;
-  while ((ret = mPool->ioctx.lock_shared(inode(), FILE_STRIPE_LOCKER,
-                                         FILE_STRIPE_LOCKER_COOKIE_WRITE,
-                                         FILE_STRIPE_LOCKER_TAG, "", &tm,
+  while ((ret = mPool->ioctx.lock_shared(inode(), FILE_CHUNK_LOCKER,
+                                         FILE_CHUNK_LOCKER_COOKIE_WRITE,
+                                         FILE_CHUNK_LOCKER_TAG, "", &tm,
                                          0)) == -EBUSY)
   {}
 
@@ -688,8 +687,8 @@ FileIO::lockExclusive(const std::string &uuid)
   timeval tm;
   tm.tv_sec = FILE_LOCK_DURATION;
   tm.tv_usec = 0;
-  while ((ret = mPool->ioctx.lock_exclusive(inode(), FILE_STRIPE_LOCKER,
-                                            FILE_STRIPE_LOCKER_COOKIE_OTHER,
+  while ((ret = mPool->ioctx.lock_exclusive(inode(), FILE_CHUNK_LOCKER,
+                                            FILE_CHUNK_LOCKER_COOKIE_OTHER,
                                             "", &tm, 0)) != 0)
   {}
 
@@ -703,8 +702,8 @@ FileIO::lockExclusive(const std::string &uuid)
 void
 FileIO::unlockShared()
 {
-  mPool->ioctx.unlock(inode(), FILE_STRIPE_LOCKER,
-                      FILE_STRIPE_LOCKER_COOKIE_WRITE);
+  mPool->ioctx.unlock(inode(), FILE_CHUNK_LOCKER,
+                      FILE_CHUNK_LOCKER_COOKIE_WRITE);
   mLocker = "";
   radosfs_debug("Unlocked shared lock.");
 }
@@ -712,8 +711,8 @@ FileIO::unlockShared()
 void
 FileIO::unlockExclusive()
 {
-  mPool->ioctx.unlock(inode(), FILE_STRIPE_LOCKER,
-                      FILE_STRIPE_LOCKER_COOKIE_OTHER);
+  mPool->ioctx.unlock(inode(), FILE_CHUNK_LOCKER,
+                      FILE_CHUNK_LOCKER_COOKIE_OTHER);
   mLocker = "";
   radosfs_debug("Unlocked exclusive lock.");
 }
@@ -736,30 +735,30 @@ FileIO::verifyWriteParams(off_t offset, size_t length)
 }
 
 void
-FileIO::setAlignedStripeWriteOp(librados::ObjectWriteOperation &op,
-                                const std::string &fileStripe,
-                                const size_t offset,
-                                const std::string &newContents)
+FileIO::setAlignedChunkWriteOp(librados::ObjectWriteOperation &op,
+                               const std::string &fileChunk,
+                               const size_t offset,
+                               const std::string &newContents)
 {
   std::map<std::string, librados::bufferlist> xattrs;
   librados::ObjectReadOperation readOp;
   librados::bufferlist contentsBl;
 
-  readOp.read(0, mStripeSize, &contentsBl, 0);
+  readOp.read(0, mChunkSize, &contentsBl, 0);
   readOp.getxattrs(&xattrs, 0);
 
-  mPool->ioctx.operate(fileStripe, &readOp, 0);
+  mPool->ioctx.operate(fileChunk, &readOp, 0);
 
   std::string contents;
-  contents.reserve(mStripeSize);
+  contents.reserve(mChunkSize);
 
   if (contentsBl.length() > 0)
   {
     contents.assign(contentsBl.c_str(), contentsBl.length());
   }
-  else if (newContents.length() != mStripeSize)
+  else if (newContents.length() != mChunkSize)
   {
-    contents.assign(mStripeSize, '\0');
+    contents.assign(mChunkSize, '\0');
   }
 
   contents.replace(offset, newContents.length(), newContents);
@@ -833,15 +832,15 @@ FileIO::realWrite(char *buff, off_t offset, size_t blen, bool deleteBuffer,
 
   updateTimeAsyncInXAttr(mPool, mInode, XATTR_MTIME);
 
-  off_t currentOffset =  offset % mStripeSize;
+  off_t currentOffset =  offset % mChunkSize;
   size_t bytesToWrite = blen;
-  size_t firstStripe = offset / mStripeSize;
-  size_t lastStripe = (offset + blen - 1) / mStripeSize;
-  size_t totalStripes = lastStripe - firstStripe + 1;
+  size_t firstChunk = offset / mChunkSize;
+  size_t lastChunk = (offset + blen - 1) / mChunkSize;
+  size_t totalChunks = lastChunk - firstChunk + 1;
   const std::string &opId = asyncOp->id();
   const size_t totalSize = offset + blen;
 
-  if (totalStripes > 1)
+  if (totalChunks > 1)
     lockExclusive(opId);
   else
     lockShared(opId);
@@ -849,12 +848,12 @@ FileIO::realWrite(char *buff, off_t offset, size_t blen, bool deleteBuffer,
   setSizeIfBigger(totalSize);
 
   radosfs_debug("Writing in inode '%s' (op id: '%s') to size %lu affecting "
-                "stripes %lu-%lu", inode().c_str(), opId.c_str(), totalSize,
-                firstStripe, lastStripe);
+                "chunks %lu-%lu", inode().c_str(), opId.c_str(), totalSize,
+                firstChunk, lastChunk);
 
-  for (size_t i = 0; i < totalStripes; i++)
+  for (size_t i = 0; i < totalChunks; i++)
   {
-    if (totalStripes > 1)
+    if (totalChunks > 1)
       lockExclusive(opId);
     else
       lockShared(opId);
@@ -862,15 +861,15 @@ FileIO::realWrite(char *buff, off_t offset, size_t blen, bool deleteBuffer,
     librados::ObjectWriteOperation op;
     librados::bufferlist contents;
     librados::AioCompletion *completion;
-    const std::string &fileStripe = makeFileStripeName(inode(), firstStripe + i);
-    size_t length = std::min(mStripeSize - currentOffset, bytesToWrite);
+    const std::string &fileChunk = makeFileChunkName(inode(), firstChunk + i);
+    size_t length = std::min(mChunkSize - currentOffset, bytesToWrite);
     std::string contentsStr(buff + (blen - bytesToWrite), length);
 
     contents.append(contentsStr);
 
     if (mPool->hasAlignment())
     {
-      setAlignedStripeWriteOp(op, fileStripe, currentOffset, contentsStr);
+      setAlignedChunkWriteOp(op, fileChunk, currentOffset, contentsStr);
     }
     else
     {
@@ -880,17 +879,17 @@ FileIO::realWrite(char *buff, off_t offset, size_t blen, bool deleteBuffer,
     completion = librados::Rados::aio_create_completion();
 
     std::stringstream stream;
-    stream << "Wrote (od id='" << opId << "') stripe '" << fileStripe << "'";
+    stream << "Wrote (od id='" << opId << "') chunk '" << fileChunk << "'";
     setCompletionDebugMsg(completion, stream.str());
 
-    mPool->ioctx.aio_operate(fileStripe, completion, &op);
+    mPool->ioctx.aio_operate(fileChunk, completion, &op);
     asyncOp->mPriv->addCompletion(completion);
 
     currentOffset = 0;
     bytesToWrite -= length;
 
-    radosfs_debug("Scheduling writing of stripe '%s' in (op id='%s')",
-                  fileStripe.c_str(), opId.c_str());
+    radosfs_debug("Scheduling writing of chunk '%s' in (op id='%s')",
+                  fileChunk.c_str(), opId.c_str());
   }
 
   asyncOp->mPriv->setReady();
@@ -915,42 +914,42 @@ FileIO::remove()
   lockExclusive(opId);
 
   int ret = 0;
-  ssize_t lastStripe = getLastStripeIndex();
+  ssize_t lastChunk = getLastChunkIndex();
 
-  if (lastStripe < 0)
+  if (lastChunk < 0)
   {
     radosfs_debug("Error trying to remove inode '%s' (retcode=%d): %s",
-                  inode().c_str(), lastStripe, strerror(abs(lastStripe)));
-    return lastStripe;
+                  inode().c_str(), lastChunk, strerror(abs(lastChunk)));
+    return lastChunk;
   }
 
-  radosfs_debug("Remove (op id='%s') inode '%s' affecting stripes 0-%lu",
-                opId.c_str(), inode().c_str(), 0, lastStripe);
+  radosfs_debug("Remove (op id='%s') inode '%s' affecting chunks 0-%lu",
+                opId.c_str(), inode().c_str(), 0, lastChunk);
 
   AsyncOpSP asyncOp(new AsyncOp(opId));
   mOpManager.addOperation(asyncOp);
 
-  // We start deleting from the base stripe onward because this will result
+  // We start deleting from the base chunk onward because this will result
   // in other calls to the object eventually seeing the removal sooner
-  for (size_t i = 0; i <= (size_t) lastStripe; i++)
+  for (size_t i = 0; i <= (size_t) lastChunk; i++)
   {
     lockExclusive(opId);
 
     librados::ObjectWriteOperation op;
     librados::AioCompletion *completion;
-    const std::string &fileStripe = makeFileStripeName(inode(), i);
+    const std::string &fileChunk = makeFileChunkName(inode(), i);
 
-    radosfs_debug("Removing stripe '%s' in (op id= '%s')",
-                  fileStripe.c_str(), opId.c_str());
+    radosfs_debug("Removing chunk '%s' in (op id= '%s')",
+                  fileChunk.c_str(), opId.c_str());
 
     op.remove();
     completion = librados::Rados::aio_create_completion();
 
     std::stringstream stream;
-    stream << "Remove (op id='" << opId << "') stripe '" << fileStripe << "'";
+    stream << "Remove (op id='" << opId << "') chunk '" << fileChunk << "'";
     setCompletionDebugMsg(completion, stream.str());
 
-    mPool->ioctx.aio_operate(fileStripe, completion, &op);
+    mPool->ioctx.aio_operate(fileChunk, completion, &op);
     asyncOp->mPriv->addCompletion(completion);
   }
 
@@ -987,61 +986,60 @@ FileIO::truncate(size_t newSize)
   lockExclusive(opId);
 
   size_t currentSize;
-  ssize_t lastStripe = getLastStripeIndexAndSize(&currentSize);
+  ssize_t lastChunk = getLastChunkIndexAndSize(&currentSize);
 
-  if (lastStripe < 0)
+  if (lastChunk < 0)
   {
-    if (lastStripe == -ENOENT || lastStripe == -ENODATA)
-      lastStripe = 0;
+    if (lastChunk == -ENOENT || lastChunk == -ENODATA)
+      lastChunk = 0;
     else
-      return lastStripe;
+      return lastChunk;
   }
 
-  size_t newLastStripe = (newSize == 0) ? 0 : (newSize - 1) / stripeSize();
+  size_t newLastChunk = (newSize == 0) ? 0 : (newSize - 1) / chunkSize();
   bool truncateDown = currentSize > newSize;
-  size_t totalStripes = 1;
-  size_t newLastStripeSize = newSize % stripeSize();
+  size_t totalChunks = 1;
+  size_t newLastChunkSize = newSize % chunkSize();
   bool hasAlignment = mPool->hasAlignment();
 
-  if (newLastStripe == 0 && newSize > stripeSize())
-    newLastStripe = stripeSize();
+  if (newLastChunk == 0 && newSize > chunkSize())
+    newLastChunk = chunkSize();
 
   if (truncateDown)
-    totalStripes = lastStripe - newLastStripe + 1;
+    totalChunks = lastChunk - newLastChunk + 1;
 
   setSize(newSize);
 
-  radosfs_debug("Truncating stripe '%s' (op id='%s').", inode().c_str(),
+  radosfs_debug("Truncating chunk '%s' (op id='%s').", inode().c_str(),
                 opId.c_str());
 
   AsyncOpSP asyncOp(new AsyncOp(opId));
   mOpManager.addOperation(asyncOp);
 
-  for (ssize_t i = totalStripes - 1; i >= 0; i--)
+  for (ssize_t i = totalChunks - 1; i >= 0; i--)
   {
     lockExclusive(opId);
 
     librados::ObjectWriteOperation op;
     librados::AioCompletion *completion;
-    const std::string &fileStripe = makeFileStripeName(inode(),
-                                                       newLastStripe + i);
+    const std::string &fileChunk = makeFileChunkName(inode(), newLastChunk + i);
 
     if (i == 0)
     {
-      // The base stripe should never be deleting on when a truncate occurs
+      // The base chunk should never be deleting on when a truncate occurs
       // but rather really truncated -- in the case the pool has no alignment --
       // or have the part out of the truncated range zeroed otherwise.
       if (hasAlignment)
       {
-        std::string zeroStr(stripeSize() - newLastStripeSize, '\0');
-        setAlignedStripeWriteOp(op, fileStripe, newLastStripeSize, zeroStr);
+        std::string zeroStr(chunkSize() - newLastChunkSize, '\0');
+        setAlignedChunkWriteOp(op, fileChunk, newLastChunkSize, zeroStr);
       }
       else
       {
-        op.truncate(newLastStripeSize);
+        op.truncate(newLastChunkSize);
       }
 
-      radosfs_debug("Truncating stripe '%s' (op id='%s').", fileStripe.c_str(),
+      radosfs_debug("Truncating chunk '%s' (op id='%s').", fileChunk.c_str(),
                     opId.c_str());
 
       op.assert_exists();
@@ -1050,17 +1048,17 @@ FileIO::truncate(size_t newSize)
     {
       op.remove();
 
-      radosfs_debug("Removing stripe '%s' in truncate (op id='%s')",
-                    fileStripe.c_str(), opId.c_str());
+      radosfs_debug("Removing chunk '%s' in truncate (op id='%s')",
+                    fileChunk.c_str(), opId.c_str());
     }
 
     completion = librados::Rados::aio_create_completion();
 
     std::stringstream stream;
-    stream << "Truncate (op id='" << opId << "') stripe '" << fileStripe << "'";
+    stream << "Truncate (op id='" << opId << "') chunk '" << fileChunk << "'";
     setCompletionDebugMsg(completion, stream.str());
 
-    mPool->ioctx.aio_operate(fileStripe, completion, &op);
+    mPool->ioctx.aio_operate(fileChunk, completion, &op);
     asyncOp->mPriv->addCompletion(completion);
   }
 
@@ -1071,14 +1069,14 @@ FileIO::truncate(size_t newSize)
 }
 
 ssize_t
-FileIO::getLastStripeIndex(void) const
+FileIO::getLastChunkIndex(void) const
 {
-  return getLastStripeIndexAndSize(0);
+  return getLastChunkIndexAndSize(0);
 }
 
 librados::ObjectReadOperation
-makeStripeReadOp(bool hasAlignment, u_int64_t *size, int *statRet,
-                 librados::bufferlist *stripeXAttr)
+makeChunkReadOp(bool hasAlignment, u_int64_t *size, int *statRet,
+                librados::bufferlist *chunkXAttr)
 {
   librados::ObjectReadOperation op;
 
@@ -1089,9 +1087,9 @@ makeStripeReadOp(bool hasAlignment, u_int64_t *size, int *statRet,
     std::set<std::string> keys;
     std::map<std::string, librados::bufferlist> omap;
 
-    // Since the alignment is set, the last stripe will be the same size as the
+    // Since the alignment is set, the last chunk will be the same size as the
     // other ones so we retrieve the real data size which was set as an XAttr
-    keys.insert(XATTR_LAST_STRIPE_SIZE);
+    keys.insert(XATTR_LAST_CHUNK_SIZE);
     op.omap_get_vals_by_keys(keys, &omap, 0);
     op.set_op_flags(librados::OP_FAILOK);
   }
@@ -1113,7 +1111,7 @@ getLastValid(int *retValues, size_t valuesSize)
 }
 
 ssize_t
-FileIO::getLastStripeIndexAndSize(uint64_t *size) const
+FileIO::getLastChunkIndexAndSize(uint64_t *size) const
 {
   librados::ObjectReadOperation op;
   librados::bufferlist sizeXAttr;
@@ -1137,22 +1135,22 @@ FileIO::getLastStripeIndexAndSize(uint64_t *size) const
     *size = fileSize;
 
   if (fileSize > 0)
-    fileSize = (fileSize - 1) / stripeSize();
+    fileSize = (fileSize - 1) / chunkSize();
 
   return fileSize;
 }
 
 std::string
-FileIO::getStripePath(off_t offset) const
+FileIO::getChunkPath(off_t offset) const
 {
-  return makeFileStripeName(mInode, offset / mStripeSize);
+  return makeFileChunkName(mInode, offset / mChunkSize);
 }
 
 size_t
 FileIO::getSize() const
 {
   u_int64_t size = 0;
-  getLastStripeIndexAndSize(&size);
+  getLastChunkIndexAndSize(&size);
 
   return size;
 }

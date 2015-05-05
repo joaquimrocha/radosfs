@@ -238,7 +238,7 @@ public:
   boost::mutex dirPathInodeMutex;
   float dirCompactRatio;
   Logger logger;
-  size_t fileStripeSize;
+  size_t fileChunkSize;
   bool lockFiles;
   boost::mutex genericWorkersMutex;
   size_t numGenericWorkers;

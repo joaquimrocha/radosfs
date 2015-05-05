@@ -303,14 +303,14 @@ FilePriv::rename(const std::string &destination)
 }
 
 void
-FilePriv::setInode(const size_t stripeSize)
+FilePriv::setInode(const size_t chunkSize)
 {
-  size_t stripe = alignStripeSize(stripeSize, dataPool->alignment);
+  size_t chunk= alignChunkSize(chunkSize, dataPool->alignment);
   FileIOSP fileIO = FileIOSP(new FileIO(fsFile->filesystem(),
                                         dataPool,
                                         generateUuid(),
                                         fsFile->path(),
-                                        stripe));
+                                        chunk));
   inode->mPriv->setFileIO(fileIO);
 
   if (inlineBufferSize > 0)
@@ -318,9 +318,9 @@ FilePriv::setInode(const size_t stripeSize)
 }
 
 int
-FilePriv::create(int mode, uid_t uid, gid_t gid, size_t stripe)
+FilePriv::create(int mode, uid_t uid, gid_t gid, size_t chunk)
 {
-  setInode(stripe ? stripe : fsFile->filesystem()->fileStripeSize());
+  setInode(chunk ? chunk : fsFile->filesystem()->fileChunkSize());
 
   return inode->mPriv->registerFile(fsFile->path(), uid, gid, mode,
                                     inlineBufferSize);
@@ -451,7 +451,7 @@ File::writeSync(const char *buff, off_t offset, size_t blen)
 }
 
 int
-File::create(int mode, const std::string pool, size_t stripe,
+File::create(int mode, const std::string pool, size_t chunk,
              ssize_t inlineBufferSize)
 {
   int ret;
@@ -499,7 +499,7 @@ File::create(int mode, const std::string pool, size_t stripe,
   if (inlineBufferSize > -1)
     mPriv->inlineBufferSize = inlineBufferSize;
 
-  ret = mPriv->create(mode, uid, gid, stripe);
+  ret = mPriv->create(mode, uid, gid, chunk);
 
   if (ret < 0)
     return ret;

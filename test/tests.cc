@@ -543,17 +543,17 @@ TEST_F(RadosFsTest, CreateFile)
 
   EXPECT_EQ(-EEXIST, sameFile.create());
 
-  // Check creating a file with a custom stripe size
+  // Check creating a file with a custom chunk size
 
-  newFile.setPath("/file-with-custom-stripe-size");
+  newFile.setPath("/file-with-custom-chunk-size");
 
-  const size_t stripeSize(radosFs.fileStripeSize() / 2);
+  const size_t chunkSize(radosFs.fileChunkSize() / 2);
 
-  ASSERT_EQ(0, newFile.create(-1, "", stripeSize));
+  ASSERT_EQ(0, newFile.create(-1, "", chunkSize));
 
   sameFile.setPath(newFile.path());
 
-  ASSERT_EQ(stripeSize, radosFsFilePriv(sameFile)->getFileIO()->stripeSize());
+  ASSERT_EQ(chunkSize, radosFsFilePriv(sameFile)->getFileIO()->chunkSize());
 }
 
 TEST_F(RadosFsTest, RemoveFile)
@@ -613,18 +613,18 @@ TEST_F(RadosFsTest, RemoveFile)
 
   EXPECT_FALSE(file.exists());
 
-  // Make the files' stripe size small so many stripes will be generated
+  // Make the files' chunk size small so many chunks will be generated
 
-  const size_t stripeSize = 128;
-  radosFs.setFileStripeSize(stripeSize);
+  const size_t chunkSize = 128;
+  radosFs.setFileChunkSize(chunkSize);
 
-  // Create a file with several stripes
+  // Create a file with several chunks
 
   EXPECT_EQ(0, file.create());
 
   std::string contents;
 
-  for (size_t i = 0; i < stripeSize * 3; i++)
+  for (size_t i = 0; i < chunkSize * 3; i++)
   {
     contents += "test";
   }
@@ -632,7 +632,7 @@ TEST_F(RadosFsTest, RemoveFile)
   EXPECT_EQ(0, file.writeSync(contents.c_str(), 0, contents.length()));
 
   // Remove the file, create it again and check if the size if 0
-  // (which means that no other stripes should exist)
+  // (which means that no other chunks should exist)
 
   EXPECT_EQ(0, file.remove());
 
@@ -1195,7 +1195,7 @@ TEST_F(RadosFsTest, FileInodeDirect)
 
   char buff[contentsSize];
 
-  // Read an inode that does not exist (doesn't have any stripes)
+  // Read an inode that does not exist (doesn't have any chunks)
 
   EXPECT_EQ(-ENOENT, inode.read(buff, 0, contentsSize));
 
@@ -1329,14 +1329,14 @@ TEST_F(RadosFsTest, FileTruncate)
 {
   AddPool();
 
-  // Make the files' stripe size small so many stripes will be generated
+  // Make the files' chunk size small so many chunks will be generated
 
-  const size_t stripeSize = 128;
-  radosFs.setFileStripeSize(stripeSize);
+  const size_t chunkSize = 128;
+  radosFs.setFileChunkSize(chunkSize);
 
   const std::string fileName("/test");
-  char contents[stripeSize * 10];
-  memset(contents, 'x', stripeSize * 10);
+  char contents[chunkSize * 10];
+  memset(contents, 'x', chunkSize * 10);
   unsigned long long size = 1024;
 
   // Create a file and truncate it to the content's size
@@ -1346,13 +1346,13 @@ TEST_F(RadosFsTest, FileTruncate)
 
   EXPECT_EQ(0, file.create());
 
-  EXPECT_EQ(0, file.write(contents, 0, stripeSize * 10));
+  EXPECT_EQ(0, file.write(contents, 0, chunkSize * 10));
 
   EXPECT_EQ(0, file.truncate(size));
 
   // Setting a fake path to file so its cache is dumped and we have a "fresh"
   // new instance below with sameFile which is necessary to check if the
-  // file stripe size persistency is working
+  // file chunk size persistency is working
 
   file.setPath("/fake");
 
@@ -1363,10 +1363,10 @@ TEST_F(RadosFsTest, FileTruncate)
 
   struct stat buff;
 
-  // Setting a different stripe size before checking sameFile's size because
+  // Setting a different chunk size before checking sameFile's size because
   // it should have been set in the file when it was written
 
-  radosFs.setFileStripeSize(stripeSize + 1);
+  radosFs.setFileChunkSize(chunkSize + 1);
 
   EXPECT_EQ(0, sameFile.stat(&buff));
 
@@ -1386,9 +1386,9 @@ TEST_F(RadosFsTest, FileTruncate)
 
   EXPECT_EQ(0, buff.st_size);
 
-  // Truncate the file to a non-multiple of the stripe size and verify
+  // Truncate the file to a non-multiple of the chunk size and verify
 
-  size = stripeSize * 5.3;
+  size = chunkSize * 5.3;
 
   EXPECT_EQ(0, file.truncate(size));
 
@@ -1398,9 +1398,9 @@ TEST_F(RadosFsTest, FileTruncate)
 
   EXPECT_EQ(size, buff.st_size);
 
-  // Truncate the file to a half of the stripe size and verify
+  // Truncate the file to a half of the chunk size and verify
 
-  size = stripeSize / 2;
+  size = chunkSize / 2;
 
   EXPECT_EQ(0, file.truncate(size));
 
@@ -1415,10 +1415,10 @@ TEST_F(RadosFsTest, FileReadWrite)
 {
   AddPool();
 
-  // Set a small file stripe size so many stripes will be created
+  // Set a small file chunk size so many chunks will be created
 
-  const size_t stripeSize = 128;
-  radosFs.setFileStripeSize(stripeSize);
+  const size_t chunkSize = 128;
+  radosFs.setFileChunkSize(chunkSize);
 
   // Write contents in file synchronously
 
@@ -1466,7 +1466,7 @@ TEST_F(RadosFsTest, FileReadWrite)
 
   std::string contents2("this is another test ");
 
-  for (size_t i = 0; i < stripeSize; i++)
+  for (size_t i = 0; i < chunkSize; i++)
     contents2 += "this is another test ";
 
   buff = new char[contents2.length() + 1];
@@ -1483,7 +1483,7 @@ TEST_F(RadosFsTest, FileReadWrite)
 
   // Change the contents of the file and verify them
 
-  int charToChange = stripeSize * 1.3;
+  int charToChange = chunkSize * 1.3;
   EXPECT_EQ(0, file.writeSync("d", charToChange, 1));
 
   contents2[charToChange] = 'd';
@@ -1492,7 +1492,7 @@ TEST_F(RadosFsTest, FileReadWrite)
 
   EXPECT_EQ(0, strcmp(buff, contents2.c_str()));
 
-  charToChange = stripeSize * 1.9;
+  charToChange = chunkSize * 1.9;
   EXPECT_EQ(0, file.write("x", charToChange, 1, true));
 
   contents2[charToChange] = 'x';
@@ -1514,13 +1514,13 @@ TEST_F(RadosFsTest, FileReadWrite)
   ASSERT_EQ(0, file.read(buff, statBuff.st_size, statBuff.st_size * 2));
 
   // Increase the file size and read a region that doesn't have corresponding
-  // stripes
+  // chunks
 
   const size_t fileOldSize = statBuff.st_size;
 
   ASSERT_EQ(0, file.truncate(fileOldSize * 2));
 
-  // Read in a region of the file without existing stripes
+  // Read in a region of the file without existing chunks
   // (read the second half of the file)
 
   ASSERT_EQ(fileOldSize, file.read(buff, fileOldSize,
@@ -1539,16 +1539,16 @@ TEST_F(RadosFsTest, FileVectorRead)
 {
   AddPool();
 
-  // Set a small file stripe size so many stripes will be created
+  // Set a small file chunk size so many chunks will be created
 
-  const size_t stripeSize = 64;
-  radosFs.setFileStripeSize(stripeSize);
+  const size_t chunkSize = 64;
+  radosFs.setFileChunkSize(chunkSize);
 
   // Write contents in file synchronously
 
   const std::string fileName("/test");
   std::stringstream sstream;
-  for (size_t i = 0; i < stripeSize * 1.5; i++)
+  for (size_t i = 0; i < chunkSize * 1.5; i++)
     sstream << i << ".";
 
   const std::string contents(sstream.str());
@@ -2012,25 +2012,25 @@ TEST_F(RadosFsTest, RenameFile)
 }
 
 bool
-checkStripesExistence(librados::IoCtx ioctx, const std::string &baseName,
-                      size_t firstStripe, size_t lastStripe, bool shouldExist)
+checkChunksExistence(librados::IoCtx ioctx, const std::string &baseName,
+                      size_t firstChunk, size_t lastChunk, bool shouldExist)
 {
   bool checkResult = true;
-  for (size_t i = firstStripe; i <= lastStripe; i++)
+  for (size_t i = firstChunk; i <= lastChunk; i++)
   {
-    std::string stripe = makeFileStripeName(baseName, i);
+    std::string chunk = makeFileChunkName(baseName, i);
 
-    if (ioctx.stat(stripe, 0, 0) != 0)
+    if (ioctx.stat(chunk, 0, 0) != 0)
     {
       if (shouldExist)
       {
-        fprintf(stderr, "Error: Stripe %s does not exist!\n", stripe.c_str());
+        fprintf(stderr, "Error: Chunk %s does not exist!\n", chunk.c_str());
         checkResult = false;
       }
     }
     else if (!shouldExist)
     {
-      fprintf(stderr, "Error: Stripe %s exist!\n", stripe.c_str());
+      fprintf(stderr, "Error: Chunk %s exist!\n", chunk.c_str());
       checkResult = false;
     }
   }
@@ -2041,8 +2041,8 @@ checkStripesExistence(librados::IoCtx ioctx, const std::string &baseName,
 TEST_F(RadosFsTest, FileOpsMultClientsWriteTruncate)
 {
     const size_t size = pow(1024, 3);
-    const size_t numStripes = 30;
-    const size_t stripeSize = size / numStripes;
+    const size_t numChunks = 30;
+    const size_t chunkSize = size / numChunks;
     char *contents = new char[size];
     const std::string fileName("/file");
     FsActionInfo c1(0, FS_ACTION_TYPE_FILE, fileName, "write",
@@ -2050,15 +2050,15 @@ TEST_F(RadosFsTest, FileOpsMultClientsWriteTruncate)
     FsActionInfo c2(0, FS_ACTION_TYPE_FILE, fileName, "truncate",
                     0, 0, 0, 0);
 
-    radosfs::File *file = launchFileOpsMultipleClients(stripeSize, fileName,
+    radosfs::File *file = launchFileOpsMultipleClients(chunkSize, fileName,
                                                        &c1, &c2);
 
     std::string inode = radosFsFilePriv(*file)->getFileIO()->inode();
     librados::IoCtx ioctx = radosFsFilePriv(*file)->dataPool->ioctx;
 
-    EXPECT_TRUE(checkStripesExistence(ioctx, inode, 0, 0, true));
+    EXPECT_TRUE(checkChunksExistence(ioctx, inode, 0, 0, true));
 
-    EXPECT_TRUE(checkStripesExistence(ioctx, inode, 1, numStripes, false));
+    EXPECT_TRUE(checkChunksExistence(ioctx, inode, 1, numChunks, false));
 
     delete file;
 }
@@ -2066,8 +2066,8 @@ TEST_F(RadosFsTest, FileOpsMultClientsWriteTruncate)
 TEST_F(RadosFsTest, FileOpsMultClientsWriteRemove)
 {
     const size_t size = pow(1024, 3);
-    const size_t numStripes = 30;
-    const size_t stripeSize = size / numStripes;
+    const size_t numChunks = 30;
+    const size_t chunkSize = size / numChunks;
     char *contents = new char[size];
     const std::string fileName("/file");
     FsActionInfo c1(0, FS_ACTION_TYPE_FILE, fileName, "write",
@@ -2075,13 +2075,13 @@ TEST_F(RadosFsTest, FileOpsMultClientsWriteRemove)
     FsActionInfo c2(0, FS_ACTION_TYPE_FILE, fileName, "remove",
                     0, 0, 0, 0);
 
-    radosfs::File *file = launchFileOpsMultipleClients(stripeSize, fileName,
+    radosfs::File *file = launchFileOpsMultipleClients(chunkSize, fileName,
                                                        &c1, &c2);
 
     std::string inode = radosFsFilePriv(*file)->getFileIO()->inode();
     librados::IoCtx ioctx = radosFsFilePriv(*file)->dataPool->ioctx;
 
-    EXPECT_TRUE(checkStripesExistence(ioctx, inode, 0, numStripes, false));
+    EXPECT_TRUE(checkChunksExistence(ioctx, inode, 0, numChunks, false));
 
     delete file;
 }
@@ -2089,8 +2089,8 @@ TEST_F(RadosFsTest, FileOpsMultClientsWriteRemove)
 TEST_F(RadosFsTest, FileOpsMultClientsTruncateRemove)
 {
     const size_t size = pow(1024, 3);
-    const size_t numStripes = 30;
-    const size_t stripeSize = size / numStripes;
+    const size_t numChunks = 30;
+    const size_t chunkSize = size / numChunks;
     char *contents = new char[size];
     const std::string fileName("/file");
     FsActionInfo c1(0, FS_ACTION_TYPE_FILE, fileName, "truncate",
@@ -2098,13 +2098,13 @@ TEST_F(RadosFsTest, FileOpsMultClientsTruncateRemove)
     FsActionInfo c2(0, FS_ACTION_TYPE_FILE, fileName, "remove",
                     0, 0, 0, 0);
 
-    radosfs::File *file = launchFileOpsMultipleClients(stripeSize, fileName,
+    radosfs::File *file = launchFileOpsMultipleClients(chunkSize, fileName,
                                                        &c1, &c2);
 
     std::string inode = radosFsFilePriv(*file)->getFileIO()->inode();
     librados::IoCtx ioctx = radosFsFilePriv(*file)->dataPool->ioctx;
 
-    EXPECT_TRUE(checkStripesExistence(ioctx, inode, 0, numStripes, false));
+    EXPECT_TRUE(checkChunksExistence(ioctx, inode, 0, numChunks, false));
 
     delete file;
 }
@@ -3589,12 +3589,12 @@ TEST_F(RadosFsTest, PoolAlignment)
   AddPool();
 
   const size_t alignment(3);
-  const size_t stripeSize(128);
-  const size_t alignedStripeSize = (stripeSize % alignment == 0) ?
-                                     stripeSize :
-                                     (stripeSize / alignment) * alignment;
+  const size_t chunkSize(128);
+  const size_t alignedChunkSize = (chunkSize % alignment == 0) ?
+                                     chunkSize :
+                                     (chunkSize / alignment) * alignment;
 
-  radosFs.setFileStripeSize(stripeSize);
+  radosFs.setFileChunkSize(chunkSize);
 
   radosfs::File file(&radosFs, "/file");
 
@@ -3604,12 +3604,12 @@ TEST_F(RadosFsTest, PoolAlignment)
 
   file.update();
 
-  // Create contents which should go into stripes with a size that is a multiple
-  // of the alignment and less than the stripe size originally set
+  // Create contents which should go into chunks with a size that is a multiple
+  // of the alignment and less than the chunk size originally set
 
   EXPECT_EQ(0, file.create(-1, "", 0, 0));
 
-  const size_t contentsSize(stripeSize * 3);
+  const size_t contentsSize(chunkSize * 3);
   char contents[contentsSize];
   memset(contents, 'x', contentsSize);
 
@@ -3629,24 +3629,24 @@ TEST_F(RadosFsTest, PoolAlignment)
   EXPECT_EQ(0, strncmp(contents, readBuff, contentsSize));
 
   radosfs::FileIO *fileIO = radosFsFilePriv(file)->getFileIO().get();
-  ssize_t lastStripe = fileIO->getLastStripeIndex();
+  ssize_t lastChunk = fileIO->getLastChunkIndex();
 
   u_int64_t size;
 
-  // Get the size of the last stripe
+  // Get the size of the last chunk
 
   EXPECT_EQ(0, stat.pool->ioctx.stat(
-                    makeFileStripeName(stat.translatedPath, lastStripe),
+                    makeFileChunkName(stat.translatedPath, lastChunk),
                     &size,
                     0));
 
-  // Check the real stored size of the stripes
+  // Check the real stored size of the chunks
 
-  EXPECT_EQ(alignedStripeSize, size);
+  EXPECT_EQ(alignedChunkSize, size);
 
-  size_t totalStoredSize = (lastStripe + 1) * alignedStripeSize;
+  size_t totalStoredSize = (lastChunk + 1) * alignedChunkSize;
 
-  EXPECT_EQ(totalStoredSize, lastStripe * fileIO->stripeSize() + size);
+  EXPECT_EQ(totalStoredSize, lastChunk * fileIO->chunkSize() + size);
 
   // Check that the file size still reports the same as the contents' originally
   // set
@@ -3655,19 +3655,19 @@ TEST_F(RadosFsTest, PoolAlignment)
 
   EXPECT_EQ(contentsSize, statBuff.st_size);
 
-  // Check that truncate (down and up) still make the stripes with the aligned
+  // Check that truncate (down and up) still make the chunks with the aligned
   // size and that the file still reports the expected truncated size
 
   EXPECT_EQ(0, file.truncate(contentsSize / 2));
 
-  lastStripe = fileIO->getLastStripeIndex();
+  lastChunk = fileIO->getLastChunkIndex();
 
   EXPECT_EQ(0, stat.pool->ioctx.stat(
-                    makeFileStripeName(stat.translatedPath, lastStripe).c_str(),
+                    makeFileChunkName(stat.translatedPath, lastChunk).c_str(),
                     &size,
                     0));
 
-  EXPECT_EQ(alignedStripeSize, size);
+  EXPECT_EQ(alignedChunkSize, size);
 
   EXPECT_EQ(0, file.stat(&statBuff));
 

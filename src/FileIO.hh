@@ -35,10 +35,10 @@
 #include "AsyncOp.hh"
 #include "radosfscommon.h"
 
-#define FILE_STRIPE_LOCKER "file-stripe-locker"
-#define FILE_STRIPE_LOCKER_COOKIE_WRITE "file-stripe-locker-cookie-write"
-#define FILE_STRIPE_LOCKER_COOKIE_OTHER "file-stripe-locker-cookie-other"
-#define FILE_STRIPE_LOCKER_TAG "file-stripe-locker-tag"
+#define FILE_CHUNK_LOCKER "file-chunk-locker"
+#define FILE_CHUNK_LOCKER_COOKIE_WRITE "file-chunk-locker-cookie-write"
+#define FILE_CHUNK_LOCKER_COOKIE_OTHER "file-chunk-locker-cookie-other"
+#define FILE_CHUNK_LOCKER_TAG "file-chunk-locker-tag"
 #define FILE_LOCK_DURATION 120 // seconds
 
 RADOS_FS_BEGIN_NAMESPACE
@@ -83,9 +83,9 @@ struct ReadInlineOpArgs : ReadOpArgs
   std::vector<FileReadDataImpSP> readData;
 };
 
-struct ReadStripeOpArgs : ReadOpArgs
+struct ReadChunkOpArgs : ReadOpArgs
 {
-  size_t fileStripe;
+  size_t fileChunk;
   std::vector<std::pair<FileReadDataImpSP, librados::bufferlist *> > readData;
 };
 
@@ -106,13 +106,13 @@ public:
   FileIO(Filesystem *radosFs,
          const PoolSP pool,
          const std::string &iNode,
-         size_t stripeSize);
+         size_t chunkSize);
 
   FileIO(Filesystem *radosFs,
          const PoolSP pool,
          const std::string &iNode,
          const std::string &filePath,
-         size_t stripeSize);
+         size_t chunkSize);
 
   ~FileIO();
 
@@ -131,13 +131,13 @@ public:
   void setLazyRemoval(bool remove);
   bool lazyRemoval(void) const { return mLazyRemoval; }
 
-  std::string getStripePath(off_t offset) const;
+  std::string getChunkPath(off_t offset) const;
 
-  size_t stripeSize(void) const { return mStripeSize; }
+  size_t chunkSize(void) const { return mChunkSize; }
 
-  ssize_t getLastStripeIndexAndSize(uint64_t *size) const;
+  ssize_t getLastChunkIndexAndSize(uint64_t *size) const;
 
-  ssize_t getLastStripeIndex(void) const;
+  ssize_t getLastChunkIndex(void) const;
 
   size_t getSize(void) const;
 
@@ -180,7 +180,7 @@ private:
   const PoolSP mPool;
   const std::string mInode;
   std::string mPath;
-  size_t mStripeSize;
+  size_t mChunkSize;
   bool mLazyRemoval;
   std::vector<rados_completion_t> mCompletionList;
   boost::chrono::system_clock::time_point mLockStart;
@@ -204,7 +204,7 @@ private:
   void getInlineAndInodeReadData(const std::vector<FileReadData> &intervals,
                                  std::vector<FileReadDataImpSP> *dataInline,
                                  std::vector<FileReadDataImpSP> *dataInode);
-  void getReadDataPerStripe(const std::vector<FileReadDataImpSP> &intervals,
+  void getReadDataPerChunk(const std::vector<FileReadDataImpSP> &intervals,
                   std::map<size_t, std::vector<FileReadDataImpSP> > *inodeData);
   static void onReadCompleted(rados_completion_t comp, void *arg);
   static void onReadInlineBufferCompleted(rados_completion_t comp, void *arg);
@@ -215,15 +215,15 @@ private:
                               boost::shared_ptr<boost::shared_mutex> readOpMutex,
                               AsyncOpSP asyncOp,
                              boost::shared_ptr<ssize_t> inodeSize);
-  void vectorReadStripe(size_t fileStripe,
-                        const std::vector<FileReadDataImpSP> &readDataVector,
-                        boost::shared_ptr<boost::shared_mutex> readOpMutex,
-                        AsyncOpSP asyncOp,
-                        boost::shared_ptr<ssize_t> inodeSize);
-  void setAlignedStripeWriteOp(librados::ObjectWriteOperation &op,
-                               const std::string &fileStripe,
-                               const size_t offset,
-                               const std::string &newContents);
+  void vectorReadChunk(size_t fileChunk,
+                       const std::vector<FileReadDataImpSP> &readDataVector,
+                       boost::shared_ptr<boost::shared_mutex> readOpMutex,
+                       AsyncOpSP asyncOp,
+                       boost::shared_ptr<ssize_t> inodeSize);
+  void setAlignedChunkWriteOp(librados::ObjectWriteOperation &op,
+                              const std::string &fileChunk,
+                              const size_t offset,
+                              const std::string &newContents);
 };
 
 RADOS_FS_END_NAMESPACE

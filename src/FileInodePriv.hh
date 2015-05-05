@@ -34,9 +34,9 @@ class FileInodePriv
 {
 public:
   FileInodePriv(Filesystem *fs, const std::string &name,
-                const std::string &pool, const size_t stripeSize);
+                const std::string &pool, const size_t chunkSize);
   FileInodePriv(Filesystem *fs, PoolSP &pool, const std::string &name,
-                const size_t stripeSize);
+                const size_t chunkSize);
   FileInodePriv(Filesystem *fs, FileIOSP fileIO);
   ~FileInodePriv(void);
 

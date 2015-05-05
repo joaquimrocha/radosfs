@@ -61,7 +61,7 @@ createErrorsDescription()
   errorDescription[BACK_LINK_NO_ENT] = "BACK_LINK_NO_ENT";
   errorDescription[NO_ERROR] = "NO_ERROR";
   errorDescription[INODE_NO_SIZE] = "INODE_NO_SIZE";
-  errorDescription[LOOSE_INODE_STRIPE] = "LOOSE_INODE_STRIPE";
+  errorDescription[LOOSE_INODE_CHUNK] = "LOOSE_INODE_CHUNK";
   return errorDescription;
 }
 
@@ -613,14 +613,14 @@ RadosFsChecker::checkInode(PoolSP pool, std::string inode,
 
   log("Checking inode '%s'...\n", inode.c_str());
 
-  if (nameIsStripe(inode))
+  if (nameIsChunk(inode))
   {
     std::string baseInode = getBaseInode(inode);
 
     if (pool->ioctx.stat(baseInode, 0, 0) != 0)
     {
-      log("Inode stripe '%s' is loose!\n", inode.c_str());
-      Issue issue(inode, LOOSE_INODE_STRIPE);
+      log("Inode chunk '%s' is loose!\n", inode.c_str());
+      Issue issue(inode, LOOSE_INODE_CHUNK);
       issue.extraInfo.append("in pool '" + pool->name + "'");
       diagnostic->addInodeIssue(issue);
     }
