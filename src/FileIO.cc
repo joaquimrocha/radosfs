@@ -460,106 +460,31 @@ FileIO::read(char *buff, off_t offset, size_t blen)
     return -EINVAL;
   }
 
+  ssize_t opRet = 0;
+  FileReadData readData(buff, offset, blen, &opRet);
+
   ssize_t ret = 0;
-  ssize_t fileSize = -1;
 
-  if (mInlineBuffer)
+  std::vector<FileReadData> intervals;
+  intervals.push_back(readData);
+
+  std::string opId;
+
+  ret = read(intervals, &opId);
+
+  if (ret != 0)
   {
-    if ((size_t) offset < mInlineBuffer->capacity())
-    {
-      std::string contentsStr;
-      mInlineBuffer->read(0, &contentsStr);
-
-      fileSize = contentsStr.length();
-
-      if ((ssize_t) offset < fileSize)
-      {
-        ret = std::min(blen, contentsStr.length());
-
-        if (ret > 0)
-        {
-          memcpy(buff, contentsStr.c_str() + offset, ret);
-        }
-
-        offset += ret;
-        buff += ret;
-
-        assert((size_t) ret <= blen);
-
-        blen -= ret;
-
-        if (blen == 0)
-          return ret;
-      }
-    }
-  }
-
-  size_t bytesRead = ret;
-
-  if ((fileSize == -1) || (ret == fileSize))
-  {
-    size_t currentSize;
-    ret = getLastChunkIndexAndSize(&currentSize);
-    fileSize = currentSize;
-  }
-
-  if (ret < 0)
     return ret;
-
-  if ((ssize_t) offset >= fileSize)
-  {
-    // Nothing to read
-    return 0;
   }
 
-  off_t currentOffset =  offset % mChunkSize;
-  size_t bytesToRead = std::min(blen, (size_t) fileSize);
+  ret = sync(opId);
 
-  while (bytesToRead  > 0)
+  if (ret != 0)
   {
-    librados::bufferlist readBuff;
-    const std::string &fileChunk = getChunkPath(blen - bytesToRead  + offset);
-    const size_t length = std::min(mChunkSize - currentOffset, bytesToRead );
-
-    int ret = mPool->ioctx.read(fileChunk, readBuff, length, currentOffset);
-
-    if (ret > 0)
-    {
-      memcpy(buff, readBuff.c_str(), readBuff.length());
-    }
-
-    radosfs_debug("Read %lu bytes starting from %lu in chunk %s: "
-                  "retcode=%d (%s)", length, currentOffset, fileChunk.c_str(),
-                  ret, strerror(abs(ret)));
-
-    currentOffset = 0;
-
-    // If the bytes read were less than expected or the chunk didn't exist,
-    // it should assign null characters to the nonexistent length.
-    if ((size_t) ret < length)
-    {
-      if (ret < 0)
-      {
-        if (ret == -ENOENT)
-          ret = 0;
-        else
-          return ret;
-      }
-
-      memset(buff + ret, '\0', length - ret);
-    }
-
-    bytesRead += length;
-
-    if (bytesToRead < mChunkSize)
-      break;
-    else
-      bytesToRead  -= length;
-
-    buff += length;
+    return ret;
   }
 
-  return bytesRead;
+  return opRet;
 }
 
 int
