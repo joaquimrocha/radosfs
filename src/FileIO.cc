@@ -220,20 +220,18 @@ assignRemainingReadData(FileReadDataImp *data, const size_t byteOffset,
   // inode size covers the read data.
   // This needs to be done for cases where the file is truncated to a greater
   // size than the file's data, meaning that the read data should be null chars.
-  if (inodeSize > 0)
+  if (inodeSize > 0 && byteOffset < inodeSize)
   {
-    if (byteOffset < inodeSize)
-    {
-      size_t length = std::min(data->length - currentReadDataSize,
-                               inodeSize - byteOffset);
-      memset(data->buff + currentReadDataSize, '\0', length);
-      data->addReturnValue(length);
+    size_t length = std::min(data->length, inodeSize - byteOffset) -
+                    currentReadDataSize;
 
-      radosfs_debug("Setting %u null chars for vector read request: "
-                    "offset=%u; length=%u; size filled with real data: %u;"
-                    "filesize=%u", length, data->offset, data->length,
-                    currentReadDataSize, inodeSize);
-    }
+    radosfs_debug("Setting %u null chars for vector read request: "
+                  "offset=%u; length=%u; size filled with real data: %u; "
+                  "filesize=%u", length, data->offset, data->length,
+                  currentReadDataSize, inodeSize);
+
+    memset(data->buff + currentReadDataSize, '\0', length);
+    data->addReturnValue(length);
   }
 }
 
