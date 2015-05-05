@@ -74,7 +74,16 @@ AyncOpPriv::waitForCompletion(void)
 
       if (returnCode == -EINPROGRESS || returnCode == 0)
       {
-        returnCode = completion->get_return_value();
+        // It needs the overridden return codes for the operations because they
+        // always return the very result of running the operations on their
+        // respective chunks it might not be the correct value to return to the
+        // user. E.g. when reading from an inode that has no extra chunks but is
+        // truncated to a size that would cover having those chunks, then the
+        // code to return cannot be -ENOENT (because we're returning null data
+        // to the user that would be supposedly stored in the chunks).
+
+        if (!overriddenReturnCode(completion, &returnCode))
+          returnCode = completion->get_return_value();
       }
 
       completion->release();
@@ -120,6 +129,27 @@ AyncOpPriv::setPartialReady()
   boost::unique_lock<boost::mutex> lock(mOpMutex);
   if (ready > 0)
     ready--;
+}
+
+void
+AyncOpPriv::setOverriddenReturnCode(librados::completion_t comp, int ret)
+{
+  boost::unique_lock<boost::mutex> lock(mOpMutex);
+  mOpsReturnCodes[comp] = ret;
+}
+
+bool
+AyncOpPriv::overriddenReturnCode(librados::AioCompletion *comp, int *ret)
+{
+  CompletionRetCodesMap::const_iterator it = mOpsReturnCodes.find(comp->pc);
+
+  if (it != mOpsReturnCodes.end())
+  {
+    *ret = (*it).second;
+    return true;
+  }
+
+  return false;
 }
 
 AsyncOp::AsyncOp(const std::string &id)

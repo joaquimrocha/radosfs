@@ -29,6 +29,7 @@
 RADOS_FS_BEGIN_NAMESPACE
 
 typedef std::vector<librados::AioCompletion *> CompletionList;
+typedef std::map<librados::completion_t, int> CompletionRetCodesMap;
 
 class AsyncOp;
 
@@ -42,6 +43,7 @@ public:
   void addCompletion(librados::AioCompletion *comp);
   void setReady(void);
   void setPartialReady(void);
+  void setOverriddenReturnCode(librados::completion_t comp, int ret);
 
   std::string id;
   bool complete;
@@ -51,8 +53,11 @@ public:
   void *callbackArg;
 
 private:
+  bool overriddenReturnCode(librados::AioCompletion *comp, int *ret);
+
   boost::mutex mOpMutex;
   CompletionList mOperations;
+  CompletionRetCodesMap mOpsReturnCodes;
 };
 
 RADOS_FS_END_NAMESPACE

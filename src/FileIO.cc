@@ -310,6 +310,14 @@ FileIO::onReadCompleted(rados_completion_t comp, void *arg)
       const size_t byteOffset = args->fileChunk * args->fileIO->mChunkSize +
                                 data->offset;
 
+      if ((ret == -ENOENT) && (inodeSize >= (byteOffset + data->length)))
+      {
+        // If the chunk file didn't exist for this operation but the file size
+        // covers the portion that needs to be read, then we override this op's
+        // return code
+        args->asyncOp->mPriv->setOverriddenReturnCode(comp, 0);
+      }
+
       assignRemainingReadData(data.get(), byteOffset, inodeSize, buff->length());
     }
 
