@@ -2061,6 +2061,7 @@ TEST_F(RadosFsTest, FileOpsMultClientsWriteTruncate)
     EXPECT_TRUE(checkChunksExistence(ioctx, inode, 1, numChunks, false));
 
     delete file;
+    delete [] contents;
 }
 
 TEST_F(RadosFsTest, FileOpsMultClientsWriteRemove)
@@ -2084,6 +2085,7 @@ TEST_F(RadosFsTest, FileOpsMultClientsWriteRemove)
     EXPECT_TRUE(checkChunksExistence(ioctx, inode, 0, numChunks, false));
 
     delete file;
+    delete [] contents;
 }
 
 TEST_F(RadosFsTest, FileOpsMultClientsTruncateRemove)
@@ -2107,6 +2109,7 @@ TEST_F(RadosFsTest, FileOpsMultClientsTruncateRemove)
     EXPECT_TRUE(checkChunksExistence(ioctx, inode, 0, numChunks, false));
 
     delete file;
+    delete [] contents;
 }
 
 TEST_F(RadosFsTest, DirOpsMultipleClients)
