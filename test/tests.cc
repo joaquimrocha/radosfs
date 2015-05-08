@@ -3861,6 +3861,110 @@ TEST_F(RadosFsTest, DirTMId)
 
     EXPECT_EQ(tmId1, tmId0);
   }
+
+  // Create a file and check how it affects the parent directories' TM id
+
+  radosfs::File file(&radosFs, dirB.path() + "file");
+
+  EXPECT_EQ(0, file.create());
+
+  timesToCheck = 3;
+  while (timesToCheck-- > 0)
+  {
+    EXPECT_EQ(0, dirA.getTMId(tmId1));
+
+    if ((tmId1.empty() || tmId0 == tmId1) && timesToCheck > 0)
+    {
+      boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
+      continue;
+    }
+
+    EXPECT_FALSE(tmId1.empty());
+
+    EXPECT_NE(tmId1, tmId0);
+  }
+
+  EXPECT_EQ(0, dirB.getTMId(tmId0));
+
+  EXPECT_EQ(tmId1, tmId0);
+
+  // Write to the file and check how it affects the parent directories' TM id
+
+  EXPECT_EQ(0, file.writeSync("CERN", 0, 4));
+
+  timesToCheck = 3;
+  while (timesToCheck-- > 0)
+  {
+    EXPECT_EQ(0, dirA.getTMId(tmId1));
+
+    if ((tmId1.empty() || tmId0 == tmId1) && timesToCheck > 0)
+    {
+      boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
+      continue;
+    }
+
+    EXPECT_FALSE(tmId1.empty());
+
+    EXPECT_NE(tmId1, tmId0);
+  }
+
+  EXPECT_EQ(0, dirB.getTMId(tmId0));
+
+  EXPECT_EQ(tmId1, tmId0);
+
+  // Truncate the file and check how it affects the parent directories' TM id
+
+  EXPECT_EQ(0, file.truncate(128));
+
+  timesToCheck = 3;
+  while (timesToCheck-- > 0)
+  {
+    EXPECT_EQ(0, dirA.getTMId(tmId1));
+
+    if ((tmId1.empty() || tmId0 == tmId1) && timesToCheck > 0)
+    {
+      boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
+      continue;
+    }
+
+    EXPECT_FALSE(tmId1.empty());
+
+    EXPECT_NE(tmId1, tmId0);
+  }
+
+  EXPECT_EQ(0, dirB.getTMId(tmId0));
+
+  EXPECT_EQ(tmId1, tmId0);
+
+  // Do not use TM id in the grandparent directory
+
+  EXPECT_EQ(0, dirA.useTMId(false));
+
+  // Remove the file and check how it affects the parent directories' TM id
+
+  EXPECT_EQ(0, file.remove());
+
+  timesToCheck = 3;
+  while (timesToCheck-- > 0)
+  {
+    EXPECT_EQ(0, dirB.getTMId(tmId1));
+
+    if ((tmId1.empty() || tmId0 == tmId1) && timesToCheck > 0)
+    {
+      boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
+      continue;
+    }
+
+    EXPECT_FALSE(tmId1.empty());
+
+    EXPECT_NE(tmId1, tmId0);
+  }
+
+  EXPECT_EQ(-ENODATA, dirA.getTMId(tmId0));
+
+  EXPECT_TRUE(tmId0.empty());
+
+  EXPECT_NE(tmId1, tmId0);
 }
 
 TEST_F(RadosFsTest, FileTimes)
