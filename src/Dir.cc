@@ -397,8 +397,8 @@ DirPriv::rename(const std::string &destination)
     dir->setPath(newPath);
   }
 
-  radosFsPriv()->updateTMTime(&parentStat);
-  radosFsPriv()->updateTMTime(oldParentStat);
+  radosFsPriv()->updateTMId(&parentStat);
+  radosFsPriv()->updateTMId(oldParentStat);
 
   return ret;
 }
@@ -566,7 +566,7 @@ Dir::create(int mode,
   FsObj::update();
   mPriv->updateDirInfoPtr();
 
-  mPriv->radosFsPriv()->updateTMTime(&stat, &stat.statBuff.st_ctim);
+  mPriv->radosFsPriv()->updateTMId(&stat);
 
   return 0;
 }
@@ -631,7 +631,7 @@ Dir::remove()
 
   mPriv->updateDirInfoPtr();
 
-  mPriv->radosFsPriv()->updateTMTime(statPtr);
+  mPriv->radosFsPriv()->updateTMId(statPtr);
 
   return ret;
 }
@@ -756,32 +756,6 @@ int
 Dir::stat(struct stat *buff)
 {
   return FsObj::stat(buff);
-}
-
-
-int
-Dir::stat(struct stat *buff, timespec *tmtime)
-{
-  int ret = stat(buff);
-
-  if (ret == 0)
-  {
-    const Stat *stat = mPriv->fsStat();
-    ret = getTimeFromXAttr(stat, XATTR_TMTIME, tmtime, 0);
-
-    if (ret == -ENODATA)
-    {
-      *tmtime = buff->st_mtim;
-      ret = 0;
-    }
-    else if (ret != 0)
-    {
-      radosfs_debug("Failed to retrieve the %s for '%s' : %s", XATTR_MTIME,
-                    stat->translatedPath.c_str(), strerror(abs(ret)));
-    }
-  }
-
-  return ret;
 }
 
 int
@@ -1200,32 +1174,101 @@ Dir::rename(const std::string &newName)
 }
 
 int
-Dir::useTMTime(bool useTMTime)
+Dir::useTMId(bool useTMId)
 {
-  mode_t mode;
-  librados::bufferlist permissionsXattr;
+  if (!exists())
+    return -ENOENT;
+
   Stat stat = *reinterpret_cast<Stat *>(fsStat());
 
-  if (useTMTime)
-    mode = stat.statBuff.st_mode | TMTIME_MASK;
-  else
-    mode = stat.statBuff.st_mode & ~TMTIME_MASK;
-
-  permissionsXattr.append(makePermissionsXAttr(mode, stat.statBuff.st_uid,
-                                               stat.statBuff.st_gid));
-
   std::map<std::string, librados::bufferlist> omap;
-  omap[XATTR_PERMISSIONS] = permissionsXattr;
+  omap[XATTR_USE_TMID].append(useTMId ? 1 : 0);
 
   return stat.pool->ioctx.omap_set(stat.translatedPath, omap);
 }
 
 bool
-Dir::usingTMTime()
+Dir::usingTMId()
 {
+  if (!exists())
+    return -ENOENT;
+
   Stat stat = *reinterpret_cast<Stat *>(fsStat());
 
-  return hasTMTimeEnabled(stat.statBuff.st_mode);
+  std::set<std::string> keys;
+  keys.insert(XATTR_USE_TMID);
+
+  std::map<std::string, librados::bufferlist> omap;
+
+  int ret = stat.pool->ioctx.omap_get_vals_by_keys(stat.translatedPath, keys,
+                                                   &omap);
+
+  if (ret != 0)
+    return false;
+
+  if (omap.count(XATTR_USE_TMID) > 0)
+  {
+    librados::bufferlist value;
+    value.append(1);
+    return omap[XATTR_USE_TMID].contents_equal(value);
+  }
+
+  return false;
+}
+
+int
+Dir::getTMId(std::string &id)
+{
+  if (!exists())
+    return -ENOENT;
+
+  id.clear();
+
+  Stat stat = *reinterpret_cast<Stat *>(fsStat());
+
+  std::set<std::string> keys;
+  keys.insert(XATTR_USE_TMID);
+  keys.insert(XATTR_TMID);
+
+  std::map<std::string, librados::bufferlist> omap;
+
+  librados::ObjectReadOperation op;
+
+  librados::bufferlist expectedValue;
+  expectedValue.append(1);
+
+  std::pair<librados::bufferlist, int> cmp(expectedValue,
+                                           LIBRADOS_CMPXATTR_OP_EQ);
+
+  std::map<std::string, std::pair<librados::bufferlist, int> > omapCmp;
+  omapCmp[XATTR_USE_TMID] = cmp;
+
+  op.omap_cmp(omapCmp, 0);
+  op.omap_get_vals_by_keys(keys, &omap, 0);
+
+  int ret = stat.pool->ioctx.operate(stat.translatedPath, &op, 0);
+
+  if (ret == -ECANCELED)
+  {
+    // TM id not in use
+    ret = -ENODATA;
+  }
+  else if (ret == 0)
+  {
+    if (omap.count(XATTR_TMID) > 0)
+    {
+      librados::bufferlist tmId = omap[XATTR_TMID];
+      id.assign(tmId.c_str(), tmId.length());
+    }
+  }
+  else if (ret != -ENODATA)
+  {
+    radosfs_debug("Could not get TM id from '%s' (%s): %s (retcode=%d)",
+                  stat.path.c_str(), stat.translatedPath.c_str(),
+                  strerror(abs(ret)), ret);
+  }
+
+  return ret;
 }
 
 RADOS_FS_END_NAMESPACE

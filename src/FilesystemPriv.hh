@@ -189,13 +189,15 @@ public:
   int getDirInode(const std::string &path, Inode &inode,
                   PoolSP &pool);
 
+  int getDirInode(const std::string &path, Inode &inode);
+
   void setDirInode(const std::string &path, const Inode &inode);
 
   void removeDirInode(const std::string &path);
 
-  std::vector<Stat> getParentsForTMTimeUpdate(const std::string &path);
+  void updateTMIdSync(std::string path);
 
-  void updateTMTime(Stat *stat, timespec *spec = 0);
+  void updateTMId(Stat *stat);
 
   void updateDirTimes(Stat *stat, timespec *spec = 0);
 

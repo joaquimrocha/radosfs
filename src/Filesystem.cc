@@ -387,6 +387,13 @@ FilesystemPriv::getDirInode(const std::string &path, Inode &inode,
   return 0;
 }
 
+int
+FilesystemPriv::getDirInode(const std::string &path, Inode &inode)
+{
+  PoolSP mtdPool = getMetadataPoolFromPath(path);
+  return getDirInode(path, inode, mtdPool);
+}
+
 void
 FilesystemPriv::setDirInode(const std::string &path, const Inode &inode)
 {
@@ -1296,50 +1303,55 @@ FilesystemPriv::removeFileIO(FileIOSP sharedFileIO)
     operations.erase(sharedFileIO->inode());
 }
 
-std::vector<Stat>
-FilesystemPriv::getParentsForTMTimeUpdate(const std::string &path)
+void
+FilesystemPriv::updateTMIdSync(std::string path)
 {
-  std::vector<Stat> parents;
-  std::string currentPath = path;
+  std::map<std::string, librados::bufferlist> omap;
+  omap[XATTR_TMID].append(generateUuid());
 
+  librados::bufferlist expectedValue;
+  expectedValue.append(1);
+
+  std::pair<librados::bufferlist, int> cmp(expectedValue,
+                                           LIBRADOS_CMPXATTR_OP_EQ);
+
+  std::map<std::string, std::pair<librados::bufferlist, int> > omapCmp;
+  omapCmp[XATTR_USE_TMID] = cmp;
+
+  std::string currentPath = path;
   while ((currentPath = getParentDir(currentPath, 0)) != "")
   {
-    Stat parentStat;
-
-    int ret = stat(currentPath, &parentStat);
+    Inode inode;
+    int ret = getDirInode(currentPath, inode);
 
     if (ret != 0)
     {
-      radosfs_debug("Problem statting %s : %s", currentPath.c_str(),
-                    strerror(abs(ret)));
-      break;
+      radosfs_debug("Error getting dir's '%s' inode for setting TM id: "
+                    "%s (retcode=%d)", currentPath.c_str(), strerror(abs(ret)),
+                    ret);
+      return;
     }
 
-    if (!hasTMTimeEnabled(parentStat.statBuff.st_mode))
-      break;
+    librados::ObjectWriteOperation op;
+    op.omap_cmp(omapCmp, 0);
+    op.omap_set(omap);
+    ret = inode.pool->ioctx.operate(inode.inode, &op);
 
-    parents.push_back(parentStat);
+    if (ret != 0 && ret != -ECANCELED)
+    {
+      radosfs_debug("Error setting TM id on %s (%s): %s (retcode=%d)",
+                    currentPath.c_str(), inode.inode.c_str(),
+                    strerror(abs(ret)), ret);
+      return;
+    }
   }
-
-  return parents;
 }
 
 void
-FilesystemPriv::updateTMTime(Stat *stat, timespec *spec)
+FilesystemPriv::updateTMId(Stat *stat)
 {
-  std::vector<Stat> parents = getParentsForTMTimeUpdate(stat->path);
-  std::vector<Stat>::iterator it;
-  std::string timeStr;
-
-  if (spec)
-    timeStr = timespecToStr(spec);
-  else
-    timeStr = getCurrentTimeStr();
-
-  for (it = parents.begin(); it != parents.end(); it++)
-  {
-    updateTimeAsync(&(*it), XATTR_TMTIME, timeStr);
-  }
+  getIoService()->post(boost::bind(&FilesystemPriv::updateTMIdSync, this,
+                                   stat->path));
 }
 
 void
@@ -1357,7 +1369,7 @@ FilesystemPriv::updateDirTimes(Stat *stat, timespec *spec)
 
   updateTimeAsync(stat, XATTR_MTIME, timeStr);
 
-  updateTMTime(stat, &timeInfo);
+  updateTMId(stat);
 }
 
 void

@@ -69,8 +69,6 @@ public:
 
   int stat(struct stat *buff);
 
-  int stat(struct stat *buff, timespec *tmtime);
-
   int compact(void);
 
   int setMetadata(const std::string &entry,
@@ -92,9 +90,11 @@ public:
 
   int rename(const std::string &newName);
 
-  int useTMTime(bool useTMTime);
+  int useTMId(bool useTMId);
 
-  bool usingTMTime(void);
+  bool usingTMId(void);
+
+  int getTMId(std::string &id);
 
 private:
   boost::scoped_ptr<DirPriv> mPriv;

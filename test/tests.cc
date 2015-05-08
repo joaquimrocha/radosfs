@@ -3745,98 +3745,122 @@ TEST_F(RadosFsTest, DirTimes)
   ASSERT_EQ(0, dir.stat(&newStatBuff));
 
   EXPECT_LT(statBuff.st_mtim.tv_sec, newStatBuff.st_mtim.tv_sec);
+}
 
-  // Set the use of TM time in a sub directory
+TEST_F(RadosFsTest, DirTMId)
+{
+  AddPool();
 
-  sleep(1);
+  radosfs::Dir dirB(&radosFs, "/a/b/");
 
-  dir.setPath(dirPath + "/a/b");
+  ASSERT_EQ(0, dirB.create(-1, true));
 
-  ASSERT_EQ(0, dir.useTMTime(true));
+  // Set dir to use TM id
 
-  timespec oldTMTime, newTMTime;
+  EXPECT_EQ(0, dirB.useTMId(true));
 
-  ASSERT_EQ(0, dir.stat(&statBuff, &oldTMTime));
+  EXPECT_TRUE(dirB.usingTMId());
 
-  sleep(1);
+  radosfs::Dir dirA(&radosFs, "/a/");
 
-  dir.setPath(dirPath + "/a");
-
-  ASSERT_EQ(0, dir.stat(&statBuff, &oldTMTime));
-
-  subdir.setPath(dirPath + "/a/b/c1");
-
-  // Create a subdirectory of the when that has the TM time set but verify that
+  // Create a subdirectory of the when that has the TM id set but verify that
   // does not affect other parents
 
-  ASSERT_EQ(0, subdir.create());
+  std::string tmId0, tmId1;
 
-  ASSERT_EQ(0, dir.stat(&newStatBuff, &newTMTime));
+  radosfs::Dir dirC(&radosFs, "/a/b/c");
 
-  EXPECT_EQ(statBuff.st_mtim.tv_sec, newStatBuff.st_mtim.tv_sec);
+  ASSERT_EQ(0, dirC.create());
 
-  EXPECT_EQ(oldTMTime.tv_sec, newTMTime.tv_sec);
+  int timesToCheck = 3;
+  while (timesToCheck-- > 0)
+  {
+    EXPECT_EQ(0, dirB.getTMId(tmId0));
 
-  // Set the TM time to yet another parent
+    if (tmId0.empty() && timesToCheck > 0)
+      continue;
 
-  dir.setPath(dirPath + "/a");
+    EXPECT_FALSE(tmId0.empty());
+  }
 
-  oldTMTime = newTMTime;
+  EXPECT_EQ(-ENODATA, dirA.getTMId(tmId0));
 
-  ASSERT_EQ(0, dir.useTMTime(true));
+  EXPECT_TRUE(tmId0.empty());
 
-  statBuff = newStatBuff;
+  // Set the TM id to yet another parent
 
-  sleep(1);
+  ASSERT_EQ(0, dirA.useTMId(true));
 
-  // Remove the previously created deeper subdir and verify how it affects
-  // its grandparent's TM time
+  EXPECT_EQ(0, dirA.getTMId(tmId1));
 
-  ASSERT_EQ(0, subdir.remove());
-
-  ASSERT_EQ(0, dir.stat(&newStatBuff, &newTMTime));
-
-  EXPECT_EQ(statBuff.st_mtim.tv_sec, newStatBuff.st_mtim.tv_sec);
-
-  EXPECT_LT(oldTMTime.tv_sec, newTMTime.tv_sec);
-
-  subdir.setPath(dirPath + "/a/b");
-
-  ASSERT_EQ(0, subdir.stat(&statBuff));
+  EXPECT_TRUE(tmId1.empty());
 
   // Set and remove metadata and see how it affects the times
 
-  sleep(1);
+  dirB.update();
 
-  subdir.update();
+  ASSERT_EQ(0, dirB.setMetadata("c/", "metadata", "value"));
 
-  ASSERT_EQ(0, subdir.setMetadata("c/", "metadata", "value"));
+  timesToCheck = 3;
+  while (timesToCheck-- > 0)
+  {
+    EXPECT_EQ(0, dirA.getTMId(tmId1));
 
-  ASSERT_EQ(0, subdir.stat(&newStatBuff));
+    if (tmId1.empty() && timesToCheck > 0)
+    {
+      boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
+      continue;
+    }
 
-  EXPECT_LT(statBuff.st_mtim.tv_sec, newStatBuff.st_mtim.tv_sec);
+    EXPECT_FALSE(tmId1.empty());
+  }
 
-  oldTMTime = newTMTime;
+  EXPECT_EQ(0, dirA.getTMId(tmId1));
 
-  ASSERT_EQ(0, dir.stat(&newStatBuff, &newTMTime));
+  EXPECT_FALSE(tmId1.empty());
 
-  EXPECT_LT(oldTMTime.tv_sec, newTMTime.tv_sec);
+  EXPECT_NE(tmId0, tmId1);
 
-  statBuff = newStatBuff;
+  ASSERT_EQ(0, dirB.removeMetadata("c/", "metadata"));
 
-  sleep(1);
+  timesToCheck = 3;
+  while (timesToCheck-- > 0)
+  {
+    EXPECT_EQ(0, dirA.getTMId(tmId0));
 
-  ASSERT_EQ(0, subdir.removeMetadata("c/", "metadata"));
+    if (tmId0.empty() && timesToCheck > 0)
+    {
+      boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
+      continue;
+    }
 
-  ASSERT_EQ(0, subdir.stat(&newStatBuff));
+    EXPECT_FALSE(tmId0.empty());
+  }
 
-  EXPECT_LT(statBuff.st_mtim.tv_sec, newStatBuff.st_mtim.tv_sec);
+  EXPECT_NE(tmId1, tmId0);
 
-  oldTMTime = newTMTime;
+  // Remove the previously created deeper subdir and verify how it affects
+  // its grandparent's TM id
 
-  ASSERT_EQ(0, dir.stat(&newStatBuff, &newTMTime));
+  ASSERT_EQ(0, dirC.remove());
 
-  EXPECT_LT(oldTMTime.tv_sec, newTMTime.tv_sec);
+  timesToCheck = 3;
+  while (timesToCheck-- > 0)
+  {
+    EXPECT_EQ(0, dirA.getTMId(tmId1));
+
+    EXPECT_EQ(0, dirB.getTMId(tmId0));
+
+    if ((tmId1.empty() || tmId0 != tmId1) && timesToCheck > 0)
+    {
+      boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
+      continue;
+    }
+
+    EXPECT_FALSE(tmId1.empty());
+
+    EXPECT_EQ(tmId1, tmId0);
+  }
 }
 
 TEST_F(RadosFsTest, FileTimes)
