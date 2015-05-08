@@ -60,6 +60,8 @@ public:
 
   int create(int mode, uid_t uid, gid_t gid, size_t chunk);
 
+  FilesystemPriv * getFsPriv(void) { return fsFile->filesystem()->mPriv; }
+
   File *fsFile;
   File *target;
   FileInode *inode;

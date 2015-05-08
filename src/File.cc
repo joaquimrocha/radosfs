@@ -322,8 +322,12 @@ FilePriv::create(int mode, uid_t uid, gid_t gid, size_t chunk)
 {
   setInode(chunk ? chunk : fsFile->filesystem()->fileChunkSize());
 
-  return inode->mPriv->registerFile(fsFile->path(), uid, gid, mode,
-                                    inlineBufferSize);
+  int ret = inode->mPriv->registerFile(fsFile->path(), uid, gid, mode,
+                                       inlineBufferSize);
+
+  getFsPriv()->updateTMId(fsStat());
+
+  return ret;
 }
 
 File::File(Filesystem *radosFs, const std::string &path, File::OpenMode mode)
@@ -425,8 +429,12 @@ File::write(const char *buff, off_t offset, size_t blen, bool copyBuffer,
       return mPriv->target->write(buff, offset, blen, copyBuffer, asyncOpId,
                                   callback, callbackArg);
 
-    return mPriv->inode->write(buff, offset, blen, copyBuffer, asyncOpId,
+    ret = mPriv->inode->write(buff, offset, blen, copyBuffer, asyncOpId,
                                callback, callbackArg);
+
+    mPriv->getFsPriv()->updateTMId(mPriv->fsStat());
+
+    return ret;
   }
 
   return -EACCES;
@@ -444,7 +452,11 @@ File::writeSync(const char *buff, off_t offset, size_t blen)
     if (isLink())
       return mPriv->target->writeSync(buff, offset, blen);
 
-    return mPriv->inode->writeSync(buff, offset, blen);
+    ret = mPriv->inode->writeSync(buff, offset, blen);
+
+    mPriv->getFsPriv()->updateTMId(mPriv->fsStat());
+
+    return ret;
   }
 
   return -EACCES;
@@ -534,6 +546,8 @@ File::remove()
     ret = mPriv->removeFile();
     Stat *parentStat = reinterpret_cast<Stat *>(parentFsStat());
     indexObject(parentStat, stat, '-');
+
+    mPriv->getFsPriv()->updateTMId(mPriv->fsStat());
   }
   else
     return -EACCES;
@@ -565,7 +579,11 @@ File::truncate(unsigned long long size)
     return -EACCES;
   }
 
-  return mPriv->inode->truncate(size);
+  ret = mPriv->inode->truncate(size);
+
+  mPriv->getFsPriv()->updateTMId(mPriv->fsStat());
+
+  return ret;
 }
 
 bool
