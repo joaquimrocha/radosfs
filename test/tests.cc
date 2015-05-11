@@ -4014,6 +4014,146 @@ TEST_F(RadosFsTest, FileTimes)
   EXPECT_LT(statBuff.st_mtim.tv_sec, newStatBuff.st_mtim.tv_sec);
 }
 
+TEST_F(RadosFsTest, ChownFile)
+{
+  AddPool();
+
+  // Create a file
+  radosfs::File file(&radosFs, "/file");
+
+  ASSERT_EQ(0, file.create());
+
+  struct stat statBuff;
+
+  // Check file's uid and gid
+
+  ASSERT_EQ(0, file.stat(&statBuff));
+
+  EXPECT_EQ(ROOT_UID, statBuff.st_uid);
+
+  EXPECT_EQ(ROOT_UID, statBuff.st_gid);
+
+  // Change file's uid
+
+  uid_t oldGid = statBuff.st_gid;
+  uid_t newUid = 5;
+
+  EXPECT_EQ(0, file.setUid(newUid));
+
+  file.update();
+
+  ASSERT_EQ(0, file.stat(&statBuff));
+
+  EXPECT_EQ(newUid, statBuff.st_uid);
+
+  EXPECT_EQ(oldGid, statBuff.st_gid);
+
+  // Change file's gid
+
+  gid_t newGid = 6;
+
+  EXPECT_EQ(0, file.setGid(newGid));
+
+  file.update();
+
+  ASSERT_EQ(0, file.stat(&statBuff));
+
+  EXPECT_EQ(newUid, statBuff.st_uid);
+
+  EXPECT_EQ(newGid, statBuff.st_gid);
+
+  // Change file's uid and gid
+
+  newUid = 10;
+  newGid = 11;
+
+  EXPECT_EQ(0, file.chown(newUid, newGid));
+
+  file.update();
+
+  ASSERT_EQ(0, file.stat(&statBuff));
+
+  EXPECT_EQ(newUid, statBuff.st_uid);
+
+  EXPECT_EQ(newGid, statBuff.st_gid);
+
+  // Change file's uid not being root
+
+  radosFs.setIds(NOBODY_UID, NOBODY_UID);
+
+  EXPECT_EQ(-EPERM, file.chown(NOBODY_UID, NOBODY_UID));
+}
+
+TEST_F(RadosFsTest, ChownDir)
+{
+  AddPool();
+
+  // Create a dir
+  radosfs::Dir dir(&radosFs, "/dir");
+
+  ASSERT_EQ(0, dir.create());
+
+  struct stat statBuff;
+
+  // Check dir's uid and gid
+
+  ASSERT_EQ(0, dir.stat(&statBuff));
+
+  EXPECT_EQ(ROOT_UID, statBuff.st_uid);
+
+  EXPECT_EQ(ROOT_UID, statBuff.st_gid);
+
+  // Change dir's uid
+
+  uid_t oldGid = statBuff.st_gid;
+  uid_t newUid = 5;
+
+  EXPECT_EQ(0, dir.setUid(newUid));
+
+  dir.update();
+
+  ASSERT_EQ(0, dir.stat(&statBuff));
+
+  EXPECT_EQ(newUid, statBuff.st_uid);
+
+  EXPECT_EQ(oldGid, statBuff.st_gid);
+
+  // Change dir's gid
+
+  gid_t newGid = 6;
+
+  EXPECT_EQ(0, dir.setGid(newGid));
+
+  dir.update();
+
+  ASSERT_EQ(0, dir.stat(&statBuff));
+
+  EXPECT_EQ(newUid, statBuff.st_uid);
+
+  EXPECT_EQ(newGid, statBuff.st_gid);
+
+  // Change dir's uid and gid
+
+  newUid = 10;
+  newGid = 11;
+
+  EXPECT_EQ(0, dir.chown(newUid, newGid));
+
+  dir.update();
+
+  ASSERT_EQ(0, dir.stat(&statBuff));
+
+  EXPECT_EQ(newUid, statBuff.st_uid);
+
+  EXPECT_EQ(newGid, statBuff.st_gid);
+
+  // Change dir's uid not being root
+
+  radosFs.setIds(NOBODY_UID, NOBODY_UID);
+
+  EXPECT_EQ(-EPERM, dir.chown(NOBODY_UID, NOBODY_UID));
+}
+
 GTEST_API_ int
 main(int argc, char **argv)
 {
