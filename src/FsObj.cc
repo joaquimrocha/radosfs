@@ -442,6 +442,24 @@ FsObj::chmod(long int permissions)
 }
 
 int
+FsObj::chown(uid_t uid, gid_t gid)
+{
+  return -EOPNOTSUPP;
+}
+
+int
+FsObj::setUid(uid_t uid)
+{
+  return -EOPNOTSUPP;
+}
+
+int
+FsObj::setGid(gid_t gid)
+{
+  return -EOPNOTSUPP;
+}
+
+int
 FsObj::rename(const std::string &newPath)
 {
   return -EOPNOTSUPP;

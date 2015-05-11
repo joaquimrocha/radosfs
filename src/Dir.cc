@@ -1150,6 +1150,49 @@ Dir::chmod(long int permissions)
 }
 
 int
+Dir::chown(uid_t uid, gid_t gid)
+{
+  if (!exists())
+    return -ENOENT;
+
+  uid_t currentUid = filesystem()->uid();
+
+  if (currentUid != ROOT_UID)
+    return -EPERM;
+
+  Stat fsStat = *mPriv->fsStat();
+  std::string permissions = makePermissionsXAttr(fsStat.statBuff.st_mode, uid,
+                                                 gid);
+
+  std::map<std::string, librados::bufferlist> omap;
+  omap[XATTR_PERMISSIONS].append(permissions);
+
+  return fsStat.pool->ioctx.omap_set(fsStat.translatedPath, omap);
+}
+
+int
+Dir::setUid(uid_t uid)
+{
+  if (!exists())
+    return -ENOENT;
+
+  Stat fsStat = *mPriv->fsStat();
+
+  return chown(uid, fsStat.statBuff.st_gid);
+}
+
+int
+Dir::setGid(gid_t gid)
+{
+  if (!exists())
+    return -ENOENT;
+
+  Stat fsStat = *mPriv->fsStat();
+
+  return chown(fsStat.statBuff.st_uid, gid);
+}
+
+int
 Dir::rename(const std::string &newName)
 {
   if (!exists())

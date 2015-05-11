@@ -78,6 +78,12 @@ public:
 
   virtual int chmod(long int permissions);
 
+  virtual int chown(uid_t uid, gid_t gid);
+
+  virtual int setUid(uid_t uid);
+
+  virtual int setGid(gid_t gid);
+
   virtual int rename(const std::string &newPath);
 
 protected:

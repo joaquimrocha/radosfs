@@ -692,6 +692,53 @@ File::chmod(long int permissions)
 }
 
 int
+File::chown(uid_t uid, gid_t gid)
+{
+  if (!exists())
+    return -ENOENT;
+
+  uid_t currentUid = filesystem()->uid();
+
+  if (currentUid != ROOT_UID)
+    return -EPERM;
+
+  Stat fsStat = *mPriv->fsStat();
+  fsStat.statBuff.st_uid = uid;
+  fsStat.statBuff.st_gid = gid;
+
+  std::string fileEntry = getFileXAttrDirRecord(&fsStat);
+  const std::string &baseName = path().substr(mPriv->parentDir.length());
+  std::map<std::string, librados::bufferlist> omap;
+  omap[XATTR_FILE_PREFIX + baseName].append(fileEntry);
+
+  Stat parentStat = *reinterpret_cast<Stat *>(parentFsStat());
+
+  return parentStat.pool->ioctx.omap_set(parentStat.translatedPath, omap);
+}
+
+int
+File::setUid(uid_t uid)
+{
+  if (!exists())
+    return -ENOENT;
+
+  Stat fsStat = *mPriv->fsStat();
+
+  return chown(uid, fsStat.statBuff.st_gid);
+}
+
+int
+File::setGid(gid_t gid)
+{
+  if (!exists())
+    return -ENOENT;
+
+  Stat fsStat = *mPriv->fsStat();
+
+  return chown(fsStat.statBuff.st_uid, gid);
+}
+
+int
 File::rename(const std::string &newPath)
 {
   int ret;

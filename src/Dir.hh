@@ -88,6 +88,12 @@ public:
 
   int chmod(long int permissions);
 
+  int chown(uid_t uid, gid_t gid);
+
+  int setUid(uid_t uid);
+
+  int setGid(gid_t gid);
+
   int rename(const std::string &newName);
 
   int useTMId(bool useTMId);
