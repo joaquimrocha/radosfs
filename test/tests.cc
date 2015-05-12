@@ -3318,6 +3318,10 @@ TEST_F(RadosFsTest, Find)
 
   EXPECT_EQ(-EINVAL, dir.find("", results));
 
+  // Find contents using an invalid search string
+
+  EXPECT_EQ(-EINVAL, dir.find("bogus = something", results));
+
   // Find contents whose name begins with a "d" and measure its time
   // (all directories)
 
