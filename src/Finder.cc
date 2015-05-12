@@ -85,9 +85,10 @@ checkEntryRegex(const std::string &value, const std::string &valueToCompare,
 }
 
 int
-Finder::checkEntrySize(FinderArg &arg, FindOptions option,
-                       const std::string &entry, const Dir &dir,
-                       struct stat &buff)
+Finder::checkEntryStatMember(FinderArg &arg, FindOptions option,
+                             const std::string &entry, const Dir &dir,
+                             struct stat &buff,
+                             FindStatMemberOption statMember)
 {
   int ret = 0;
 
@@ -102,7 +103,23 @@ Finder::checkEntrySize(FinderArg &arg, FindOptions option,
     }
   }
 
-  return compareEntryNumValue(arg, option, buff.st_size);
+  float value;
+  switch (statMember)
+  {
+    case FIND_STAT_MEMBER_SIZE:
+      value = buff.st_size;
+      break;
+    case FIND_STAT_MEMBER_UID:
+      value = buff.st_uid;
+      break;
+    case FIND_STAT_MEMBER_GID:
+      value = buff.st_gid;
+      break;
+    default:
+      return -1;
+  }
+
+  return compareEntryNumValue(arg, option, value);
 }
 
 int
@@ -304,9 +321,20 @@ Finder::find(FinderData *data)
       {
         ret = checkEntryName(arg, option, entry);
       }
-      if (option & FIND_SIZE)
+      else if (option & FIND_SIZE)
       {
-        ret = checkEntrySize(arg, option, entry, dir, buff);
+        ret = checkEntryStatMember(arg, option, entry, dir, buff,
+                                   FIND_STAT_MEMBER_SIZE);
+      }
+      else if (option & FIND_UID)
+      {
+        ret = checkEntryStatMember(arg, option, entry, dir, buff,
+                                   FIND_STAT_MEMBER_UID);
+      }
+      else if (option & FIND_GID)
+      {
+        ret = checkEntryStatMember(arg, option, entry, dir, buff,
+                                   FIND_STAT_MEMBER_GID);
       }
       else if (option & FIND_MTD)
       {

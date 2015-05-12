@@ -41,6 +41,13 @@ public:
   Finder(Filesystem *radosFs);
   ~Finder(void);
 
+  enum FindStatMemberOption
+  {
+    FIND_STAT_MEMBER_SIZE,
+    FIND_STAT_MEMBER_UID,
+    FIND_STAT_MEMBER_GID
+  };
+
   enum FindOptions
   {
     FIND_EQ = 1 << 0,
@@ -51,6 +58,9 @@ public:
     FIND_MTD = 1 << 6,
     FIND_XATTR = 1 << 7,
     FIND_SIZE = 1 << 8,
+    FIND_UID = 1 << 9,
+    FIND_GID = 1 << 10,
+
     FIND_GE = FIND_GT | FIND_EQ,
     FIND_LE = FIND_LT | FIND_EQ,
 
@@ -78,10 +88,6 @@ public:
 
   int find(FinderData *data);
 
-  int checkEntrySize(FinderArg &arg, FindOptions option,
-                     const std::string &entry, const Dir &dir,
-                     struct stat &buff);
-
   int checkEntryMtd(FinderArg &arg, FindOptions option, FindOptions mtdType,
                     const std::string &entry, Dir &dir);
 
@@ -97,6 +103,10 @@ public:
 
   int checkMtdKeyPresence(FinderArg &arg, FindOptions option,
                             const std::map<std::string, std::string> &xattrs);
+
+  int checkEntryStatMember(FinderArg &arg, FindOptions option,
+                           const std::string &entry, const Dir &dir,
+                           struct stat &buff, FindStatMemberOption statMember);
 
   Filesystem *radosFs;
 };

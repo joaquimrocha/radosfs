@@ -1008,7 +1008,7 @@ Dir::find(const std::string args, std::set<std::string> &results)
 
     FinderArg arg;
     arg.valueStr = "";
-    Finder::FindOptions option  = Finder::FIND_NAME_EQ;
+    int option  = Finder::FIND_NAME_EQ;
 
     bool isIName = key == FINDER_KEY_INAME;
     if (key == FINDER_KEY_NAME || isIName)
@@ -1039,6 +1039,28 @@ Dir::find(const std::string args, std::set<std::string> &results)
         option = Finder::FIND_SIZE_LE;
       else if (op == FINDER_LT_SYM)
         option = Finder::FIND_SIZE_LT;
+    }
+    else if (key == FINDER_KEY_UID || key == FINDER_KEY_GID)
+    {
+      arg.valueNum = atof(value.c_str());
+
+      if (key == FINDER_KEY_GID)
+        option = Finder::FIND_GID;
+      else
+        option = Finder::FIND_UID;
+
+      if (op == FINDER_EQ_SYM)
+        option |= Finder::FIND_EQ;
+      else if (op == FINDER_NE_SYM)
+        option |= Finder::FIND_NE;
+      else if (op == FINDER_GE_SYM)
+        option |= Finder::FIND_GE;
+      else if (op == FINDER_GT_SYM)
+        option |= Finder::FIND_GT;
+      else if (op == FINDER_LE_SYM)
+        option |= Finder::FIND_LE;
+      else if (op == FINDER_LT_SYM)
+        option |= Finder::FIND_LT;
     }
     else if (key.compare(0, strlen(FINDER_KEY_MTD), FINDER_KEY_MTD) == 0)
     {
@@ -1081,7 +1103,7 @@ Dir::find(const std::string args, std::set<std::string> &results)
       arg.options = FinderArg::FINDER_OPT_ICASE;
     }
 
-    finderArgs[option] = arg;
+    finderArgs[static_cast<Finder::FindOptions>(option)] = arg;
 
     startPos = lastPos;
     key = value = "";

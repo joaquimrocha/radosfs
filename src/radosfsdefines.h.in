@@ -68,6 +68,8 @@
 #define FINDER_KEY_NAME "name"
 #define FINDER_KEY_INAME "iname"
 #define FINDER_KEY_SIZE "size"
+#define FINDER_KEY_UID "uid"
+#define FINDER_KEY_GID "gid"
 #define FINDER_KEY_MTD "mtd"
 #define FINDER_KEY_IMTD "imtd"
 #define FINDER_KEY_MTD_NUM FINDER_KEY_MTD "N"
