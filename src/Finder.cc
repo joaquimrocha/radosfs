@@ -279,7 +279,8 @@ Finder::checkEntryName(FinderArg &arg, FindOptions option,
     ret = checkEntryRegex(arg.valueStr, entry, option, regex);
   }
 
-  regfree(&regex);
+  if (ret != -EINVAL)
+    regfree(&regex);
 
   return ret;
 }
