@@ -1102,6 +1102,13 @@ Dir::find(const std::string args, std::set<std::string> &results)
                                op, key, value);
       arg.options = FinderArg::FINDER_OPT_ICASE;
     }
+    else
+    {
+      radosfs_debug("Invalid keyword found '%s'. Stopping the find operation.",
+                    key.c_str());
+      finderArgs.clear();
+      break;
+    }
 
     finderArgs[static_cast<Finder::FindOptions>(option)] = arg;
 
