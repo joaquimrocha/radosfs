@@ -3529,6 +3529,97 @@ TEST_F(RadosFsTest, Find)
 
   EXPECT_EQ(entries.size(), results.size());
 
+  results.clear();
+
+  EXPECT_EQ(0, dir.find("uid != 0", results));
+
+  EXPECT_EQ(0, results.size());
+
+  results.clear();
+
+  EXPECT_EQ(0, dir.find("uid = 0", results));
+
+  EXPECT_EQ(entries.size(), results.size());
+
+  uid_t newUid = 1;
+  gid_t newGid = 2;
+  uid_t diffUid = 10;
+  uid_t diffGid = 11;
+
+  std::set<std::string>::const_iterator it;
+  size_t i;
+  for (it = entries.begin(), i = 0; i <= entries.size() / 2; it++, i++)
+  {
+    const std::string absPath = dir.path() + *it;
+    radosfs::FsObj *obj = radosFs.getFsObj(absPath);
+
+    if (!obj)
+    {
+      fprintf(stderr, "Error getting %s object\n", absPath.c_str());
+      exit(ret);
+    }
+
+    int ret = 0;
+
+    // Set a different uid and gid to just one of the entries
+    if (i == entries.size() / 2)
+      ret = obj->chown(diffUid, diffGid);
+    else
+      ret = obj->chown(newUid, newGid);
+
+
+    if (ret != 0)
+    {
+      fprintf(stderr, "Failed to set uid and gid on %s: %d\n", absPath.c_str(),
+              ret);
+      exit(ret);
+    }
+
+    delete obj;
+  }
+
+  results.clear();
+
+  EXPECT_EQ(0, dir.find("uid = 1", results));
+
+  EXPECT_EQ(entries.size() / 2, results.size());
+
+  results.clear();
+
+  EXPECT_EQ(0, dir.find("gid = 2", results));
+
+  EXPECT_EQ(entries.size() / 2, results.size());
+
+  results.clear();
+
+  EXPECT_EQ(0, dir.find("uid = 10", results));
+
+  EXPECT_EQ(1, results.size());
+
+  results.clear();
+
+  EXPECT_EQ(0, dir.find("gid = 11", results));
+
+  EXPECT_EQ(1, results.size());
+
+  results.clear();
+
+  EXPECT_EQ(0, dir.find("gid >= 0 gid != 11", results));
+
+  EXPECT_EQ(entries.size() - 1, results.size());
+
+  results.clear();
+
+  EXPECT_EQ(0, dir.find("gid = 0 uid = 1", results));
+
+  EXPECT_EQ(0, results.size());
+
+  results.clear();
+
+  EXPECT_EQ(0, dir.find("uid > 10", results));
+
+  EXPECT_EQ(0, results.size());
+
   ASSERT_EQ(0, radosFs.setXAttr(dir.path() + "f0", xattrKey, "sTaMpVaLuE"));
 
   results.clear();
