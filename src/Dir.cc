@@ -1023,29 +1023,15 @@ Dir::find(const std::string args, std::set<std::string> &results)
       if (isIName)
         arg.options |= FinderArg::FINDER_OPT_ICASE;
     }
-    else if (key == FINDER_KEY_SIZE)
-    {
-      arg.valueNum = atof(value.c_str());
-
-      if (op == FINDER_EQ_SYM)
-        option = Finder::FIND_SIZE_EQ;
-      else if (op == FINDER_NE_SYM)
-        option = Finder::FIND_SIZE_NE;
-      else if (op == FINDER_GE_SYM)
-        option = Finder::FIND_SIZE_GE;
-      else if (op == FINDER_GT_SYM)
-        option = Finder::FIND_SIZE_GT;
-      else if (op == FINDER_LE_SYM)
-        option = Finder::FIND_SIZE_LE;
-      else if (op == FINDER_LT_SYM)
-        option = Finder::FIND_SIZE_LT;
-    }
-    else if (key == FINDER_KEY_UID || key == FINDER_KEY_GID)
+    else if (key == FINDER_KEY_UID || key == FINDER_KEY_GID ||
+             key == FINDER_KEY_SIZE)
     {
       arg.valueNum = atof(value.c_str());
 
       if (key == FINDER_KEY_GID)
         option = Finder::FIND_GID;
+      else if (key == FINDER_KEY_SIZE)
+        option = Finder::FIND_SIZE;
       else
         option = Finder::FIND_UID;
 
