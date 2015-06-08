@@ -20,6 +20,9 @@
 # 'doc' target
 #-------------------------------------------------------------------------------
 
+find_package( Doxygen )
+
+if (DOXYGEN_FOUND)
 set( DOXYGEN_MAIN_PAGE ${CMAKE_CURRENT_SOURCE_DIR}/main.md )
 
 set( DOC_FILES "${CMAKE_CURRENT_SOURCE_DIR}/arch.md \
@@ -40,3 +43,4 @@ configure_file(
 )
 
 ADD_CUSTOM_TARGET( doc COMMAND doxygen ${CMAKE_CURRENT_SOURCE_DIR}/Doxyfile )
+endif (DOXYGEN_FOUND)
