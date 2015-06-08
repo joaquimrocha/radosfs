@@ -330,6 +330,43 @@ FilePriv::create(int mode, uid_t uid, gid_t gid, size_t chunk)
   return ret;
 }
 
+/**
+ * @class File
+ *
+ * Represents a file in the filesystem.
+ *
+ * This class is used to manage the most common file operations such as creation,
+ * removal, reading, writing, etc.
+ *
+ * @enum File::OpenMode
+ *
+ * The open mode for the file. Even though files do not have an "open" method,
+ * this mode offers an extra protection as it may restrict which operations are
+ * allowed on the File instance.
+ *
+ * @note The open mode does not bypass the file's permissions for the current
+ * user and group id. It works in addition to checking the permissions.
+ *
+ * @var File::OpenMode File::MODE_NONE
+ *      Do not allow any read or write operations.
+ *
+ * @var File::OpenMode File::MODE_READ
+ *      Allow read operations.
+ *
+ * @var File::OpenMode File::MODE_WRITE
+ *      Allow write operations only.
+ *
+ * @var File::OpenMode File::MODE_READ_WRITE
+ *      Allow read and write operations.
+ */
+
+/**
+ * Creates an new instance of File.
+ *
+ * @param radosFs a pointer to the Filesystem that contains this file.
+ * @param path an absolute file path.
+ * @param mode the mode for instantiating the file (see File::OpenMode).
+ */
 File::File(Filesystem *radosFs, const std::string &path, File::OpenMode mode)
   : FsObj(radosFs, getFilePath(path)),
     mPriv(new FilePriv(this, mode))
@@ -338,11 +375,22 @@ File::File(Filesystem *radosFs, const std::string &path, File::OpenMode mode)
 File::~File()
 {}
 
+/**
+ * Copy constructor for creating a file instance.
+ *
+ * @param otherFile a reference to a File instance.
+ */
 File::File(const File &otherFile)
   : FsObj(otherFile),
     mPriv(new FilePriv(this, otherFile.mode()))
 {}
 
+/**
+ * Copy assignment operator.
+ *
+ * @param otherFile a reference to a File instance.
+ * @return a reference to a File.
+ */
 File &
 File::operator=(const File &otherFile)
 {
@@ -355,12 +403,30 @@ File::operator=(const File &otherFile)
   return *this;
 }
 
+/**
+ * Gets the File::OpenMode that was used to create this file.
+ *
+ * @return a File::OpenMode.
+ */
 File::OpenMode
 File::mode() const
 {
   return mPriv->mode;
 }
 
+/**
+ * Reads the file's contents into \a buff (synchronously).
+ *
+ * @param buff a char buffer. Its size has to be big enough for the contents
+ *        being read (at least \a blen).
+ * @param offset the offset in the file's contents from which to start reading
+ *        (in bytes).
+ * @param blen the maximum number of bytes to read from the file's contents
+ *        (in bytes).
+ * @return The number of bytes read (it might differ from \a blen as it only
+ *         reads the file up to its contents' size) on success, or a negative
+ *         error code otherwise.
+ */
 ssize_t
 File::read(char *buff, off_t offset, size_t blen)
 {
@@ -388,6 +454,20 @@ File::read(char *buff, off_t offset, size_t blen)
   return ret;
 }
 
+/**
+ * Reads multiple chunks of the file contents asynchronously.
+ *
+ * @see FileReadData.
+ * @param intervals a vector of FileReadData objects describing which portions
+ *        of the file to read.
+ * @param[out] asyncOpId a string location to return the id of the
+ *             asynchonous operation (or a null pointer in case none should be
+ *             returned).
+ * @param callback a function to be called upon the end of the read operation.
+ * @param callbackArg a pointer representing user-defined argumetns, to be
+ *        passed to the \a callback.
+ * @return 0 if the operation was initialized, an error code otherwise.
+ */
 int
 File::read(const std::vector<FileReadData> &intervals, std::string *asyncOpId,
            AsyncOpCallback callback, void *callbackArg)
@@ -409,6 +489,21 @@ File::read(const std::vector<FileReadData> &intervals, std::string *asyncOpId,
   return ret;
 }
 
+/**
+ * Write the contens of \a buff to the file asynchronously.
+ *
+ * @param buff a char buffer.
+ * @param offset the offset in the file to write the new contents.
+ * @param blen the number of bytes (from the \a buff) that should be written.
+ * @param copyBuffer whether \a buff should be copied or not.
+ * @param asyncOpId a string location to return the asynchronous operation's
+ *        address or a null pointer if this is not desired.
+ * @param callback an AsyncOpCallback to be called after the asynchronous
+ *        operation is finished
+ * @param callbackArg a pointer to the user arguments that will be passed to the
+ *        \a callback .
+ * @return 0 if the operation was initialized, an error code otherwise.
+ */
 int
 File::write(const char *buff, off_t offset, size_t blen, bool copyBuffer,
             std::string *asyncOpId, AsyncOpCallback callback,
@@ -435,6 +530,14 @@ File::write(const char *buff, off_t offset, size_t blen, bool copyBuffer,
   return -EACCES;
 }
 
+/**
+ * Write the contens of \a buff to the file synchronously.
+ *
+ * @param buff a char buffer.
+ * @param offset the offset in the file to write the new contents.
+ * @param blen the number of bytes (from the \a buff) that should be written.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 File::writeSync(const char *buff, off_t offset, size_t blen)
 {
@@ -457,6 +560,28 @@ File::writeSync(const char *buff, off_t offset, size_t blen)
   return -EACCES;
 }
 
+/**
+ * Creates the file object in the system.
+ * This method has to be called for the file object to be actually created (and
+ * before calling any operations on the file, like read/write).
+ *
+ * @param mode the file mode bits (from sys/stat.h), S_IRWXU, etc. Use -1 for
+ *        the default (S_IRWXU | S_IRGRP | S_IROTH).
+ * @param pool the data pool where the file's object should be stored. Use this
+ *        argument to override the default behavior of getting the pool that has
+ *        been mapped for the file's prefix in Filesystem.
+ * @param stripe the size of the stripes for this file (in bytes). Use this
+ *        argument to override the default size for the file stripes (which is
+ *        128 MB).
+ * @param inlineBufferSize the size for the file's inline buffer. Use this
+ *        argument to override the default inline buffer's size (which is
+ *        128 KB).
+ *
+ * @note If a value of 0 is given to \a inlineBufferSize, then no inline buffer
+ *       will be used and file stripes will always be created when writing to
+ *       it.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 File::create(int mode, const std::string pool, size_t chunk,
              ssize_t inlineBufferSize)
@@ -516,6 +641,11 @@ File::create(int mode, const std::string pool, size_t chunk,
   return ret;
 }
 
+/**
+ * Removes the file.
+ *
+ * @return 0 on success, an error code otherwise.
+ */
 int
 File::remove()
 {
@@ -552,6 +682,12 @@ File::remove()
   return ret;
 }
 
+/**
+ * Truncates the file.
+ *
+ * @param size the new size for the file.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 File::truncate(unsigned long long size)
 {
@@ -581,18 +717,49 @@ File::truncate(unsigned long long size)
   return ret;
 }
 
+/**
+ * Checks whether the file is writable. This takes into account the file's
+ * permissions and the current File::OpenMode).
+ *
+ * @note This operation works over the information that this instance has of the
+ *       permissions and the File::OpenMode, it does not get the latest values
+ *       from the object in the cluster. For updating those values, File::update
+ *       has to be called.
+ *
+ * @return true is the file is writable, false otherwise.
+ */
 bool
 File::isWritable()
 {
   return (mPriv->permissions & File::MODE_WRITE) != 0;
 }
 
+/**
+ * Checks whether the file is readable. This takes into account the file's
+ * permissions and the current File::OpenMode).
+ *
+ * @note This operation works over the information that this instance has of the
+ *       permissions and the File::OpenMode, it does not get the latest values
+ *       from the object in the cluster. For updating those values, File::update
+ *       has to be called.
+ *
+ * @return true is the file is readable, false otherwise.
+ */
 bool
 File::isReadable()
 {
   return (mPriv->permissions & File::MODE_READ) != 0;
 }
 
+/**
+ * Updates the state of this File instance according to the status of the actual
+ * file object in the system.
+ *
+ * Traditionally this could be considered as reopening the file. It is used to
+ * get the latest status of the file in the system. E.g. if a file instance has
+ * been used for a long time and the status of the permissions, existance, etc.
+ * needs to be checked, update should be called before checking it.
+ */
 void
 File::update()
 {
@@ -600,6 +767,12 @@ File::update()
   mPriv->updatePath();
 }
 
+/**
+ * Changes the file object that this File instance refers to. This works as if
+ * instantiating the file again using a different path.
+ *
+ * @param path a path to a file.
+ */
 void
 File::setPath(const std::string &path)
 {
@@ -608,6 +781,12 @@ File::setPath(const std::string &path)
   FsObj::setPath(filePath);
 }
 
+/**
+ * Stats the file.
+ *
+ * @param[out] buff a stat struct to fill with the details of the file.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 File::stat(struct stat *buff)
 {
@@ -660,6 +839,12 @@ File::stat(struct stat *buff)
   return 0;
 }
 
+/**
+ * Changes the permissions of the file.
+ *
+ * @param permissions the new permissions (mode bits from sys/stat.h).
+ * @return 0 on success, an error code otherwise.
+ */
 int
 File::chmod(long int permissions)
 {
@@ -686,6 +871,16 @@ File::chmod(long int permissions)
   return mPriv->mtdPool->ioctx.omap_set(parentStat->translatedPath, omap);
 }
 
+/**
+ * Sets the owner uid and gid of the file.
+ *
+ * @note This function can only be used by *root* (the uid of Filesystem needs
+ *       to be the root's, see Filesystem::setIds).
+ *
+ * @param uid a user id.
+ * @param gid a group id.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 File::chown(uid_t uid, gid_t gid)
 {
@@ -711,6 +906,15 @@ File::chown(uid_t uid, gid_t gid)
   return parentStat.pool->ioctx.omap_set(parentStat.translatedPath, omap);
 }
 
+/**
+ * Sets the owner uid of the file.
+ *
+ * @note This function can only be used by *root* (the uid of Filesystem needs
+ *       to be the root's, see Filesystem::setIds).
+ *
+ * @param uid a user id.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 File::setUid(uid_t uid)
 {
@@ -722,6 +926,15 @@ File::setUid(uid_t uid)
   return chown(uid, fsStat.statBuff.st_gid);
 }
 
+/**
+ * Sets the owner gid of the file.
+ *
+ * @note This function can only be used by *root* (the uid of Filesystem needs
+ *       to be the root's, see Filesystem::setIds).
+ *
+ * @param gid a group id.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 File::setGid(gid_t gid)
 {
@@ -733,6 +946,18 @@ File::setGid(gid_t gid)
   return chown(fsStat.statBuff.st_uid, gid);
 }
 
+/**
+ * Renames or moves the file.
+ *
+ * @param newPath the new path or name of the file.
+ * @note  If \a newPath is a relative path, then it will be appended to the
+ *        current parent directory.
+ *
+ *        This is a rename operation so the new path cannot be an existing file.
+ *        In the same way, if a directory path is given, the file will not be
+ *        moved into that directory.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 File::rename(const std::string &newPath)
 {
@@ -764,6 +989,14 @@ File::rename(const std::string &newPath)
   return mPriv->rename(dest);
 }
 
+/**
+ * Waits for the file's asynchronous operations to be finished. If \a opId is
+ * given, it waits only for the operation with the matching id, otherwise it
+ * does it for every single operation.
+ *
+ * @param opId the id of an asynchronous operation.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 File::sync(const std::string &opId)
 {
@@ -775,6 +1008,11 @@ File::sync(const std::string &opId)
   return ret;
 }
 
+/**
+ * Gets the inline buffer's size currently set for the file.
+ *
+ * @return 0 on success, an error code otherwise.
+ */
 size_t
 File::inlineBufferSize(void) const
 {

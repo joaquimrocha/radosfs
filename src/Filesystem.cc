@@ -1406,6 +1406,44 @@ FilesystemPriv::checkFileLocks(void)
   }
 }
 
+/**
+ * @class Filesystem
+ *
+ * Represents the filesystem. Instantiating a Filesystem object is usually the
+ * first step when using the library since it corresponds to a Ceph cluster.
+ *
+ * Before using any of the methods in the class, Filesystem::init should be
+ * called in order to set the appropriate Ceph cluster. After the cluster is
+ * initialized, at least one metadata and one data pool should be set using
+ * Filesystem::addMetadataPool and Filesystem::addDataPool, respectively.
+ */
+
+/**
+ * @struct FileReadData
+ *
+ * A struct describing how to read data from a file.
+ *
+ * @fn FileReadData::FileReadData(char *buff, off_t offset, size_t length,
+ *                                ssize_t *retValue=0)
+ * Builds an instance of FileReadData.
+ *
+ * @param[out] buff a pointer to a buffer where the data will be stored.
+ * @param offset the offset in the file from which the data will start being
+ *        read.
+ * @param length the number of bytes to read. The given \a buff should be large
+ *        enough to hold this number of bytes.
+ * @param[out] retValue the location in which to return the return code of the
+ *             read operation (or a null pointer in case this value should not
+ *             be returned).
+ */
+
+/**
+ * Creates a new instance of Filesystem.
+ *
+ * This is usually the first step to be done when using the library but keep in
+ * mind that Filesystem::init should be called in order to do anything
+ * meaningful (as otherwise no Ceph cluster will be configured).
+ */
 Filesystem::Filesystem()
   : mPriv(new FilesystemPriv(this))
 {
@@ -1416,6 +1454,14 @@ Filesystem::~Filesystem()
   delete mPriv;
 }
 
+/**
+ * Initialize the Ceph cluster.
+ * @param userName the user name for for initializing the cluster.
+ * @param configurationFile the path to the configuration file describing the
+ *        cluster.
+ * @return 0 if the cluster has been successfully initialized, an error
+ *         code otherwise.
+ */
 int
 Filesystem::init(const std::string &userName,
                  const std::string &configurationFile)
@@ -1425,6 +1471,18 @@ Filesystem::init(const std::string &userName,
   return ret;
 }
 
+/**
+ * Sets a pool to be used for the data associated with the given \a prefix.
+ * File objects whose path prefixes match the one set by this method will have
+ * their data stored in the mapped pool.
+ *
+ * @note Keep in mind this method does not create the pool in the cluster so it
+ *       needs to already exist beforehand.
+ * @param name the name of the pool in the cluster.
+ * @param prefix the prefix of the paths that is associated with this pool.
+ * @param size the greatest size allowed for a file (given in MB).
+ * @return 0 on success, an error code otherwise.
+ */
 int
 Filesystem::addDataPool(const std::string &name, const std::string &prefix,
                         size_t size)
@@ -1487,6 +1545,14 @@ Filesystem::addDataPool(const std::string &name, const std::string &prefix,
   return ret;
 }
 
+/**
+ * Removes a data pool. @note As with Filesystem::addDataPool , this method does
+ * not affect the cluster itself which means that the pool will not be deleted
+ * from it but rather disassociated from the prefix to which it was previously
+ * set.
+ * @param name the name
+ * @return 0 on success, an error code otherwise.
+ */
 int
 Filesystem::removeDataPool(const std::string &name)
 {
@@ -1524,6 +1590,11 @@ Filesystem::removeDataPool(const std::string &name)
   return ret;
 }
 
+/**
+ * Gets all the data pools configured for the given \a prefix.
+ * @param prefix the prefix for which the data pools are mapped.
+ * @return A vector with the names of the pools in question.
+ */
 std::vector<std::string>
 Filesystem::dataPools(const std::string &prefix) const
 {
@@ -1545,6 +1616,11 @@ Filesystem::dataPools(const std::string &prefix) const
   return pools;
 }
 
+/**
+ * Gets the prefix associated with the given data pool.
+ * @param pool a data pool's name associated with a prefix.
+ * @return The prefix associated with the given data pool.
+ */
 std::string
 Filesystem::dataPoolPrefix(const std::string &pool) const
 {
@@ -1573,6 +1649,11 @@ Filesystem::dataPoolPrefix(const std::string &pool) const
   return prefix;
 }
 
+/**
+ * Gets the maximum size of files for the given data pool.
+ * @param pool the name of the data pool from which to get the size.
+ * @return the maximum size of files for the given data pool.
+ */
 ssize_t
 Filesystem::dataPoolSize(const std::string &pool) const
 {
@@ -1601,6 +1682,17 @@ Filesystem::dataPoolSize(const std::string &pool) const
   return size;
 }
 
+/**
+ * Sets a pool to be used for the metadata associated with the given \a prefix.
+ * Directory objects whose path prefixes match the one set by this method will
+ * have their data stored in the mapped pool.
+ *
+ * @note Keep in mind this method does not create the pool in the cluster so it
+ *       needs to already exist beforehand.
+ * @param name the name of the pool in the cluster.
+ * @param prefix the prefix of the paths that is associated with this pool.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 Filesystem::addMetadataPool(const std::string &name, const std::string &prefix)
 {
@@ -1610,30 +1702,60 @@ Filesystem::addMetadataPool(const std::string &name, const std::string &prefix)
                         mPriv->mtdPoolMutex);
 }
 
+/**
+ * Removes a metadata pool.
+ *
+ * @note As with Filesystem::addMetadataPool , this method does not affect the
+ *       cluster itself which means that the pool will not be deleted from it
+ *       but rather disassociated from the prefix to which it was previously set.
+ * @param name the name of the metadata pool to remove.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 Filesystem::removeMetadataPool(const std::string &name)
 {
   return mPriv->removePool(name, &mPriv->mtdPoolMap, mPriv->mtdPoolMutex);
 }
 
+/**
+ * Gets all the metadata pools.
+ * @return A vector with the names of the metadata pools.
+ */
 std::vector<std::string>
 Filesystem::metadataPools() const
 {
   return mPriv->pools(&mPriv->mtdPoolMap, mPriv->mtdPoolMutex);
 }
 
+/**
+ * Gets the prefix associated with the given metadata pool.
+ * @param pool a pool's name associated with a prefix.
+ * @return The prefix associated with the given data pool.
+ */
 std::string
 Filesystem::metadataPoolPrefix(const std::string &pool) const
 {
   return mPriv->poolPrefix(pool, &mPriv->mtdPoolMap, mPriv->mtdPoolMutex);
 }
 
+/**
+ * Gets the pool associated with the given \a prefix. (Does the opposite of
+ * Filesystem::metadataPoolPrefix).
+ * @param prefix a prefix associated with a metadata pool.
+ * @return the name of the pool associated with the given
+ */
 std::string
 Filesystem::metadataPoolFromPrefix(const std::string &prefix) const
 {
   return mPriv->poolFromPrefix(prefix, &mPriv->mtdPoolMap, mPriv->mtdPoolMutex);
 }
 
+/**
+ * Sets the \b uid and \b gid . The \b uid and \b gid are thread local and will
+ * be used for any subsequent operations that require checking permissions.
+ * @param uid the uid to be set.
+ * @param gid the gid to be set.
+ */
 void
 Filesystem::setIds(uid_t uid, gid_t gid)
 {
@@ -1641,6 +1763,12 @@ Filesystem::setIds(uid_t uid, gid_t gid)
   mPriv->setGid(gid);
 }
 
+/**
+ * Gets the current \b uid and \b gid values and sets them in the given \a uid
+ * and \a gid.
+ * @param[out] uid the location in which the uid will be set.
+ * @param[out] gid the location in which the gid will be set.
+ */
 void
 Filesystem::getIds(uid_t *uid, gid_t *gid) const
 {
@@ -1648,12 +1776,20 @@ Filesystem::getIds(uid_t *uid, gid_t *gid) const
   *gid = mPriv->getGid();
 }
 
+/**
+ * Gets the current \b uid value.
+ * @return the \b uid currently set.
+ */
 uid_t
 Filesystem::uid(void) const
 {
   return mPriv->uid;
 }
 
+/**
+ * Gets the current \b gid value.
+ * @return the \b gid currently set.
+ */
 gid_t
 Filesystem::gid(void) const
 {
@@ -1679,6 +1815,21 @@ gatherPathsByParentDir(const std::vector<std::string> &paths,
   }
 }
 
+/**
+ * Stats the given \a paths in parallel.
+ *
+ * Paths are statted in parallel not in to the worker threads that will
+ * parallelize the operations from the client side but, in case they have the
+ * same parent, they may be also statted in parallel on the cluster side. This
+ * makes it ideal for e.g. statting all the entries in a directory as all the
+ * files present in the directory will be statted in one go.
+ *
+ * @param paths a vector of paths to files or directories.
+ * @return a vector of pairs with the result of the stat operation over the
+ *         paths. Each pair contains the operation's return code (0 on success,
+ *         an error code otherwise) and a \b stat struct with the details of the
+ *         stat operation.
+ */
 std::vector<std::pair<int, struct stat> >
 Filesystem::stat(const std::vector<std::string> &paths)
 {
@@ -1716,6 +1867,13 @@ Filesystem::stat(const std::vector<std::string> &paths)
   return results;
 }
 
+/**
+ * Stats the given \a path and fills the details in the given \a stat parameter.
+ * @param path the path to be statted.
+ * @param[out] buff the struct to be filled with the stat details.
+ * @return 0 if the path was successfully statted, an error code
+ *         otherwise.
+ */
 int
 Filesystem::stat(const std::string &path, struct stat *buff)
 {
@@ -1740,6 +1898,10 @@ Filesystem::stat(const std::string &path, struct stat *buff)
   return ret;
 }
 
+/**
+ * Gets the list of all the pools in the configured cluster.
+ * @return A vector with the name of all the pools in the configured cluster.
+ */
 std::vector<std::string>
 Filesystem::allPoolsInCluster() const
 {
@@ -1752,6 +1914,17 @@ Filesystem::allPoolsInCluster() const
   return poolVector;
 }
 
+/**
+ * Stats the currently configured cluster. The space related values are returned
+ * in KB.
+ * @param[out] totalSpaceKb the location in which to return the total space.
+ * @param[out] usedSpaceKb the location in which to return the used space.
+ * @param[out] availableSpaceKb the location in which to return the available
+ *             space.
+ * @param[out] numberOfObjects  the location in which to return the number of
+ *             objects.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 Filesystem::statCluster(uint64_t *totalSpaceKb, uint64_t *usedSpaceKb,
                         uint64_t *availableSpaceKb, uint64_t *numberOfObjects)
@@ -1779,6 +1952,13 @@ Filesystem::statCluster(uint64_t *totalSpaceKb, uint64_t *usedSpaceKb,
   return ret;
 }
 
+/**
+ * Sets an xattribute in the given \a path .
+ * @param path a path to a file or directory.
+ * @param attrName the name of the xattribute.
+ * @param value the value of the xattribute.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 Filesystem::setXAttr(const std::string &path, const std::string &attrName,
                      const std::string &value)
@@ -1799,6 +1979,13 @@ Filesystem::setXAttr(const std::string &path, const std::string &attrName,
   return setXAttrFromPath(stat, uid(), gid(), attrName, value);
 }
 
+/**
+ * Gets an xattribute from the given \a path .
+ * @param path a path to a file or directory.
+ * @param attrName the name of the xattribute.
+ * @param[out] value the variable to receive the value of the xattribute.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 Filesystem::getXAttr(const std::string &path, const std::string &attrName,
                      std::string &value)
@@ -1820,6 +2007,12 @@ Filesystem::getXAttr(const std::string &path, const std::string &attrName,
                           stat.translatedPath, attrName, value);
 }
 
+/**
+ * Removes an xattribute from a given \a path .
+ * @param path a path to a file or directory.
+ * @param attrName the name of the xattribute.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 Filesystem::removeXAttr(const std::string &path, const std::string &attrName)
 {
@@ -1840,6 +2033,12 @@ Filesystem::removeXAttr(const std::string &path, const std::string &attrName)
                              stat.translatedPath, attrName);
 }
 
+/**
+ * Gets a map of all the xattributes set in the given \a path.
+ * @param path a path to a file or directory.
+ * @param[out] map the map into which the xattributes will be set.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 Filesystem::getXAttrsMap(const std::string &path,
                          std::map<std::string, std::string> &map)
@@ -1861,6 +2060,10 @@ Filesystem::getXAttrsMap(const std::string &path,
                                stat.translatedPath, map);
 }
 
+/**
+ * Sets the maximum size of the directory cache.
+ * @param size the size to set.
+ */
 void
 Filesystem::setDirCacheMaxSize(size_t size)
 {
@@ -1868,36 +2071,71 @@ Filesystem::setDirCacheMaxSize(size_t size)
   mPriv->dirCache.adjustCache();
 }
 
+/**
+ * Gets the maximum size of the directory cache.
+ * @return the maximum size of the directory cache.
+ */
 size_t
 Filesystem::dirCacheMaxSize(void) const
 {
   return mPriv->dirCache.maxCacheSize;
 }
 
+/**
+ * Sets the directory compaction ratio.
+ * @param ratio the ratio to set.
+ */
 void
 Filesystem::setDirCompactRatio(float ratio)
 {
   mPriv->dirCompactRatio = ratio;
 }
 
+/**
+ * Gets the directory compaction ratio.
+ * @return the directory compaction ratio.
+ */
 float
 Filesystem::dirCompactRatio(void) const
 {
   return mPriv->dirCompactRatio;
 }
 
+/**
+ * Sets the log level to be used.
+ * @param level the new log level.
+ */
 void
 Filesystem::setLogLevel(const Filesystem::LogLevel level)
 {
   mPriv->logger.setLogLevel(level);
 }
 
+/**
+ * @enum Filesystem::LogLevel
+ *
+ * The possible values for setting the log level.
+ *
+ * @var Filesystem::LogLevel Filesystem::LOG_LEVEL_NONE
+ *      Turns off debug messages (nothing will be printed).
+ *
+ * @var Filesystem::LogLevel Filesystem::LOG_LEVEL_DEBUG
+ *      Turns on debug messages (prints all debug messages).
+ */
+
+/**
+ * Gets the log level in use.
+ */
 Filesystem::LogLevel
 Filesystem::logLevel(void) const
 {
   return mPriv->logger.logLevel();
 }
 
+/**
+ * Sets the file stripe size to be used by default.
+ * @param size the stripe size (in bytes).
+ */
 void
 Filesystem::setFileChunkSize(const size_t size)
 {
@@ -1913,12 +2151,28 @@ Filesystem::setFileChunkSize(const size_t size)
   mPriv->fileChunkSize = realSize;
 }
 
+/**
+ * Gets the default file stripe size.
+ * @return the file stripe size.
+ */
 size_t
 Filesystem::fileChunkSize(void) const
 {
   return mPriv->fileChunkSize;
 }
 
+/**
+ * Instantiates an FsObj (File or Dir) from the given \a path.
+ * Using this method is convenient if one does not know whether the \a path
+ * points to a file or directory.
+ *
+ * @note With the current implementation, it is slower to use this method than
+ *       to instance a File or Dir object directly.
+ * @param path a path to a file or directory.
+ * @return an instance of the file/directory that the \a path represents or a
+ *         null pointer if an object could not be instantiated (e.g. if the path
+ *         does not exist).
+ */
 FsObj *
 Filesystem::getFsObj(const std::string &path)
 {
@@ -1941,6 +2195,14 @@ Filesystem::getFsObj(const std::string &path)
   return new File(this, stat.path);
 }
 
+/**
+ * Gets the inode and the pool associated with the given \a path.
+ * @param path a path to a file or directory.
+ * @param[out] inode the location into which the inode's name should be
+ *             returned.
+ * @param[out] pool  the location into which the pool's name should be returned.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 Filesystem::getInodeAndPool(const std::string &path, std::string *inode,
                             std::string *pool)
@@ -1967,6 +2229,12 @@ Filesystem::getInodeAndPool(const std::string &path, std::string *inode,
   return ret;
 }
 
+/**
+ * Sets the number of generic worker threads to be used.
+ * @param numWorkers the number of worker threads (minimum is 1).
+ * @note The minimum number of generic workers is 1. Setting a lower value will
+ *       instead set the minimum value.
+ */
 void
 Filesystem::setNumGenericWorkers(size_t numWorkers)
 {
@@ -1989,6 +2257,12 @@ Filesystem::setNumGenericWorkers(size_t numWorkers)
     mPriv->launchThreads();
 }
 
+/**
+ * Returns the number of generic worker threads to be used.
+ * @return the number of generic worker threads to be used.
+ * @note This does not indicate the number of worker threads in use currently
+ * as they might have not been launched yet.
+ */
 size_t
 Filesystem::numGenericWorkers(void)
 {

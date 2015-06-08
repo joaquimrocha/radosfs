@@ -403,16 +403,47 @@ DirPriv::rename(const std::string &destination)
   return ret;
 }
 
+/**
+ * @class Dir
+ *
+ * Represents a directory in the filesystem.
+ *
+ * This class is used to manage the most common directory operations such as
+ * creation, removal, listing, etc.
+ */
+
+/**
+ * Creates an new instance of Dir.
+ *
+ * @param radosFs a pointer to the Filesystem that contains this directory.
+ * @param path an absolute directory path.
+ */
 Dir::Dir(Filesystem *radosFs, const std::string &path)
   : FsObj(radosFs, getDirPath(path.c_str())),
     mPriv(new DirPriv(this))
 {}
 
+/**
+ * Copy constructor for creating a directory instance.
+ *
+ * @param otherDir a reference to a Dir instance.
+ */
 Dir::Dir(const Dir &otherDir)
   : FsObj(otherDir),
     mPriv(new DirPriv(this))
 {}
 
+/**
+ * Creates an new instance of Dir with an extra argument to indicate whether the
+ * directory should be chached or not.
+ *
+ * @see The \ref dircache section of the \ref arch page for more information on
+ *      directory caching.
+ *
+ * @param radosFs a pointer to the Filesystem that contains this directory.
+ * @param path an absolute directory path.
+ * @param cacheable true if the directory should be cacheable, false otherwise.
+ */
 Dir::Dir(Filesystem *radosFs,
          const std::string &path,
          bool cacheable)
@@ -423,6 +454,12 @@ Dir::Dir(Filesystem *radosFs,
 Dir::~Dir()
 {}
 
+/**
+ * Copy assignment operator.
+ *
+ * @param otherDir a reference to a Dir instance.
+ * @return a reference to a Dir.
+ */
 Dir &
 Dir::operator=(const Dir &otherDir)
 {
@@ -434,12 +471,32 @@ Dir::operator=(const Dir &otherDir)
   return *this;
 }
 
+/**
+ * Gets the parent directory of the given \a path.
+ *
+ * @param path a path to a file or directory (it does not need to be an existing
+ *        path).
+ * @param[out] pos an int location to store the offset of the parent's path in
+ *       the given \a path (where the base name of this file or directory
+ *       exists).
+ * @return The parent directory's path (or "" if \a path is the root directory).
+ */
 std::string
 Dir::getParent(const std::string &path, int *pos)
 {
   return getParentDir(path, pos);
 }
 
+/**
+ * Gets the list of files and directories in the directory.
+ *
+ * @note This method returns the entries cached in this instance since the last
+ * call to Dir::update. To get an updated list of entries, Dir::update should be
+ * called before this method.
+ *
+ * @param[out] entries a set to store the directory's entries.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 Dir::entryList(std::set<std::string> &entries)
 {
@@ -471,6 +528,19 @@ Dir::entryList(std::set<std::string> &entries)
   return 0;
 }
 
+/**
+ * Creates the directory object in the system.
+ *
+ * @param mode the directory mode bits (from sys/stat.h), S_IRWXU, etc. Use -1
+ *        for the default (S_IRWXU | S_IRGRP | S_IROTH).
+ * @param mkpath creates all intermediate directories in this directory's path.
+ * @param owner the user id for the owner of the directory. By default (-1), the
+ *        current user's id (see Filesystem::setUid) is used as the owner.
+ * @param group the group id for the owner group of the directory. By default
+ *        (-1), the current group's id (see Filesystem::setGid) is used as the
+ *        owner group.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 Dir::create(int mode,
             bool mkpath,
@@ -566,6 +636,12 @@ Dir::create(int mode,
   return 0;
 }
 
+/**
+ * Removes the directory.
+ *
+ * @note The directory has to be empty in order to be removed.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 Dir::remove()
 {
@@ -631,6 +707,21 @@ Dir::remove()
   return ret;
 }
 
+/**
+ * Updates the state and the entries of this Dir instance according to the data
+ * of the actual directory object in the system.
+ *
+ * Traditionally this could be considered as reopening the directory. It is used
+ * to get the latest status of the directory in the system, including the list
+ * of entries. E.g. if a directory instance has been used for a long time and
+ * the status of the permissions or the existance needs to be checked, or the
+ * latest entry list needs to be checked, then update should be called.
+ *
+ * @note This method should be always called when getting the list of entries in
+ *       the directory. Check out the Dir::entryList method.
+ *
+ * @see The \ref updateobjs and \ref listdir sections of the \ref arch page.
+ */
 void
 Dir::update()
 {
@@ -658,6 +749,15 @@ Dir::update()
   }
 }
 
+/**
+ * Gets the entry with the index \a entryIndex from the directory.
+ *
+ * @see Dir::update
+ *
+ * @param entryIndex the index of the entry to fetch.
+ * @param[out] entry a string reference where the entry name will be stored.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 Dir::entry(int entryIndex, std::string &entry)
 {
@@ -688,6 +788,12 @@ Dir::entry(int entryIndex, std::string &entry)
   return 0;
 }
 
+/**
+ * Changes the directory object that this Dir instance refers to. This works as
+ * if instantiating the directory again using a different path.
+ *
+ * @param path a path to a directory.
+ */
 void
 Dir::setPath(const std::string &path)
 {
@@ -703,6 +809,16 @@ Dir::setPath(const std::string &path)
   mPriv->updatePath();
 }
 
+/**
+ * Checks whether the directory is writable. This takes into account the
+ * directory's permissions.
+ *
+ * @note This operation works over the information that this instance has of the
+ *       permissions, it does not get the latest values from the object in the
+ *       cluster. For updating those values, Dir::update has to be called.
+ *
+ * @return true is the directory is writable, false otherwise.
+ */
 bool
 Dir::isWritable()
 {
@@ -725,6 +841,16 @@ Dir::isWritable()
   return statBuffHasPermission(mPriv->fsStat()->statBuff, uid, gid, O_WRONLY);
 }
 
+/**
+ * Checks whether the directory is readable. This takes into account the
+ * directory's permissions.
+ *
+ * @note This operation works over the information that this instance has of the
+ *       permissions, it does not get the latest values from the object in the
+ *       cluster. For updating those values, Dir::update has to be called.
+ *
+ * @return true is the directory is readable, false otherwise.
+ */
 bool
 Dir::isReadable()
 {
@@ -747,12 +873,26 @@ Dir::isReadable()
   return statBuffHasPermission(mPriv->fsStat()->statBuff, uid, gid, O_RDONLY);
 }
 
+/**
+ * Stats the directory.
+ *
+ * @param[out] buff a stat struct to fill with the details of the directory.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 Dir::stat(struct stat *buff)
 {
   return FsObj::stat(buff);
 }
 
+/**
+ * Compacts the directory object's log.
+ *
+ * @see The \ref dircompaction section of the \ref arch page for more
+ *      info on this operation.
+ *
+ * @return 0 on success, an error code otherwise.
+ */
 int
 Dir::compact()
 {
@@ -774,6 +914,14 @@ Dir::compact()
   return -1;
 }
 
+/**
+ * Sets metadata for the directory's entry.
+ *
+ * @param entry the entry's name in the directory.
+ * @param key the metadata's key.
+ * @param value the value for the metadata.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 Dir::setMetadata(const std::string &entry, const std::string &key,
                  const std::string &value)
@@ -817,6 +965,14 @@ Dir::setMetadata(const std::string &entry, const std::string &key,
   return -1;
 }
 
+/**
+ * Gets metadata for the directory's entry.
+ *
+ * @param entry the entry's name in the directory.
+ * @param key the metadata's key.
+ * @param[out] value a string reference to return the metadata's value.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 Dir::getMetadata(const std::string &entry, const std::string &key,
                  std::string &value)
@@ -846,6 +1002,14 @@ Dir::getMetadata(const std::string &entry, const std::string &key,
   return -1;
 }
 
+/**
+ * Gets a map with the metadata for the given \a entry.
+ *
+ * @param entry the entry's name in the directory.
+ * @param[out] mtdMap a map reference in which to set the metadata keys and
+ *             values.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 Dir::getMetadataMap(const std::string &entry,
                     std::map<std::string, std::string> &mtdMap)
@@ -872,6 +1036,13 @@ Dir::getMetadataMap(const std::string &entry,
   return -EOPNOTSUPP;
 }
 
+/**
+ * Removes the entry's metadata indicated by the given \a key.
+ *
+ * @param entry the entry's name in the directory.
+ * @param key the key of the metadata that should be removed.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 Dir::removeMetadata(const std::string &entry, const std::string &key)
 {
@@ -975,6 +1146,16 @@ setupMtdFindArg(FinderArg &arg, Finder::FindOptions mtdType,
   return static_cast<Finder::FindOptions>(option);
 }
 
+/**
+ * Finds the entries in the directory and subdirectories recursively and in
+ * parallel.
+ *
+ * Check out the \ref usefindindir section for learning how to use this method.
+ *
+ * @param[out] results a set reference to return the paths found.
+ * @param args the arguments for the find operation.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 Dir::find(const std::string args, std::set<std::string> &results)
 {
@@ -1107,6 +1288,12 @@ Dir::find(const std::string args, std::set<std::string> &results)
   return ret;
 }
 
+/**
+ * Changes the permissions of the directory.
+ *
+ * @param permissions the new permissions (mode bits from sys/stat.h).
+ * @return 0 on success, an error code otherwise.
+ */
 int
 Dir::chmod(long int permissions)
 {
@@ -1159,6 +1346,16 @@ Dir::chmod(long int permissions)
   return ret;
 }
 
+/**
+ * Sets the owner uid and gid of the directory.
+ *
+ * @note This function can only be used by *root* (the uid of Filesystem needs
+ *       to be the root's, see Filesystem::setIds).
+ *
+ * @param uid a user id.
+ * @param gid a group id.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 Dir::chown(uid_t uid, gid_t gid)
 {
@@ -1180,6 +1377,15 @@ Dir::chown(uid_t uid, gid_t gid)
   return fsStat.pool->ioctx.omap_set(fsStat.translatedPath, omap);
 }
 
+/**
+ * Sets the owner uid of the directory.
+ *
+ * @note This function can only be used by *root* (the uid of Filesystem needs
+ *       to be the root's, see Filesystem::setIds).
+ *
+ * @param uid a user id.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 Dir::setUid(uid_t uid)
 {
@@ -1191,6 +1397,15 @@ Dir::setUid(uid_t uid)
   return chown(uid, fsStat.statBuff.st_gid);
 }
 
+/**
+ * Sets the owner gid of the directory.
+ *
+ * @note This function can only be used by *root* (the uid of Filesystem needs
+ *       to be the root's, see Filesystem::setIds).
+ *
+ * @param gid a group id.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 Dir::setGid(gid_t gid)
 {
@@ -1202,6 +1417,12 @@ Dir::setGid(gid_t gid)
   return chown(fsStat.statBuff.st_uid, gid);
 }
 
+/**
+ * Renames or moves the directory.
+ *
+ * @param newName the new path or name of the directory.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 Dir::rename(const std::string &newName)
 {
@@ -1226,6 +1447,16 @@ Dir::rename(const std::string &newName)
   return mPriv->rename(dest);
 }
 
+/**
+ * Sets whether the *Transversal Modification Id* (TMId) should be used in
+ * this directory.
+ *
+ * @see Check out the section \ref usetmid for learning what the \b TMId
+ *      means and how it works.
+ *
+ * @param useTMId true if \b tmid should be used, false otherwise.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 Dir::useTMId(bool useTMId)
 {
@@ -1240,6 +1471,15 @@ Dir::useTMId(bool useTMId)
   return stat.pool->ioctx.omap_set(stat.translatedPath, omap);
 }
 
+/**
+ * Sets whether the *Transversal Modification Id* (TMId) should be used in
+ * this directory.
+ *
+ * @see Check out the section \ref usetmid for learning what the \b TMId
+ *      means and how it works.
+ *
+ * @return true if the \b tmid is set in this directory, false otherwise.
+ */
 bool
 Dir::usingTMId()
 {
@@ -1269,6 +1509,11 @@ Dir::usingTMId()
   return false;
 }
 
+/**
+ * Gets the *Transversal Modification Id* (TMId) of the directory.
+ * @param id a reference to return the TMId.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 Dir::getTMId(std::string &id)
 {

@@ -46,6 +46,12 @@ include (GNUInstallDirs)
 # tarball and rpm packages (helpful for the build system)
 set( NO_SOURCE CACHE BOOL false )
 
+# Set the list of public headers for the installation
+set( PUBLIC_FILE_NAMES Filesystem Dir File FsObj FileInode )
+foreach( NAME ${PUBLIC_FILE_NAMES} )
+  set( PUBLIC_HEADERS ${NAME}.hh ${PUBLIC_HEADERS} )
+endforeach()
+
 if( NOT NO_SOURCE )
   if ( "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR
        "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" )
@@ -119,5 +125,10 @@ ADD_DEPENDENCIES(srpm distcheck)
 #-------------------------------------------------------------------------------
 ADD_CUSTOM_TARGET(rpm COMMAND rpmbuild -tb ${CMAKE_PROJECT_NAME}-${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}-${RELEASE}.tar.gz)
 ADD_DEPENDENCIES(rpm distcheck)
+
+#-------------------------------------------------------------------------------
+# 'doc'
+#-------------------------------------------------------------------------------
+add_subdirectory( doc )
 
 message( STATUS "Installation prefix: ${CMAKE_INSTALL_PREFIX}" )

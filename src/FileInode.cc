@@ -166,20 +166,64 @@ FileInodePriv::setBackLink(const std::string &backLink)
   return io->pool()->ioctx.setxattr(io->inode(), XATTR_INODE_HARD_LINK, buff);
 }
 
+/**
+ * @class FileInode
+ *
+ * Represents a file inode in the filesystem.
+ *
+ * A file inode is the object in the filesystem where a file's data is
+ * effectively stored.
+ *
+ * This class is used to decouple some operations related to the file data
+ * from the File class for more flexibility.
+ *
+ * A common use case for this class is to create an inode, write its contents,
+ * and only after that register a logical file name pointing to it.
+ */
+
+/**
+ * Creates an new instance of FileInode with an automatically generated name.
+ *
+ * @param fs a pointer to the Filesystem that contains this file.
+ * @param pool the pool where the file inode should be created.
+ */
 FileInode::FileInode(Filesystem *fs, const std::string &pool)
   : mPriv(new FileInodePriv(fs, pool, generateUuid(), fs->fileChunkSize()))
 {}
 
+/**
+ * Creates an new instance of FileInode with the given \a name.
+ *
+ * @param fs a pointer to the Filesystem that contains this file.
+ * @param name the name for this file inode.
+ * @param pool the pool where the file inode should be created.
+ */
 FileInode::FileInode(Filesystem *fs, const std::string &name,
                      const std::string &pool)
   : mPriv(new FileInodePriv(fs, pool, name, fs->fileChunkSize()))
 {}
 
+/**
+ * Creates an new instance of FileInode with the given \a name and \a stripeSize.
+ *
+ * @param fs a pointer to the Filesystem that contains this file.
+ * @param name the name for this file inode.
+ * @param pool the pool where the file inode should be created.
+ * @param stripeSize the stripe size to be used by this file inode.
+ */
 FileInode::FileInode(Filesystem *fs, const std::string &name,
                      const std::string &pool, const size_t chunkSize)
   : mPriv(new FileInodePriv(fs, pool, name, chunkSize))
 {}
 
+/**
+ * Creates an new instance of FileInode with an automatically generated name and
+ * the given \a stripeSize.
+ *
+ * @param fs a pointer to the Filesystem that contains this file.
+ * @param pool the pool where the file inode should be created.
+ * @param stripeSize the stripe size to be used by this file inode.
+ */
 FileInode::FileInode(Filesystem *fs, const std::string &pool,
                      const size_t chunkSize)
   : mPriv(new FileInodePriv(fs, pool, generateUuid(), chunkSize))
@@ -194,6 +238,14 @@ FileInode::~FileInode()
   delete mPriv;
 }
 
+/**
+ * Reads data from the file inode (synchronously).
+ *
+ * @param[out] buff the buffer in which to store the data read.
+ * @param offset the offset of the inode where the data should start being read.
+ * @param blen the number of bytes to read.
+ * @return the number of bytes read on success, a negative error code otherwise.
+ */
 ssize_t
 FileInode::read(char *buff, off_t offset, size_t blen)
 {
@@ -203,6 +255,18 @@ FileInode::read(char *buff, off_t offset, size_t blen)
   return mPriv->io->read(buff, offset, blen);
 }
 
+/**
+ * Reads data from the file inode asynchronously and in parallel.
+ *
+ * @param intervals a vector of FileReadData objects indicating what should be
+ *        read.
+ * @param[out] asyncOpId a string location to return the id of the asynchonous
+ *             operation (or a null pointer in case none should be returned).
+ * @param callback a function to be called upon the end of the read operation.
+ * @param callbackArg a pointer representing user-defined argumetns, to be
+ *        passed to the \a callback.
+ * @return 0 if the operation was initialized, an error code otherwise.
+ */
 int
 FileInode::read(const std::vector<FileReadData> &intervals,
                 std::string *asyncOpId, AsyncOpCallback callback,
@@ -223,6 +287,22 @@ FileInode::read(const std::vector<FileReadData> &intervals,
   return ret;
 }
 
+/**
+ * Write the contens of \a buff to the file inode asynchronously.
+ *
+ * @param buff a char buffer.
+ * @param offset the offset in the file inode to write the new contents.
+ * @param blen the number of bytes (from the \a buff) that should be written.
+ * @param copyBuffer whether \a buff should be copied or not.
+ * @param asyncOpId a string location to return the asynchronous operation's
+ *        address or a null pointer if this is not desired.
+ * @param callback an AsyncOpCallback to be called after the asynchronous
+ *        operation is finished
+ * @param callbackArg a pointer to the user arguments that will be passed to the
+ *        \a callback .
+ * @return 0 if the operation was initialized, an error code otherwise.
+
+ */
 int
 FileInode::write(const char *buff, off_t offset, size_t blen, bool copyBuffer,
                  std::string *asyncOpId, AsyncOpCallback callback,
@@ -250,6 +330,14 @@ FileInode::write(const char *buff, off_t offset, size_t blen, bool copyBuffer,
   return ret;
 }
 
+/**
+ * Write the contens of \a buff to the file inode synchronously.
+ *
+ * @param buff a char buffer.
+ * @param offset the offset in the file inode to write the new contents.
+ * @param blen the number of bytes (from the \a buff) that should be written.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 FileInode::writeSync(const char *buff, off_t offset, size_t blen)
 {
@@ -259,6 +347,11 @@ FileInode::writeSync(const char *buff, off_t offset, size_t blen)
   return mPriv->io->writeSync(buff, offset, blen);
 }
 
+/**
+ * Removes the file inode.
+ *
+ * @return 0 on success, an error code otherwise.
+ */
 int
 FileInode::remove(void)
 {
@@ -268,6 +361,12 @@ FileInode::remove(void)
   return mPriv->io->remove();
 }
 
+/**
+ * Truncates the file inode.
+ *
+ * @param size the new size for the file inode.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 FileInode::truncate(size_t size)
 {
@@ -277,6 +376,14 @@ FileInode::truncate(size_t size)
   return mPriv->io->truncate(size);
 }
 
+/**
+ * Waits for the file inode's asynchronous operations to be finished. If \a opId
+ * is given, it waits only for the operation with the matching id, otherwise it
+ * does it for every single operation.
+ *
+ * @param opId the id of an asynchronous operation.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 FileInode::sync(const std::string &opId)
 {
@@ -313,6 +420,11 @@ FileInode::sync(const std::string &opId)
   return ret;
 }
 
+/**
+ * Returns the name of the file inode.
+ *
+ * @return the name of the file inode.
+ */
 std::string
 FileInode::name() const
 {
@@ -322,6 +434,17 @@ FileInode::name() const
   return mPriv->io->inode();
 }
 
+/**
+ * Attaches this file inode with a logical path making the inode visible to the
+ * traditional file operations (listing from a directory or accessing the file
+ * through a File instance).
+ *
+ * @param path the logical and absolute path to register with the file inode.
+ * @param uid the file owner's uid.
+ * @param gid the file owner's gid.
+ * @param mode the permissions of the file.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 FileInode::registerFile(const std::string &path, uid_t uid, gid_t gid, int mode)
 {
@@ -366,6 +489,12 @@ FileInode::registerFile(const std::string &path, uid_t uid, gid_t gid, int mode)
   return ret;
 }
 
+/**
+ * Gets the logical path associated with this file inode (if any).
+ *
+ * @param[out] backLink a string location to store the back link.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 FileInode::getBackLink(std::string *backLink)
 {

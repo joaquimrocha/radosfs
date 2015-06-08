@@ -198,6 +198,29 @@ FsObjPriv::makeLink(std::string &linkPath)
   return indexObject(&parentDirStat, &linkStat, '+');
 }
 
+/**
+ * @class FsObj
+ *
+ * Abstract class that represents an object in the filesystem (a File or Dir).
+ *
+ * This class is used as a base class for the File and Dir classes as they share
+ * some common features.
+ */
+
+/**
+ * @fn virtual bool FsObj::isWritable(void)
+ * Should be implemented to check whether the object is writable.
+ *
+ * @fn virtual bool FsObj::isReadable(void)
+ * Should be implemented to check whether the object is readable.
+ */
+
+/**
+ * Builds a new instance of FsObj.
+ * @param radosFs a pointer to the Filesystem where this object belongs.
+ * @param path the absolute path (of a file or directory) that represents this
+ *        object.
+ */
 FsObj::FsObj(Filesystem *radosFs, const std::string &path)
   : mPriv(new FsObjPriv(radosFs, path))
 {
@@ -207,18 +230,31 @@ FsObj::FsObj(Filesystem *radosFs, const std::string &path)
 FsObj::~FsObj()
 {}
 
+/**
+ * Copy constructor.
+ * @param otherFsObj another FsObj instance.
+ */
 FsObj::FsObj(const FsObj &otherFsObj)
   : mPriv(new FsObjPriv(otherFsObj.filesystem(), otherFsObj.path()))
 {
   update();
 }
 
+/**
+ * Returns the path that represents this object.
+ * @return the path that represents this object.
+ */
 std::string
 FsObj::path() const
 {
   return mPriv->path;
 }
 
+/**
+ * Changes the object that this FsObj instance refers to. This works as if
+ * instantiating the object using a different path.
+ * @param path a path to a file or directory.
+ */
 void
 FsObj::setPath(const std::string &path)
 {
@@ -226,6 +262,10 @@ FsObj::setPath(const std::string &path)
   update();
 }
 
+/**
+ * Returns the filesystem that contains this object.
+ * @return a pointer to the filesystem that contains this object.
+ */
 Filesystem *
 FsObj::filesystem() const
 {
@@ -238,12 +278,20 @@ FsObj::setFilesystem(Filesystem *radosFs)
   mPriv->radosFs = radosFs;
 }
 
+/**
+ * Checks whether this object refers to a file.
+ * @return true if this object refers to a file, false otherwise.
+ */
 bool
 FsObj::isFile() const
 {
   return !isDir();
 }
 
+/**
+ * Checks whether this object refers to a directory.
+ * @return true if this object refers to a directory, false otherwise.
+ */
 bool
 FsObj::isDir() const
 {
@@ -256,12 +304,21 @@ FsObj::isDir() const
   return S_ISDIR(mPriv->stat.statBuff.st_mode);
 }
 
+/**
+ * Checks whether this object exists in the filesystem.
+ * @return true if this object exists, false otherwise.
+ */
 bool
 FsObj::exists() const
 {
   return mPriv->exists;
 }
 
+/**
+ * Stats the object.
+ * @param[out] buff a stat struct to fill with the details of the object.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 FsObj::stat(struct stat *buff)
 {
@@ -275,6 +332,14 @@ FsObj::stat(struct stat *buff)
   return 0;
 }
 
+/**
+ * Updates the state of this FsObj instance according to the status of the
+ * actual object in the system.
+ *
+ * Traditionally this could be considered as reopening the file or directory
+ * that this object refers to. It is used to get the latest status of the
+ * object in the system.
+ */
 void
 FsObj::update()
 {
@@ -297,6 +362,12 @@ FsObj::update()
   }
 }
 
+/**
+ * Sets an xattribute in this object.
+ * @param attrName the name of the xattribute to set.
+ * @param value the value of the xattribute to set.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 FsObj::setXAttr(const std::string &attrName, const std::string &value)
 {
@@ -315,6 +386,12 @@ FsObj::setXAttr(const std::string &attrName, const std::string &value)
                           mPriv->radosFs->gid(), attrName, value);
 }
 
+/**
+ * Gets the value of an xattribute in this object.
+ * @param attrName the name of the xattribute to get.
+ * @param[out] value a reference to return the value of the xattribute.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 FsObj::getXAttr(const std::string &attrName, std::string &value)
 {
@@ -334,6 +411,11 @@ FsObj::getXAttr(const std::string &attrName, std::string &value)
                           mPriv->stat.translatedPath, attrName, value);
 }
 
+/**
+ * Removes an xattribute in this object.
+ * @param attrName the name of the xattribute to remove.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 FsObj::removeXAttr(const std::string &attrName)
 {
@@ -353,6 +435,12 @@ FsObj::removeXAttr(const std::string &attrName)
                              mPriv->stat.translatedPath, attrName);
 }
 
+/**
+ * Gets a map with all the xattributes in this object.
+ * @param map the map reference in which to set the keys and values of the
+ *        xattributes.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 FsObj::getXAttrsMap(std::map<std::string, std::string> &map)
 {
@@ -372,6 +460,13 @@ FsObj::getXAttrsMap(std::map<std::string, std::string> &map)
                                mPriv->stat.translatedPath, map);
 }
 
+/**
+ * Creates a symbolic link to this object.
+ * @param linkName the name or path of the link. If a name is given (instead of
+ *        an absolute path), then the link will be created in this object's
+ *        parent directory.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 FsObj::createLink(const std::string &linkName)
 {
@@ -402,6 +497,10 @@ FsObj::createLink(const std::string &linkName)
   return mPriv->makeLink(absLinkName);
 }
 
+/**
+ * Checks whether this object is a symbolic link.
+ * @return true if this object is a link, false otherwise.
+ */
 bool
 FsObj::isLink() const
 {
@@ -411,54 +510,106 @@ FsObj::isLink() const
   return S_ISLNK(mPriv->stat.statBuff.st_mode);
 }
 
+/**
+ * Returns the path that this object points to (in case the object is a link).
+ * @return the path that this object points to.
+ */
 std::string
 FsObj::targetPath() const
 {
   return mPriv->target;
 }
 
+/**
+ * This function exists to optimize some operations and should not be used by
+ * the library's clients.
+ */
 void *
 FsObj::fsStat(void)
 {
   return &mPriv->stat;
 }
 
+/**
+ * This function exists to optimize some operations and should not be used by
+ * the library's clients.
+ */
 void
 FsObj::setFsStat(void *stat)
 {
   mPriv->stat = *reinterpret_cast<Stat *>(stat);
 }
 
+/**
+ * This function exists to optimize some operations and should not be used by
+ * the library's clients.
+ */
 void *
 FsObj::parentFsStat()
 {
   return &mPriv->parentDirStat;
 }
 
+/**
+ * Should be implemented (if supported) to change the permissions of the object.
+ * The FsObj implementation simply returns -EOPNOTSUPP.
+ * @see Dir::chmod and File::chmod.
+ * @param permissions the new permissions (mode bits from sys/stat.h).
+ * @return 0 on success, an error code otherwise.
+ */
 int
 FsObj::chmod(long int permissions)
 {
   return -EOPNOTSUPP;
 }
 
+/**
+ * Should be implemented (if supported) to change the uid and gid of the object.
+ * The FsObj implementation simply returns -EOPNOTSUPP.
+ * @see Dir::chown and File::chown.
+ * @param uid a user id.
+ * @param gid a group id.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 FsObj::chown(uid_t uid, gid_t gid)
 {
   return -EOPNOTSUPP;
 }
 
+/**
+ * Should be implemented (if supported) to change the uid the object.
+ * The FsObj implementation simply returns -EOPNOTSUPP.
+ * @see Dir::setUid and File::setGid.
+ * @param uid a user id.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 FsObj::setUid(uid_t uid)
 {
   return -EOPNOTSUPP;
 }
 
+/**
+ * Should be implemented (if supported) to change the gid the object.
+ * The FsObj implementation simply returns -EOPNOTSUPP.
+ * @see Dir::setGid and File::setGid.
+ * @param gid a group id.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 FsObj::setGid(gid_t gid)
 {
   return -EOPNOTSUPP;
 }
 
+/**
+ * Should be implemented (if supported) to rename or move the object. The FsObj
+ * implementation simply returns -EOPNOTSUPP.
+ * @see Dir::rename and File::rename.
+ * @param newPath the new path or name of the object.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 FsObj::rename(const std::string &newPath)
 {
