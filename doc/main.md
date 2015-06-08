@@ -18,6 +18,19 @@ RadosFs should not be confused with
 POSIX-compliant filesystem implementation built on top of RADOS and supported by
 [Inktank/Redhat](http://www.redhat.com/en/technologies/storage/ceph).
 
+How to use
+-----------
+
+Together with the API docs, the \ref use page will give you a good idea of
+how to use the library.
+
+Architecture
+-------------
+
+Knowing how some of RadosFs operations work is useful for getting extra
+scalability when using the library or when modifying it. Please check out the
+\ref arch page for that purpose.
+
 License
 --------
 
