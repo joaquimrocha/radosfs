@@ -1,6 +1,7 @@
 FIND_PATH(RADOS_INCLUDE_DIR librados.hpp
   HINTS
   $ENV{XROOTD_DIR}
+  /usr/local/
   /usr
   /opt/rados/
   PATH_SUFFIXES include/rados
@@ -9,6 +10,7 @@ FIND_PATH(RADOS_INCLUDE_DIR librados.hpp
 
 FIND_LIBRARY(RADOS_LIB librados rados
   HINTS
+  /usr/local/
   /usr
   /opt/rados/
   PATH_SUFFIXES lib
