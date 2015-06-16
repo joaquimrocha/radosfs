@@ -159,6 +159,7 @@ private:
   friend class DirPriv;
   friend class FileIO;
   friend class FileInodePriv;
+  friend class QuotaPriv;
 };
 
 RADOS_FS_END_NAMESPACE

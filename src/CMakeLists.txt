@@ -53,6 +53,7 @@ add_library( radosfs SHARED
              AsyncOp.cc AsyncOp.cc AsyncOpPriv.hh
              FileInode.cc FileInode.hh FileInodePriv.hh
              FileInlineBuffer.cc FileInlineBuffer.hh
+             Quota.cc Quota.hh QuotaPriv.hh
 )
 
 include_directories( ${RADOS_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} )
@@ -71,7 +72,7 @@ endif( Linux )
 
 install( TARGETS radosfs LIBRARY DESTINATION ${LIB_INSTALL_DIR} )
 install( FILES
-         Filesystem.hh Dir.hh File.hh FsObj.hh FileInode.hh
+         Filesystem.hh Dir.hh File.hh FsObj.hh FileInode.hh Quota.hh
          DESTINATION include/radosfs )
 install( FILES
          libradosfs.hh

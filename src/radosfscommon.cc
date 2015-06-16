@@ -115,6 +115,7 @@ statDirObj(Stat &stat)
   keys.insert(XATTR_PERMISSIONS);
   keys.insert(XATTR_MTIME);
   keys.insert(XATTR_CTIME);
+  keys.insert(XATTR_QUOTA_OBJECT);
 
   op.stat(&psize, &pmtime, &statRet);
   op.omap_get_vals_by_keys(keys, &omap, 0);
@@ -148,6 +149,12 @@ statDirObj(Stat &stat)
   {
     librados::bufferlist mtimeXAttr = omap[XATTR_MTIME];
     mtime = std::string(mtimeXAttr.c_str(), mtimeXAttr.length());
+  }
+
+  if (omap.count(XATTR_QUOTA_OBJECT) > 0)
+  {
+    librados::bufferlist bl = omap[XATTR_QUOTA_OBJECT];
+    stat.extraData[XATTR_QUOTA_OBJECT] = std::string(bl.c_str(), bl.length());
   }
 
   genericStatFromAttrs(stat.translatedPath, permissions, ctime, mtime, psize,
