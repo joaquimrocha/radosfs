@@ -86,8 +86,7 @@ typedef struct {
 
 ino_t hash(const char *path);
 
-int genericStat(librados::IoCtx &ioctx, const std::string &object,
-                struct stat* buff);
+int statDirObj(Stat &stat);
 
 void genericStatFromAttrs(const std::string &object,
                           const std::string &permXAttr,

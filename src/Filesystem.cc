@@ -804,7 +804,7 @@ FilesystemPriv::statDir(PoolSP mtdPool, Stat *stat)
     stat->pool = inode.pool;
     stat->translatedPath = inode.inode;
 
-    ret = genericStat(stat->pool->ioctx, stat->translatedPath, &stat->statBuff);
+    ret = statDirObj(*stat);
   }
 
   return ret;

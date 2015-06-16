@@ -102,9 +102,7 @@ statBuffHasPermission(const struct stat &buff,
 }
 
 int
-genericStat(librados::IoCtx &ctx,
-            const std::string &object,
-            struct stat* buff)
+statDirObj(Stat &stat)
 {
   uint64_t psize;
   time_t pmtime;
@@ -122,7 +120,7 @@ genericStat(librados::IoCtx &ctx,
   op.omap_get_vals_by_keys(keys, &omap, 0);
   op.assert_exists();
 
-  ret = ctx.operate(object, &op, 0);
+  ret = stat.pool->ioctx.operate(stat.translatedPath, &op, 0);
 
   if (ret != 0)
     return ret;
@@ -152,7 +150,8 @@ genericStat(librados::IoCtx &ctx,
     mtime = std::string(mtimeXAttr.c_str(), mtimeXAttr.length());
   }
 
-  genericStatFromAttrs(object, permissions, ctime, mtime, psize, pmtime, buff);
+  genericStatFromAttrs(stat.translatedPath, permissions, ctime, mtime, psize,
+                       pmtime, &stat.statBuff);
 
   return statRet;
 }
