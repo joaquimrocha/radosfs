@@ -49,7 +49,7 @@ public:
 
   const PoolSP getPool(void);
 
-  Stat *fsStat(void);
+  Stat *fsStat(void) const;
 
   void updateFsDirCache();
 

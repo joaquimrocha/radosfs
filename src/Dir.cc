@@ -249,7 +249,7 @@ DirPriv::find(std::set<std::string> &entries, std::set<std::string> &results,
 }
 
 Stat *
-DirPriv::fsStat(void)
+DirPriv::fsStat(void) const
 {
   return reinterpret_cast<Stat *>(dir->fsStat());
 }
