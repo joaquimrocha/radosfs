@@ -24,6 +24,7 @@
 #include "DirPriv.hh"
 #include "FilesystemPriv.hh"
 #include "Finder.hh"
+#include "QuotaPriv.hh"
 
 RADOS_FS_BEGIN_NAMESPACE
 
@@ -69,6 +70,20 @@ DirPriv::updatePath()
   {
     updateDirInfoPtr();
   }
+}
+
+std::string
+DirPriv::getQuotaName() const
+{
+  const Stat *stat = fsStat();
+  std::map<std::string, std::string>::const_iterator it;
+
+  if ((it = stat->extraData.find(XATTR_QUOTA_OBJECT)) != stat->extraData.end())
+  {
+    return (*it).second;
+  }
+
+  return "";
 }
 
 bool
@@ -399,6 +414,226 @@ DirPriv::rename(const std::string &destination)
 
   radosFsPriv()->updateTMId(&parentStat);
   radosFsPriv()->updateTMId(oldParentStat);
+
+  return ret;
+}
+
+static std::vector<std::pair<std::string, std::string> >
+quotasXAttrToVector(const std::string &quotasAttr)
+{
+  std::vector<std::pair<std::string, std::string> > quotas;
+  std::vector<std::string> quotaInfo;
+  splitToVector(quotasAttr, quotaInfo);
+
+  // Quotas are stored in the omap as QUOTA_NAME|POOL as we should keep the
+  // information about the pool too.
+  std::vector<std::string>::const_iterator it;
+  for (it = quotaInfo.begin(); it != quotaInfo.end(); it++)
+  {
+    size_t separatorIndex = (*it).find(XATTR_IN_VALUE_SEPARATOR);
+    std::string quotaName = (*it).substr(0, separatorIndex);
+    std::string quotaPool;
+
+    if (separatorIndex != std::string::npos)
+    {
+      quotaPool = (*it).substr(separatorIndex + 1);
+    }
+
+    quotas.push_back(std::pair<std::string, std::string>(quotaName, quotaPool));
+  }
+
+  return quotas;
+}
+
+int
+DirPriv::getQuotasXAttr(std::string &quotas)
+{
+  std::set<std::string> keys;
+  std::map<std::string, librados::bufferlist> omap;
+
+  keys.insert(XATTR_QUOTA_OBJECT);
+  int ret = fsStat()->pool->ioctx.omap_get_vals_by_keys(fsStat()->translatedPath,
+                                                        keys, &omap);
+
+  if (ret != 0)
+    return ret;
+
+  std::map<std::string, librados::bufferlist>::const_iterator it;
+  if ((it = omap.find(XATTR_QUOTA_OBJECT)) != omap.end())
+  {
+    librados::bufferlist bl = (*it).second;
+      quotas.assign(bl.c_str(), bl.length());
+  }
+
+  return ret;
+}
+
+int
+DirPriv::removeQuotaObject(const Quota &obj, bool applyRecursively)
+{
+  std::string quotas;
+  std::map<std::string, librados::bufferlist> omap;
+  const boost::chrono::milliseconds sleepTime(250);
+  int ret = -1;
+  size_t attempts = 3;
+
+  while (attempts-- != 0)
+  {
+    omap.clear();
+    getQuotasXAttr(quotas);
+    std::vector<std::pair<std::string, std::string> > quotasInfo =
+        quotasXAttrToVector(quotas);
+
+    std::string newQuotasXAttr;
+    bool hadQuota = false;
+
+    std::vector<std::pair<std::string, std::string> >::const_iterator it;
+    for (it = quotasInfo.begin(); it != quotasInfo.end(); it++)
+    {
+      if ((*it).first == obj.name())
+      {
+        hadQuota = true;
+        continue;
+      }
+
+      newQuotasXAttr.append((*it).first + XATTR_IN_VALUE_SEPARATOR +
+                            obj.pool() + ",");
+    }
+
+    if (!hadQuota)
+      break;
+
+    if (newQuotasXAttr.empty())
+    {
+      omap[XATTR_QUOTA_OBJECT].append("", 0);
+    }
+    else
+    {
+      // We subtract one from the string's length to exclude the trailing ','
+      // added in the loop above
+      omap[XATTR_QUOTA_OBJECT].append(newQuotasXAttr.data(),
+                                      newQuotasXAttr.length() - 1);
+    }
+
+    librados::ObjectWriteOperation op;
+    librados::bufferlist cmpBl;
+    cmpBl.append(quotas);
+    std::pair<librados::bufferlist, int> cmp(cmpBl, LIBRADOS_CMPXATTR_OP_EQ);
+    std::map<std::string, std::pair<librados::bufferlist, int> > omapCmp;
+    omapCmp[XATTR_QUOTA_OBJECT] = cmp;
+
+    op.omap_cmp(omapCmp, 0);
+    op.omap_set(omap);
+
+    ret = fsStat()->pool->ioctx.operate(fsStat()->translatedPath, &op);
+
+    if (ret == 0)
+    {
+      break;
+    }
+    else
+    {
+      boost::this_thread::sleep_for(sleepTime);
+    }
+  }
+
+  if (applyRecursively)
+  {
+    dir->update();
+
+    std::set<std::string> entries;
+    dir->entryList(entries);
+
+    std::set<std::string>::const_iterator it;
+    for (it  = entries.begin(); it != entries.end(); it++)
+    {
+      const std::string entry = dir->path() + *it;
+      if (isDirPath(entry))
+      {
+        Dir subdir(dir->filesystem(), entry, false);
+        if (!subdir.isLink())
+          subdir.mPriv->removeQuotaObject(obj, true);
+      }
+    }
+  }
+
+  return ret;
+}
+
+int
+DirPriv::addQuotaObject(const Quota &obj, bool applyRecursively)
+{
+  std::string quotas;
+  std::map<std::string, librados::bufferlist> omap;
+  const boost::chrono::milliseconds sleepTime(250);
+  int ret = -1;
+  size_t attempts = 3;
+
+  while (attempts-- != 0)
+  {
+    omap.clear();
+    getQuotasXAttr(quotas);
+    std::vector<std::pair<std::string, std::string> > quotasInfo =
+        quotasXAttrToVector(quotas);
+
+    bool alreadyAdded = false;
+    std::vector<std::pair<std::string, std::string> >::const_iterator it;
+    for (it = quotasInfo.begin(); it != quotasInfo.end(); it++)
+    {
+      if ((*it).first == obj.name())
+      {
+        alreadyAdded = true;
+        break;
+      }
+    }
+
+    if (alreadyAdded)
+      break;
+
+    librados::ObjectWriteOperation op;
+    librados::bufferlist cmpBl;
+    cmpBl.append(quotas);
+    std::pair<librados::bufferlist, int> cmp(cmpBl, LIBRADOS_CMPXATTR_OP_EQ);
+    std::map<std::string, std::pair<librados::bufferlist, int> > omapCmp;
+    omapCmp[XATTR_QUOTA_OBJECT] = cmp;
+
+    quotas.append("," + obj.name() + XATTR_IN_VALUE_SEPARATOR + obj.pool());
+    omap[XATTR_QUOTA_OBJECT].append(quotas);
+
+    op.omap_cmp(omapCmp, 0);
+    op.omap_set(omap);
+
+    ret = fsStat()->pool->ioctx.operate(fsStat()->translatedPath, &op);
+
+    if (ret == 0)
+    {
+      break;
+    }
+    else
+    {
+      boost::this_thread::sleep_for(sleepTime);
+    }
+  }
+
+  if (applyRecursively)
+  {
+    dir->update();
+
+    std::set<std::string> entries;
+    dir->entryList(entries);
+
+    std::set<std::string>::const_iterator it;
+    for (it  = entries.begin(); it != entries.end(); it++)
+    {
+      const std::string entry = dir->path() + *it;
+      if (isDirPath(entry))
+      {
+        Dir subdir(dir->filesystem(), entry, false);
+        if (!subdir.isLink())
+          subdir.mPriv->addQuotaObject(obj, true);
+      }
+    }
+  }
 
   return ret;
 }
@@ -1567,6 +1802,56 @@ Dir::getTMId(std::string &id)
   }
 
   return ret;
+}
+
+int
+Dir::addToQuota(const Quota &quota, bool applyRecursively)
+{
+  return mPriv->addQuotaObject(quota, applyRecursively);
+}
+
+int
+Dir::removeFromQuota(const Quota &quota, bool applyRecursively)
+{
+  return mPriv->removeQuotaObject(quota, applyRecursively);
+}
+
+int
+Dir::getQuotas(std::vector<Quota> &quotas) const
+{
+  std::string quotaXAttr;
+  int ret = mPriv->getQuotasXAttr(quotaXAttr);
+
+  if (ret != 0)
+    return ret;
+
+  std::vector<std::pair<std::string, std::string> > quotasInfo =
+      quotasXAttrToVector(quotaXAttr);
+
+  std::vector<std::pair<std::string, std::string> >::const_iterator it;
+  for (it = quotasInfo.begin(); it != quotasInfo.end(); it++)
+  {
+    Quota quota(filesystem(), (*it).second, (*it).first);
+
+    if (!quota.exists())
+    {
+      radosfs_debug("Skipping getting quota %s (from pool %s) assigned to %s: "
+                    "quota object does not exist.", quota.name().c_str(),
+                    quota.pool().c_str(), path().c_str());
+      continue;
+    }
+
+    quotas.push_back(quota);
+  }
+
+  return 0;
+}
+
+bool
+Dir::hasQuota() const
+{
+  std::string quotaXAttr;
+  return (mPriv->getQuotasXAttr(quotaXAttr) == 0) && !quotaXAttr.empty();
 }
 
 RADOS_FS_END_NAMESPACE

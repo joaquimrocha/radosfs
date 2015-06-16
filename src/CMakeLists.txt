@@ -53,6 +53,7 @@ add_library( radosfs SHARED
              AsyncOp.cc AsyncOp.cc AsyncOpPriv.hh
              FileInode.cc FileInode.hh FileInodePriv.hh
              FileInlineBuffer.cc FileInlineBuffer.hh
+             Quota.cc Quota.hh QuotaPriv.hh
 )
 
 include_directories( ${RADOS_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} )
