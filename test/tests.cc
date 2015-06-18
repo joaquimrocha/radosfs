@@ -19,6 +19,7 @@
 
 #include <boost/thread.hpp>
 #include <algorithm>
+#include <getopt.h>
 #include <gtest/gtest.h>
 #include <errno.h>
 #include <cmath>
@@ -32,6 +33,9 @@
 #include "radosfscommon.h"
 
 #define NSEC_TO_SEC(n) ((double)(n) / 1000000000.0)
+
+#define CLUSTER_CONF_ARG "conf"
+#define USERNAME_CONF_ARG "user"
 
 TEST_F(RadosFsTest, DefaultConstructor)
 {
@@ -4252,37 +4256,56 @@ TEST_F(RadosFsTest, ChownDir)
 GTEST_API_ int
 main(int argc, char **argv)
 {
-  const std::string &confArgKey("--conf=");
-  const size_t confArgKeyLength(confArgKey.length());
-  bool confIsSet(getenv(CONF_ENV_VAR) != 0);
+  std::string confPath;
+  std::string userName;
+  const char *confFromEnv(getenv(CONF_ENV_VAR));
 
-  if (!confIsSet)
+  if (confFromEnv)
   {
-    for (int i = 0; i < argc; i++)
-    {
-      std::string arg(argv[i]);
-
-      if (arg.compare(0, confArgKeyLength, confArgKey) == 0)
-      {
-        setenv(CONF_ENV_VAR,
-               arg.substr(confArgKeyLength, std::string::npos).c_str(),
-               1);
-
-        confIsSet = true;
-      }
-      else if (arg.find("--user=") == 0)
-      {
-	setenv(CONF_USR_VAR, arg.substr(arg.find('=') + 1).c_str(), 1);
-      }
-    }
+    confPath.assign(confFromEnv);
   }
 
-  if (!confIsSet)
+  int optionIndex = 0;
+  struct option options[] =
+  {{CLUSTER_CONF_ARG, required_argument, 0, CLUSTER_CONF_ARG[0]},
+   {USERNAME_CONF_ARG, required_argument, 0, USERNAME_CONF_ARG[0]},
+   {0, 0, 0, 0}
+  };
+
+  int c;
+  std::string args;
+
+  for (int i = 0; options[i].name != 0; i++)
+  {
+    args += options[i].val;
+
+    if (options[i].has_arg != no_argument)
+      args += ":";
+  }
+
+  while ((c = getopt_long(argc, argv, args.c_str(), options, &optionIndex)) != -1)
+  {
+    if (c == CLUSTER_CONF_ARG[0])
+      confPath = optarg;
+    else if (c == USERNAME_CONF_ARG[0])
+      userName = optarg;
+  }
+
+  if (!confPath.empty())
+  {
+    setenv(CONF_ENV_VAR, confPath.c_str(), 1);
+  }
+  else
   {
     fprintf(stderr, "Error: Please specify the " CONF_ENV_VAR " environment "
             "variable or use the --conf=... argument.\n");
 
     return -1;
+  }
+
+  if (!userName.empty())
+  {
+    setenv(CONF_USR_VAR, userName.c_str(), 1);
   }
 
   testing::InitGoogleTest(&argc, argv);
