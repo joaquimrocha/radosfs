@@ -34,7 +34,7 @@ class FsObj;
 class FsObjPriv
 {
 public:
-  FsObjPriv(Filesystem *radosFs, const std::string &path);
+  FsObjPriv(FsObj *obj, Filesystem *fs, const std::string &path);
   ~FsObjPriv();
 
   void setPath(const std::string &path);
@@ -47,6 +47,7 @@ public:
 
   std::string path;
   Filesystem *radosFs;
+  FsObj *fsObj;
   std::string target;
   Stat stat;
   Stat parentDirStat;

@@ -30,13 +30,12 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
-FsObjPriv::FsObjPriv(Filesystem *radosFs, const std::string &objPath)
-  : radosFs(radosFs),
+FsObjPriv::FsObjPriv(FsObj *obj, Filesystem *fs, const std::string &objPath)
+  : fsObj(obj),
+    radosFs(fs),
     target(""),
     exists(false)
-{
-  setPath(objPath);
-}
+{}
 
 FsObjPriv::~FsObjPriv()
 {}
@@ -91,6 +90,7 @@ FsObjPriv::setPath(const std::string &path)
   this->path = sanitizePath(path);
 
   stat.reset();
+  target.clear();
 
   if (this->path.length() > MAXIMUM_PATH_LENGTH)
   {
@@ -101,7 +101,15 @@ FsObjPriv::setPath(const std::string &path)
   while ((ret = makeRealPath(this->path)) == -EAGAIN)
   {}
 
-  radosFs->mPriv->stat(this->path, &stat);
+  ret = radosFs->mPriv->stat(this->path, &stat);
+
+  exists = ret == 0;
+
+  if (fsObj->isLink())
+  {
+    const std::string &linkTarget = stat.translatedPath;
+    target = linkTarget;
+  }
 }
 
 int
@@ -222,9 +230,9 @@ FsObjPriv::makeLink(std::string &linkPath)
  *        object.
  */
 FsObj::FsObj(Filesystem *radosFs, const std::string &path)
-  : mPriv(new FsObjPriv(radosFs, path))
+  : mPriv(new FsObjPriv(this, radosFs, path))
 {
-  update();
+  mPriv->setPath(path);
 }
 
 FsObj::~FsObj()
@@ -235,9 +243,9 @@ FsObj::~FsObj()
  * @param otherFsObj another FsObj instance.
  */
 FsObj::FsObj(const FsObj &otherFsObj)
-  : mPriv(new FsObjPriv(otherFsObj.filesystem(), otherFsObj.path()))
+  : mPriv(new FsObjPriv(this, otherFsObj.filesystem(), otherFsObj.path()))
 {
-  update();
+  mPriv->setPath(otherFsObj.path());
 }
 
 /**
