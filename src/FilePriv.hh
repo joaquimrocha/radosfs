@@ -50,6 +50,8 @@ public:
 
   Stat *fsStat(void);
 
+  Stat *parentFsStat(void) { return reinterpret_cast<Stat *>(fsFile->parentFsStat()); }
+
   int rename(const std::string &destination);
 
   void updateDataPool(const std::string &pool);

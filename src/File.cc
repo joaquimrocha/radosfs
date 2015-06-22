@@ -141,16 +141,17 @@ void
 FilePriv::updatePermissions()
 {
   permissions = File::MODE_NONE;
-  Stat stat, *fileStat;
+  Stat *parentStat, *fileStat;
 
   if (!mtdPool.get())
     return;
 
-  int ret = fsFile->filesystem()->mPriv->stat(parentDir, &stat);
-  parentDir = stat.path;
+  parentStat = reinterpret_cast<Stat *>(fsFile->parentFsStat());
 
-  if (ret != 0)
+  if (!parentStat)
     return;
+
+  parentDir = parentStat->path;
 
   uid_t uid;
   gid_t gid;
@@ -158,10 +159,10 @@ FilePriv::updatePermissions()
   fsFile->filesystem()->getIds(&uid, &gid);
 
   bool canWriteParent =
-      statBuffHasPermission(stat.statBuff, uid, gid, O_WRONLY);
+      statBuffHasPermission(parentStat->statBuff, uid, gid, O_WRONLY);
 
   bool canReadParent =
-      statBuffHasPermission(stat.statBuff, uid, gid, O_RDONLY);
+      statBuffHasPermission(parentStat->statBuff, uid, gid, O_RDONLY);
 
   fileStat = fsStat();
 
@@ -588,11 +589,15 @@ File::create(int mode, const std::string pool, size_t chunk,
 {
   int ret;
 
-  if (pool != "")
-    mPriv->updateDataPool(pool);
-
   if (mPriv->dataPool.get() == 0)
     return -ENODEV;
+
+  Stat *parentStat = mPriv->parentFsStat();
+  if (!parentStat || !parentStat->pool)
+    return -ENOENT;
+
+  if (pool != "")
+    mPriv->updateDataPool(pool);
 
   // we don't allow object names that end in a path separator
   const std::string filePath = path();

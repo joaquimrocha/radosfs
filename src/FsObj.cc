@@ -44,6 +44,7 @@ int
 FsObjPriv::makeRealPath(std::string &path)
 {
   std::string parent = getParentDir(path, 0);
+  bool originalPathExists = true;
   Stat stat;
 
   parentDirStat.reset();
@@ -58,6 +59,8 @@ FsObjPriv::makeRealPath(std::string &path)
       break;
     else
       return ret;
+
+    originalPathExists = false;
   }
 
   if (parent == "")
@@ -78,7 +81,8 @@ FsObjPriv::makeRealPath(std::string &path)
     return -ENOTDIR;
   }
 
-  parentDirStat = stat;
+  if (originalPathExists)
+    parentDirStat = stat;
 
   return 0;
 }
@@ -356,6 +360,12 @@ FsObj::update()
   if (mPriv->target != "")
   {
     mPriv->target = "";
+  }
+
+  if (!mPriv->parentDirStat.pool)
+  {
+    const std::string parentDir = getParentDir(mPriv->path, 0);
+    mPriv->radosFsPriv()->stat(parentDir, &mPriv->parentDirStat);
   }
 
   mPriv->exists = mPriv->radosFsPriv()->stat(mPriv->path, &mPriv->stat) == 0;
