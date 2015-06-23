@@ -31,8 +31,8 @@
 RADOS_FS_BEGIN_NAMESPACE
 
 FsObjPriv::FsObjPriv(FsObj *obj, Filesystem *fs, const std::string &objPath)
-  : fsObj(obj),
-    radosFs(fs),
+  : radosFs(fs),
+    fsObj(obj),
     target(""),
     exists(false)
 {}
