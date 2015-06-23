@@ -102,10 +102,18 @@ FsObjPriv::setPath(const std::string &path)
     throw std::invalid_argument("Path length is too big.");
   }
 
-  while ((ret = makeRealPath(this->path)) == -EAGAIN)
-  {}
+  bool pathIsRoot = isRootPath(this->path);
 
-  ret = radosFs->mPriv->stat(this->path, &stat);
+  if (!pathIsRoot)
+  {
+    while ((ret = makeRealPath(this->path)) == -EAGAIN)
+    {}
+  }
+
+  if (pathIsRoot || parentDirStat.pool)
+    ret = radosFs->mPriv->stat(this->path, &stat);
+  else
+    ret = -ENOENT;
 
   exists = ret == 0;
 

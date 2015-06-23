@@ -949,6 +949,12 @@ isDirPath(const std::string &path)
   return path[path.length() - 1] == PATH_SEP;
 }
 
+bool
+isRootPath(const std::string &path)
+{
+  return path == "/";
+}
+
 std::string
 generateUuid()
 {

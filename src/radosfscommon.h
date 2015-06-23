@@ -187,6 +187,8 @@ std::string getFileXAttrDirRecord(const Stat *stat);
 
 bool isDirPath(const std::string &path);
 
+bool isRootPath(const std::string &path);
+
 std::string generateUuid(void);
 
 int createDirAndInode(const Stat *stat);
