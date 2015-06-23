@@ -370,7 +370,7 @@ FsObj::update()
     mPriv->target = "";
   }
 
-  if (!mPriv->parentDirStat.pool)
+  if (!isRootPath(path()) && !mPriv->parentDirStat.pool)
   {
     const std::string parentDir = getParentDir(mPriv->path, 0);
     mPriv->radosFsPriv()->stat(parentDir, &mPriv->parentDirStat);
