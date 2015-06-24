@@ -14,7 +14,7 @@
 class BenchmarkMgr
 {
 public:
-  BenchmarkMgr(const char *conf);
+  BenchmarkMgr(const char *conf, const char *user);
   ~BenchmarkMgr(void);
 
   int numFiles(void);
@@ -28,6 +28,7 @@ public:
 private:
   librados::Rados mCluster;
   const char *mConf;
+  const char *mUser;
   int mNumFiles;
   bool mCreateInDir;
   boost::mutex mNumFilesMutex;

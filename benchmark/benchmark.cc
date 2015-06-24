@@ -38,6 +38,8 @@
 #define BUFFER_SIZE_ARG_CHAR 's'
 #define BUFFER_DIVISION_ARG "num-times"
 #define BUFFER_DIVISION_CHAR 'n'
+#define USER_ARG "user"
+#define USER_ARG_CHAR 'u'
 
 typedef struct
 {
@@ -146,22 +148,26 @@ static void
 showUsage(const char *name)
 {
   fprintf(stderr, "Usage:\n%s DURATION [NUM_THREADS] [--%s=CLUSTER_CONF] "
-          "[--%s] [--%s=SIZE [--%s=NUM]]\n"
+          "[--%s=USER_NAME] [--%s] [--%s=SIZE [--%s=NUM]]\n"
           "\tDURATION     - duration of the benchmark in seconds "
           "(has to be > 0)\n"
           "\tNUM_THREADS  - number of concurrent threads\n"
           "\t--%s, -%c - path to the cluster's configuration file\n"
+          "\t--%s, -%c - the user name to connect to the Ceph cluster\n"
           "\t--%s, -%c - make each thread work inside its own directory "
           "instead of /\n"
           "\t--%s, -%c - buffer size to be written into each file\n"
           "\t--%s, -%c - the number of writes it should take to write the buffer\n",
           name,
           CLUSTER_CONF_ARG,
+          USER_ARG,
           CREATE_IN_DIR_CONF_ARG,
           BUFFER_SIZE_ARG,
           BUFFER_DIVISION_ARG,
           CLUSTER_CONF_ARG,
           CLUSTER_CONF_ARG[0],
+          USER_ARG,
+          USER_ARG_CHAR,
           CREATE_IN_DIR_CONF_ARG,
           CREATE_IN_DIR_CONF_ARG_CHAR,
           BUFFER_SIZE_ARG,
@@ -173,6 +179,7 @@ showUsage(const char *name)
 static int
 parseArguments(int argc, char **argv,
                std::string &confPath,
+               std::string &user,
                int *runTime,
                int *numThreads,
                bool *createInDir,
@@ -192,6 +199,7 @@ parseArguments(int argc, char **argv,
   int optionIndex = 0;
   struct option options[] =
   {{CLUSTER_CONF_ARG, required_argument, 0, CLUSTER_CONF_ARG[0]},
+   {USER_ARG, required_argument, 0, USER_ARG_CHAR},
    {CREATE_IN_DIR_CONF_ARG, no_argument, 0, CREATE_IN_DIR_CONF_ARG_CHAR},
    {BUFFER_SIZE_ARG, required_argument, 0, BUFFER_SIZE_ARG_CHAR},
    {BUFFER_DIVISION_ARG, required_argument, 0, BUFFER_DIVISION_CHAR},
@@ -219,6 +227,8 @@ parseArguments(int argc, char **argv,
       bufSize = atoi(optarg);
     else if (c == BUFFER_DIVISION_CHAR)
       bufDiv = atoi(optarg);
+    else if (c == USER_ARG_CHAR)
+      user = optarg;
   }
 
   if (confPath == "")
@@ -271,7 +281,7 @@ parseArguments(int argc, char **argv,
 int
 main(int argc, char **argv)
 {
-  std::string confPath;
+  std::string confPath, user;
   int runTime, numThreads;
   bool createInDir;
   size_t bufferSize, bufferDivision;
@@ -280,7 +290,7 @@ main(int argc, char **argv)
   createInDir = false;
   bufferSize = bufferDivision = 0;
 
-  int ret = parseArguments(argc, argv, confPath, &runTime, &numThreads,
+  int ret = parseArguments(argc, argv, confPath, user, &runTime, &numThreads,
                            &createInDir, &bufferSize, &bufferDivision);
 
   if (ret != 0)
@@ -297,7 +307,7 @@ main(int argc, char **argv)
           numThreads,
           (createInDir ? "(using their own directory)": "(all writing to / )"));
 
-  BenchmarkMgr benchmark(confPath.c_str());
+  BenchmarkMgr benchmark(confPath.c_str(), user.empty() ? 0 : user.c_str());
 
   benchmark.radosFs.addDataPool(TEST_POOL_DATA, "/", 1000);
   benchmark.radosFs.addMetadataPool(TEST_POOL_MTD, "/");

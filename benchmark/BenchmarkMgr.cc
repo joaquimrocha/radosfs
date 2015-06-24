@@ -2,12 +2,13 @@
 
 #include "BenchmarkMgr.hh"
 
-BenchmarkMgr::BenchmarkMgr(const char *conf)
+BenchmarkMgr::BenchmarkMgr(const char *conf, const char *user)
   : mConf(conf),
+    mUser(user),
     mNumFiles(0),
     mCreateInDir(false)
 {
-  mCluster.init(0);
+  mCluster.init(mUser);
 
   if (mCluster.conf_read_file(mConf) != 0)
     throw std::invalid_argument("Problem reading configuration file.");
@@ -19,12 +20,12 @@ BenchmarkMgr::BenchmarkMgr(const char *conf)
 
   mCluster.shutdown();
 
-  radosFs.init("", mConf);
+  radosFs.init(mUser, mConf);
 }
 
 BenchmarkMgr::~BenchmarkMgr()
 {
-  mCluster.init(0);
+  mCluster.init(mUser);
 
   mCluster.conf_read_file(mConf);
   mCluster.connect();
