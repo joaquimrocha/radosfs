@@ -14,7 +14,9 @@
 class BenchmarkMgr
 {
 public:
-  BenchmarkMgr(const char *conf, const char *user);
+  BenchmarkMgr(const char *conf, const std::string &user,
+               const std::string &mtdPool, const std::string &dataPool,
+               bool createPools);
   ~BenchmarkMgr(void);
 
   int numFiles(void);
@@ -22,16 +24,19 @@ public:
   void incFiles(void);
   void setCreateInDir(bool create) { mCreateInDir = create; }
   bool createInDir(void) const { return mCreateInDir; }
+  int setupPools(void);
 
   radosfs::Filesystem radosFs;
 
 private:
-  librados::Rados mCluster;
   const char *mConf;
-  const char *mUser;
+  const std::string mUser;
+  std::string mMtdPool;
+  std::string mDataPool;
   int mNumFiles;
   bool mCreateInDir;
   boost::mutex mNumFilesMutex;
+  bool mCreatedPools;
 };
 
 #endif // __BENCHMARK_MGR_HH__

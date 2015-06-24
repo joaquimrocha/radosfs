@@ -24,6 +24,7 @@
 
 #include "Filesystem.hh"
 #include "RadosFsChecker.hh"
+#include "radosfscommon.h"
 
 #define CONF_ENV_VAR "RADOSFS_CLUSTER_CONF"
 #define CLUSTER_CONF_ARG "conf"
@@ -141,41 +142,6 @@ showUsage(const char *name)
   arg << "--" << HELP_ARG << ", -" << HELP_ARG_CHAR;
   fprintf(stdout, OPTION_SPAN "display help information\n",
           arg.str().c_str());
-}
-
-static void
-splitToVector(const std::string &str, std::vector<std::string> &vec,
-              const char separator = ',')
-{
-  std::string token;
-  for (size_t i = 0; i < str.length(); i++)
-  {
-    if (str[i] == '\\' && (i + 1) != str.length() && str[i + 1] == separator)
-    {
-      token += str[++i];
-      continue;
-    }
-
-    if (str[i] == separator)
-    {
-      if (!token.empty())
-      {
-        vec.push_back(token);
-        token.clear();
-      }
-
-      continue;
-    }
-
-    token += str[i];
-    continue;
-  }
-
-  if (!token.empty())
-  {
-    vec.push_back(token);
-    token.clear();
-  }
 }
 
 static int

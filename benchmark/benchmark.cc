@@ -27,6 +27,7 @@
 #include <getopt.h>
 
 #include "BenchmarkMgr.hh"
+#include "radosfscommon.h"
 
 #define CONF_ENV_VAR "RADOSFS_BENCHMARK_CLUSTER_CONF"
 #define CLUSTER_CONF_ARG "conf"
@@ -40,6 +41,8 @@
 #define BUFFER_DIVISION_CHAR 'n'
 #define USER_ARG "user"
 #define USER_ARG_CHAR 'u'
+#define POOLS_CONF_ARG "pools"
+#define POOLS_CONF_ARG_CHAR 'p'
 
 typedef struct
 {
@@ -180,6 +183,7 @@ static int
 parseArguments(int argc, char **argv,
                std::string &confPath,
                std::string &user,
+               std::vector<std::string> &pools,
                int *runTime,
                int *numThreads,
                bool *createInDir,
@@ -203,6 +207,7 @@ parseArguments(int argc, char **argv,
    {CREATE_IN_DIR_CONF_ARG, no_argument, 0, CREATE_IN_DIR_CONF_ARG_CHAR},
    {BUFFER_SIZE_ARG, required_argument, 0, BUFFER_SIZE_ARG_CHAR},
    {BUFFER_DIVISION_ARG, required_argument, 0, BUFFER_DIVISION_CHAR},
+   {POOLS_CONF_ARG, required_argument, 0, POOLS_CONF_ARG_CHAR},
    {0, 0, 0, 0}
   };
 
@@ -217,9 +222,11 @@ parseArguments(int argc, char **argv,
       args += ":";
   }
 
+  std::string poolsStr;
+
   while ((c = getopt_long(argc, argv, args.c_str(), options, &optionIndex)) != -1)
   {
-    if (c == 'c')
+    if (c == CLUSTER_CONF_ARG[0])
       confPath = optarg;
     else if (c == CREATE_IN_DIR_CONF_ARG_CHAR)
       *createInDir = true;
@@ -229,6 +236,20 @@ parseArguments(int argc, char **argv,
       bufDiv = atoi(optarg);
     else if (c == USER_ARG_CHAR)
       user = optarg;
+    else if (c == POOLS_CONF_ARG_CHAR)
+      poolsStr = optarg;
+
+  }
+
+  if (!poolsStr.empty())
+  {
+    splitToVector(poolsStr, pools);
+    if (pools.size() > 0 && pools.size() != 2)
+    {
+      fprintf(stderr, "Error parsing pools '%s'. Pools should be passed as: "
+                      "MTD_POOL,DATA_POOL\n", poolsStr.c_str());
+      exit(-EINVAL);
+    }
   }
 
   if (confPath == "")
@@ -285,19 +306,39 @@ main(int argc, char **argv)
   int runTime, numThreads;
   bool createInDir;
   size_t bufferSize, bufferDivision;
+  std::vector<std::string> pools;
 
   runTime = numThreads = 0;
   createInDir = false;
   bufferSize = bufferDivision = 0;
 
-  int ret = parseArguments(argc, argv, confPath, user, &runTime, &numThreads,
-                           &createInDir, &bufferSize, &bufferDivision);
+  int ret = parseArguments(argc, argv, confPath, user, pools, &runTime,
+                           &numThreads, &createInDir, &bufferSize,
+                           &bufferDivision);
 
   if (ret != 0)
   {
     showUsage(argv[0]);
     return ret;
   }
+
+  std::string mtdPool, dataPool;
+  bool createPools = false;
+
+  if (pools.size() == 2)
+  {
+    mtdPool = pools[0];
+    dataPool = pools[1];
+  }
+  else
+  {
+    mtdPool = TEST_POOL_MTD;
+    dataPool = TEST_POOL_DATA;
+    createPools = true;
+  }
+
+  BenchmarkMgr benchmark(confPath.c_str(), user, mtdPool, dataPool, createPools);
+  benchmark.setupPools();
 
   fprintf(stderr, "\n*** RadosFs Benchmark ***\n\n"
           "Running on cluster configured by %s "
@@ -307,10 +348,6 @@ main(int argc, char **argv)
           numThreads,
           (createInDir ? "(using their own directory)": "(all writing to / )"));
 
-  BenchmarkMgr benchmark(confPath.c_str(), user.empty() ? 0 : user.c_str());
-
-  benchmark.radosFs.addDataPool(TEST_POOL_DATA, "/", 1000);
-  benchmark.radosFs.addMetadataPool(TEST_POOL_MTD, "/");
   benchmark.setCreateInDir(createInDir);
 
   boost::thread *threads[numThreads];

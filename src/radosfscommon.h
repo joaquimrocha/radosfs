@@ -252,4 +252,7 @@ int setDirInodeBackLink(Pool *pool, const std::string &inode,
 
 std::string makeInodeXattr(const Stat *stat);
 
+void splitToVector(const std::string &str, std::vector<std::string> &vec,
+                   const char separator = ',');
+
 #endif /* __RADOS_FS_COMMON_HH__ */

@@ -1398,3 +1398,38 @@ setDirInodeBackLink(Pool *pool, const std::string &inode,
 
   return pool->ioctx.omap_set(inode, omap);
 }
+
+void
+splitToVector(const std::string &str, std::vector<std::string> &vec,
+              const char separator)
+{
+  std::string token;
+  for (size_t i = 0; i < str.length(); i++)
+  {
+    if (str[i] == '\\' && (i + 1) != str.length() && str[i + 1] == separator)
+    {
+      token += str[++i];
+      continue;
+    }
+
+    if (str[i] == separator)
+    {
+      if (!token.empty())
+      {
+        vec.push_back(token);
+        token.clear();
+      }
+
+      continue;
+    }
+
+    token += str[i];
+    continue;
+  }
+
+  if (!token.empty())
+  {
+    vec.push_back(token);
+    token.clear();
+  }
+}
