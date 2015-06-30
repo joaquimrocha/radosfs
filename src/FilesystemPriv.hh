@@ -57,7 +57,7 @@ struct _LinkedList
 
 typedef struct {
   Stat stat;
-  std::map<std::string, std::pair<int, struct stat> > entryStats;
+  std::map<std::string, std::pair<int, Stat> > entryStats;
   const std::vector<std::string> *entries;
   uint64_t psize;
   time_t pmtime;
@@ -166,7 +166,7 @@ public:
 
   void parallelStat(
       const std::map<std::string, std::vector<std::string> > &paths,
-      std::map<std::string, std::pair<int, struct stat> > *stats);
+      std::map<std::string, std::pair<int, Stat> > *stats);
 
   void statAsync(StatAsyncInfo *info);
 
