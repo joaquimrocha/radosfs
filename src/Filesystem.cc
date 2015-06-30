@@ -626,7 +626,7 @@ FilesystemPriv::statEntries(StatAsyncInfo *info,
 
     if (rets[i] == 0 || info->entryStats.count(path) == 0)
     {
-      std::pair<int, struct stat> statValue(rets[i], stats[i].statBuff);
+      std::pair<int, Stat> statValue(rets[i], stats[i]);
       info->entryStats[path] = statValue;
     }
   }
@@ -713,7 +713,7 @@ FilesystemPriv::statAsyncInfoInThread(const std::string path,
 void
 FilesystemPriv::parallelStat(
     const std::map<std::string, std::vector<std::string> > &paths,
-    std::map<std::string, std::pair<int, struct stat> > *stats)
+    std::map<std::string, std::pair<int, Stat> > *stats)
 {
   StatAsyncInfo *statInfoList = new StatAsyncInfo[paths.size()];
   boost::mutex mutex;
@@ -741,12 +741,11 @@ FilesystemPriv::parallelStat(
   for (size_t i = 0; i < paths.size(); i++)
   {
     StatAsyncInfo *statInfo = &statInfoList[i];
-    std::map<std::string, std::pair<int, struct stat> >::const_iterator it;
+    std::map<std::string, std::pair<int, Stat> >::const_iterator it;
 
     if (statInfo->statRet == 0)
     {
-      std::pair<int, struct stat> statResult(statInfo->statRet,
-                                             statInfo->stat.statBuff);
+      std::pair<int, Stat> statResult(statInfo->statRet, statInfo->stat);
       (*stats)[statInfo->stat.path] = statResult;
     }
 
@@ -754,7 +753,7 @@ FilesystemPriv::parallelStat(
          it++)
     {
       const std::string &path = (*it).first;
-      const std::pair<int, struct stat> &statResult = (*it).second;
+      const std::pair<int, Stat> &statResult = (*it).second;
 
       if (stats->count(path) > 0 && stats->at(path).first == 0)
         continue;
@@ -1818,7 +1817,7 @@ gatherPathsByParentDir(const std::vector<std::string> &paths,
 std::vector<std::pair<int, struct stat> >
 Filesystem::stat(const std::vector<std::string> &paths)
 {
-  std::map<std::string, std::pair<int, struct stat> > stats;
+  std::map<std::string, std::pair<int, Stat> > stats;
   std::map<std::string, std::vector<std::string> > entries;
 
   gatherPathsByParentDir(paths, entries);
@@ -1827,10 +1826,10 @@ Filesystem::stat(const std::vector<std::string> &paths)
 
   // Call parallel stat again on the paths that were not found
   entries.clear();
-  std::map<std::string, std::pair<int, struct stat> >::iterator it;
+  std::map<std::string, std::pair<int, Stat> >::iterator it;
   for (it = stats.begin(); it != stats.end(); it++)
   {
-    std::pair<int, struct stat> statResult = (*it).second;
+    std::pair<int, Stat> statResult = (*it).second;
 
     if (statResult.first != 0)
     {
@@ -1846,7 +1845,10 @@ Filesystem::stat(const std::vector<std::string> &paths)
   for (size_t i = 0; i < paths.size(); i++)
   {
     const std::string &path = paths[i];
-    results.push_back(stats[path]);
+    const std::pair<int, Stat> &statResult = stats[path];
+    std::pair<int, struct stat> retResult(statResult.first,
+                                          statResult.second.statBuff);
+    results.push_back(retResult);
   }
 
   return results;
