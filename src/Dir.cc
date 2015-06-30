@@ -732,10 +732,12 @@ Dir::getParent(const std::string &path, int *pos)
  * called before this method.
  *
  * @param[out] entries a set to store the directory's entries.
+ * @param withAbsolutePath the entries in the directory will be returned with
+ *        the full path.
  * @return 0 on success, an error code otherwise.
  */
 int
-Dir::entryList(std::set<std::string> &entries)
+Dir::entryList(std::set<std::string> &entries, bool withAbsolutePath)
 {
   if (isFile())
   {
@@ -760,7 +762,16 @@ Dir::entryList(std::set<std::string> &entries)
     return -EACCES;
 
   const std::set<std::string> &contents = mPriv->dirInfo->contents();
-  entries.insert(contents.begin(), contents.end());
+  if (withAbsolutePath)
+  {
+    std::set<std::string>::const_iterator it;
+    for (it = contents.begin(); it != contents.end(); it++)
+    {
+      entries.insert(path() + *it);
+    }
+  }
+  else
+    entries.insert(contents.begin(), contents.end());
 
   return 0;
 }
