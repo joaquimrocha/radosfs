@@ -524,20 +524,18 @@ getInlineBufferCapacityFromExtraData(
   return strtoul(sizeStr.c_str(), 0, 10);
 }
 
-void
-FilesystemPriv::statEntryInThread(std::string path, std::string entry,
-                                  size_t inlineBufferSize, Stat *stat, int *ret,
-                                  boost::mutex *mutex,
-                                  boost::condition_variable *cond, int *numJobs)
+int
+FilesystemPriv::statEntry(std::string path, std::string entry,
+                          size_t inlineBufferSize, Stat *stat)
 {
   PoolSP dataPool;
   std::string pool;
-  *ret = statFromXAttr(path, entry, &stat->statBuff, stat->translatedPath,
-                       pool, stat->extraData);
+  int ret = statFromXAttr(path, entry, &stat->statBuff, stat->translatedPath,
+                          pool, stat->extraData);
 
-  if (*ret != 0)
+  if (ret != 0)
   {
-    return;
+    return ret;
   }
 
   dataPool = getDataPool(path, pool);
@@ -556,16 +554,7 @@ FilesystemPriv::statEntryInThread(std::string path, std::string entry,
     stat->statBuff.st_size = fileIO->getSize();
   }
 
-  bool notify = false;
-
-  {
-    boost::unique_lock<boost::mutex> lock(*mutex);
-
-    notify = --*numJobs == 0;
-  }
-
-  if (notify)
-    cond->notify_all();
+  return ret;
 }
 
 void
@@ -579,24 +568,18 @@ void
 FilesystemPriv::statEntries(StatAsyncInfo *info,
                             std::map<std::string, std::string> &xattrs)
 {
-  Stat *stats = new Stat[info->entries->size()];
-  int *rets = new int[info->entries->size()];
-  boost::mutex mutex;
-  boost::condition_variable cond;
-  int numJobs = info->entries->size();
-
   for (size_t i = 0; i < info->entries->size(); i++)
   {
     const std::string &entryName = (*info->entries)[i];
     const std::string &path = info->stat.path + entryName;
     const std::string &xattr = xattrs[XATTR_FILE_PREFIX + entryName];
 
+    Stat stat;
+
     if (xattr == "")
     {
-      rets[i] = -ENOENT;
-      mutex.lock();
-      numJobs--;
-      mutex.unlock();
+      stat.path = path;
+      info->entryStats[path] = std::pair<int, Stat>(-ENOENT, stat);
       continue;
     }
 
@@ -610,29 +593,13 @@ FilesystemPriv::statEntries(StatAsyncInfo *info,
                          XATTR_FILE_INLINE_BUFFER_HEADER_SIZE;
     }
 
-    ioService->post(boost::bind(&FilesystemPriv::statEntryInThread, this, path,
-                                xattr, inlineBufferSize, &stats[i], &rets[i],
-                                &mutex, &cond, &numJobs));
-  }
+    int ret = statEntry(path, xattr, inlineBufferSize, &stat);
 
-  boost::unique_lock<boost::mutex> lock(mutex);
-
-  if (numJobs > 0)
-    cond.wait(lock);
-
-  for (size_t i = 0; i < info->entries->size(); i++)
-  {
-    const std::string &path = info->stat.path + (*info->entries)[i];
-
-    if (rets[i] == 0 || info->entryStats.count(path) == 0)
+    if (ret == 0 || info->entryStats.count(path) == 0)
     {
-      std::pair<int, Stat> statValue(rets[i], stats[i]);
-      info->entryStats[path] = statValue;
+      info->entryStats[path] = std::pair<int, Stat>(ret, stat);
     }
   }
-
-  delete[] rets;
-  delete[] stats;
 }
 
 void
