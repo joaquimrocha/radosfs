@@ -54,7 +54,7 @@ public:
              int ownerUid = -1,
              int ownerGid = -1);
 
-  int entryList(std::set<std::string> &entries);
+  int entryList(std::set<std::string> &entries, bool withAbsolutePath=false);
 
   void update(void);
 
