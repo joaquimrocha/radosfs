@@ -885,6 +885,51 @@ updateQuotaFromMemQuota(std::map<T, radosfs::QuotaSize> &quota,
   }
 }
 
+template<typename T>
+static void
+printMemQuotaMap(const char *title, const std::map<T, int64_t> &memQuota)
+{
+  fprintf(stderr, "\n%10s | %20s\n", title, "size");
+
+  typename std::map<T, int64_t>::const_iterator it;
+  for (it = memQuota.begin(); it != memQuota.end(); it++)
+  {
+    fprintf(stderr, "%10u | %20ld\n", (*it).first, (*it).second);
+  }
+}
+
+static void
+printMemQuota(const MemQuota &memQuota)
+{
+  fprintf(stderr, "\nWould reset quota '%s' from pool '%s' with the "
+                  "following values:\n\n", memQuota.name.c_str(),
+                  memQuota.pool.c_str());
+
+  fprintf(stderr, "  Current global size: '%ld'\n", memQuota.currentSize);
+
+  fprintf(stderr, "\n  Current users' sizes: ");
+
+  if (memQuota.users.empty())
+  {
+    fprintf(stderr, "None\n");
+  }
+  else
+  {
+    printMemQuotaMap("uid", memQuota.users);
+  }
+
+  fprintf(stderr, "\n  Current groups' sizes: ");
+
+  if (memQuota.groups.empty())
+  {
+    fprintf(stderr, "None\n");
+  }
+  else
+  {
+    printMemQuotaMap("gid", memQuota.groups);
+  }
+}
+
 void
 RadosFsChecker::resetQuotas(const std::map<std::string, MemQuota> &quotas)
 {
@@ -900,6 +945,12 @@ RadosFsChecker::resetQuotas(const std::map<std::string, MemQuota> &quotas)
     {
       fprintf(stderr, "Skipping resetting quota '%s' from pool '%s': does not "
                       "exist.\n", quota.name().c_str(), quota.pool().c_str());
+      continue;
+    }
+
+    if (mDry)
+    {
+      printMemQuota(memQuota);
       continue;
     }
 
