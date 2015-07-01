@@ -164,6 +164,9 @@ public:
 
   int stat(const std::string &path, Stat *stat);
 
+  std::map<std::string, std::pair<int, Stat> >
+      stat(const std::vector<std::string> &paths);
+
   void parallelStat(
       const std::map<std::string, std::vector<std::string> > &paths,
       std::map<std::string, std::pair<int, Stat> > *stats);
