@@ -74,6 +74,41 @@ struct Issue
   void setFixed(void) { fixed = true; }
 };
 
+struct MemQuota
+{
+  MemQuota(void)
+    : currentSize(0)
+  {}
+
+  MemQuota(const MemQuota &quota);
+
+  MemQuota(const std::string &name);
+
+  void addUserSize(uid_t, int64_t);
+  void addGroupSize(gid_t, int64_t);
+  void addSize(int64_t);
+
+  std::string name;
+  std::string pool;
+  std::map<uid_t, int64_t> users;
+  std::map<uid_t, int64_t> groups;
+  int64_t currentSize;
+  boost::mutex sizeMutex;
+  boost::mutex usersMutex;
+  boost::mutex groupsMutex;
+};
+
+struct QuotaInfo
+{
+  MemQuota *getMemQuota(const std::string &name);
+  bool empty(void);
+  std::map<std::string, MemQuota> getQuotas(void);
+
+  std::map<std::string, MemQuota> quotaMap;
+  std::string originalQuota;
+  boost::mutex mapMutex;
+};
+
 struct Diagnostic
 {
   std::vector<Issue> fileIssues;
@@ -121,6 +156,11 @@ public:
 
   void checkInodes(DiagnosticSP diagnostic);
 
+  void calculateQuota(std::string path, boost::shared_ptr<QuotaInfo> info,
+                      DiagnosticSP diagnostic);
+
+  void resetQuotas(const std::map<std::string, MemQuota> &quotas);
+
   void animate(void);
 
   const std::map<ErrorCode, std::string> errorsDescription;
@@ -165,6 +205,12 @@ private:
 
   int fixInodeBackLink(Stat &backLinkStat, const std::string &inode,
                        Pool &pool, Issue &issue);
+
+  void calculateFromPaths(const std::vector<radosfs::Quota> &quotas,
+                          std::set<std::string> &paths,
+                          std::set<std::string> &dirs,
+                          boost::shared_ptr<QuotaInfo> info,
+                          DiagnosticSP diagnostic);
 
   void log(const char *msg, ...);
 

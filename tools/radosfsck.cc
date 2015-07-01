@@ -37,6 +37,8 @@
 #define CHECK_INODES_ARG_CHAR 'i'
 #define CHECK_PATHS_ARG "check-paths"
 #define CHECK_PATHS_ARG_CHAR 'p'
+#define RECALCULATE_QUOTA_ARG "recalc-quota"
+#define RECALCULATE_QUOTA_ARG_CHAR 'q'
 #define FIX_ARG "fix"
 #define FIX_ARG_CHAR 'f'
 #define VERBOSE_ARG "verbose"
@@ -153,6 +155,7 @@ parseArguments(int argc, char **argv,
                bool *checkInodes,
                std::vector<std::string> &poolsToCheckInodes,
                std::vector<std::string> &pathsToCheck,
+               std::vector<std::string> &pathsToQuota,
                int *numThreads,
                bool *recursive,
                bool *fix,
@@ -172,6 +175,7 @@ parseArguments(int argc, char **argv,
    {CHECK_DIRS_RECURSIVE_ARG, no_argument, 0, CHECK_DIRS_RECURSIVE_ARG_CHAR},
    {CHECK_INODES_ARG, optional_argument, 0, CHECK_INODES_ARG_CHAR},
    {CHECK_PATHS_ARG, required_argument, 0, CHECK_PATHS_ARG_CHAR},
+   {RECALCULATE_QUOTA_ARG, required_argument, 0, RECALCULATE_QUOTA_ARG_CHAR},
    {NUM_THREADS_ARG, required_argument, 0, NUM_THREADS_ARG_CHAR},
    {USER_ARG, required_argument, 0, USER_ARG_CHAR},
    {FIX_ARG, no_argument, 0, FIX_ARG_CHAR},
@@ -222,6 +226,9 @@ parseArguments(int argc, char **argv,
         break;
       case CHECK_DIRS_RECURSIVE_ARG_CHAR:
         *recursive = true;
+        break;
+      case RECALCULATE_QUOTA_ARG_CHAR:
+        splitToVector(optarg, pathsToQuota);
         break;
       case DRY_ARG_CHAR:
         *dry = true;
@@ -315,7 +322,8 @@ main(int argc, char **argv)
   bool checkInodes, recursive, fix, dry, verbose;
   int numThreads;
   std::string confPath, userName;
-  std::vector<std::string> dirsToCheck, poolsToCheckInodes, pools, pathsToCheck;
+  std::vector<std::string> dirsToCheck, poolsToCheckInodes, pools, pathsToCheck,
+      pathsToQuota;
 
   ret = parseArguments(argc, argv,
                        confPath,
@@ -325,6 +333,7 @@ main(int argc, char **argv)
                        &checkInodes,
                        poolsToCheckInodes,
                        pathsToCheck,
+                       pathsToQuota,
                        &numThreads,
                        &recursive,
                        &fix,
@@ -350,7 +359,7 @@ main(int argc, char **argv)
 
   // Verify the user asked for something to be checked
   if (dirsToCheck.empty() && pathsToCheck.empty() &&
-      poolsToCheckInodes.empty() && !checkInodes)
+      poolsToCheckInodes.empty() && !checkInodes && pathsToQuota.empty())
   {
     fprintf(stderr, "Please specify one of the following actions:\n"
                     "\t--%s\n"
@@ -468,9 +477,48 @@ main(int argc, char **argv)
     }
   }
 
+  boost::shared_ptr<QuotaInfo> quotaInfo;
+
+  if (pools.empty() && !pathsToQuota.empty())
+  {
+    fprintf(stderr, "No pools and prefixes were configured. This is needed "
+                    "in order to recalculate the quota.");
+    exit(EINVAL);
+  }
+  else
+  {
+    quotaInfo.reset(new QuotaInfo);
+
+    for (size_t i = 0; i < pathsToQuota.size(); i++)
+    {
+      const std::string &path(pathsToQuota[i]);
+
+      if (path[0] != '/')
+      {
+        fprintf(stderr, "Cannot check '%s'. Please use an absolute path.",
+                path.c_str());
+        exit(EINVAL);
+      }
+
+      checker.calculateQuota(path, quotaInfo, diagnostic);
+    }
+  }
+
   checker.finishCheck();
 
   diagnostic->print(checker.errorsDescription, dry);
+
+  if (!pathsToQuota.empty())
+  {
+    if (quotaInfo->empty())
+    {
+      fprintf(stderr, "No paths with quotas assigned were found...!\n");
+    }
+    else
+    {
+      checker.resetQuotas(quotaInfo->getQuotas());
+    }
+  }
 
   return 0;
 }
