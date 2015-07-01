@@ -705,6 +705,106 @@ RadosFsChecker::checkInodes(DiagnosticSP diagnostic)
 }
 
 void
+RadosFsChecker::calculateFromPaths(const std::vector<radosfs::Quota> &quotas,
+                                   std::set<std::string> &paths,
+                                   std::set<std::string> &dirs,
+                                   boost::shared_ptr<QuotaInfo> info,
+                                   DiagnosticSP diagnostic)
+{
+  std::vector<std::string> pathsVec(paths.begin(), paths.end());
+
+  std::map<std::string, std::pair<int, Stat> > stats =
+      mRadosFs->mPriv->stat(pathsVec);
+
+  std::map<std::string, std::pair<int, Stat> >::const_iterator it;
+  size_t i;
+  for (it = stats.begin(), i = 0; it != stats.end(); it++, i++)
+  {
+    const std::string &path = (*it).first;
+    std::pair<int, Stat> statOp = (*it).second;
+    int statResult = statOp.first;
+
+    if (statOp.first != 0)
+    {
+      Issue issue(path, NO_ENT);
+      diagnostic->addFileIssue(issue);
+      continue;
+    }
+
+    struct stat pathStat = statOp.second.statBuff;
+
+    if (statResult != 0)
+    {
+      continue;
+    }
+
+    if (S_ISDIR(pathStat.st_mode) && !S_ISLNK(pathStat.st_mode))
+    {
+      dirs.insert(path);
+      continue;
+    }
+
+    std::vector<radosfs::Quota>::const_iterator it;
+    for (it = quotas.begin(); it != quotas.end(); it++)
+    {
+      MemQuota *memQuota = info->getMemQuota((*it).name());
+      memQuota->pool = (*it).pool();
+
+      memQuota->addUserSize(pathStat.st_uid, pathStat.st_size);
+      memQuota->addGroupSize(pathStat.st_gid, pathStat.st_size);
+      memQuota->addSize(pathStat.st_size);
+    }
+  }
+}
+
+void
+RadosFsChecker::calculateQuota(std::string path,
+                               boost::shared_ptr<QuotaInfo> info,
+                               DiagnosticSP diagnostic)
+{
+  animate();
+  radosfs::Dir dir(mRadosFs, path, false);
+  dir.update();
+
+  log("Calculating quota for dir '%s'...\n", dir.path().c_str());
+
+  if (!dir.exists())
+  {
+    Issue issue(path, NO_ENT);
+    diagnostic->addDirIssue(issue);
+    return;
+  }
+
+  if (!dir.isDir() || dir.isLink())
+  {
+    log("\tSkipping dir '%s': it is a link (pointing to '%s').\n",
+        dir.path().c_str(), dir.targetPath().c_str());
+    return;
+  }
+
+  std::vector<radosfs::Quota> quotas;
+  if (dir.getQuotas(quotas) != 0 || quotas.empty())
+  {
+    log("\tDir '%s' does not have a quota assigned.\n",
+        dir.path().c_str());
+  }
+
+  std::set<std::string> entries, dirs;
+  if (dir.entryList(entries, true) == 0)
+  {
+    calculateFromPaths(quotas, entries, dirs, info, diagnostic);
+
+    std::set<std::string>::const_iterator it;
+    for (it = dirs.begin(); it != dirs.end(); it++)
+    {
+      if ((*it) != path)
+        ioService->post(boost::bind(&RadosFsChecker::calculateQuota, this, *it,
+                                    info, diagnostic));
+    }
+  }
+}
+
+void
 RadosFsChecker::finishCheck(void)
 {
   asyncWork.reset();
@@ -763,6 +863,67 @@ RadosFsChecker::getPool(const std::string &name)
   }
 
   return pool;
+}
+
+template<typename T>
+static void
+updateQuotaFromMemQuota(std::map<T, radosfs::QuotaSize> &quota,
+                        std::map<T, int64_t> &memQuota)
+{
+  typename std::map<T, radosfs::QuotaSize>::iterator it;
+  for (it = quota.begin(); it != quota.end(); it++)
+  {
+    typename std::map<T, int64_t>::const_iterator memQuotaIt =
+        memQuota.find((*it).first);
+    int64_t newSize;
+    if (memQuotaIt == memQuota.end())
+      newSize = 0;
+    else
+      newSize = (*memQuotaIt).second;
+
+    (*it).second.current = newSize;
+  }
+}
+
+void
+RadosFsChecker::resetQuotas(const std::map<std::string, MemQuota> &quotas)
+{
+  std::map<std::string, MemQuota>::const_iterator it;
+  for (it = quotas.begin(); it != quotas.end(); it++)
+  {
+    animate();
+
+    MemQuota memQuota = (*it).second;
+    radosfs::Quota quota(mRadosFs, memQuota.pool, memQuota.name);
+
+    if (!quota.exists())
+    {
+      fprintf(stderr, "Skipping resetting quota '%s' from pool '%s': does not "
+                      "exist.\n", quota.name().c_str(), quota.pool().c_str());
+      continue;
+    }
+
+    radosfs::QuotaSize quotaSize;
+    std::map<uid_t, radosfs::QuotaSize> userSizes;
+    std::map<uid_t, radosfs::QuotaSize> groupSizes;
+    quota.getQuotaSizes(&quotaSize, &userSizes, &groupSizes);
+
+    quotaSize.current = memQuota.currentSize;
+
+    updateQuotaFromMemQuota(userSizes, memQuota.users);
+    updateQuotaFromMemQuota(groupSizes, memQuota.groups);
+
+    fprintf(stderr, "Resetting quota '%s' (pool='%s')...\n",
+            memQuota.name.c_str(), memQuota.pool.c_str());
+
+    int ret = quota.setQuotaSizes(&quotaSize, &userSizes, &groupSizes);
+    if (ret != 0)
+    {
+      fprintf(stderr, "Error resetting quota '%s' (pool='%s'): %s (retcode=%d)\n",
+              memQuota.name.c_str(), memQuota.pool.c_str(), strerror(abs(ret)),
+              ret);
+    }
+  }
 }
 
 void
@@ -900,4 +1061,72 @@ Diagnostic::print(const std::map<ErrorCode, std::string> &errors, bool dry)
       (*it).print(errors);
     }
   }
+}
+
+MemQuota::MemQuota(const std::string &name)
+  : name(name),
+    currentSize(0)
+{}
+
+MemQuota::MemQuota(const MemQuota &quota)
+  : name(quota.name),
+    pool(quota.pool),
+    users(quota.users),
+    groups(quota.groups),
+    currentSize(quota.currentSize)
+{}
+
+void
+MemQuota::addUserSize(uid_t uid, int64_t size)
+{
+  boost::unique_lock<boost::mutex> lock(usersMutex);
+
+  if(users.count(uid) == 0)
+    users[uid] = size;
+  else
+    users[uid] += size;
+}
+
+void
+MemQuota::addGroupSize(gid_t gid, int64_t size)
+{
+  boost::unique_lock<boost::mutex> lock(groupsMutex);
+
+  if(groups.count(gid) == 0)
+    groups[gid] = size;
+  else
+    groups[gid] += size;
+}
+
+void
+MemQuota::addSize(int64_t size)
+{
+  boost::unique_lock<boost::mutex> lock(sizeMutex);
+  currentSize += size;
+}
+
+MemQuota *
+QuotaInfo::getMemQuota(const std::string &name)
+{
+  boost::unique_lock<boost::mutex> lock(mapMutex);
+  if (quotaMap.count(name) != 0)
+  {
+    quotaMap[name].name = name;
+  }
+
+  return &quotaMap[name];
+}
+
+bool
+QuotaInfo::empty()
+{
+  boost::unique_lock<boost::mutex> lock(mapMutex);
+  return quotaMap.empty();
+}
+
+std::map<std::string, MemQuota>
+QuotaInfo::getQuotas(void)
+{
+  boost::unique_lock<boost::mutex> lock(mapMutex);
+  return quotaMap;
 }
