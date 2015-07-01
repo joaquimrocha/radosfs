@@ -384,10 +384,11 @@ main(int argc, char **argv)
     exit(EOPNOTSUPP);
   }
 
-  if (dry && !fix)
+  if (dry && (!fix && pathsToQuota.empty()))
   {
     fprintf(stderr, "The --%s option can only be used together with the --%s "
-                    "option\n", DRY_ARG, FIX_ARG);
+                    "or the --%s options\n", DRY_ARG, FIX_ARG,
+                    RECALCULATE_QUOTA_ARG);
 
     exit(EOPNOTSUPP);
   }
