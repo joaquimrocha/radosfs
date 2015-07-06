@@ -45,6 +45,10 @@ public:
   int registerFile(const std::string &path, uid_t uid, gid_t gid, int mode,
                    size_t inlineBufferSize=0);
 
+  int registerFileWithStats(const std::string &path, uid_t uid, gid_t gid,
+                            int mode, size_t inlineBufferSize, Stat &parentStat,
+                            Stat *fileStat);
+
   int setBackLink(const std::string &backLink);
 
   Filesystem *fs;

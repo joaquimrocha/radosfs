@@ -70,6 +70,54 @@ FileInodePriv::setFileIO(FileIOSP fileIO)
 }
 
 int
+FileInodePriv::registerFileWithStats(const std::string &path, uid_t uid,
+                                     gid_t gid, int mode,
+                                     size_t inlineBufferSize, Stat &parentStat,
+                                     Stat *fileStatRet)
+{
+  long int permOctal = DEFAULT_MODE_FILE;
+
+  if (mode >= 0)
+    permOctal = mode | S_IFREG;
+
+  timespec spec;
+  clock_gettime(CLOCK_REALTIME, &spec);
+
+  Stat fileStat;
+  fileStat.path = path;
+  fileStat.translatedPath = io->inode();
+  fileStat.pool = io->pool();
+  fileStat.statBuff = parentStat.statBuff;
+  fileStat.statBuff.st_uid = uid;
+  fileStat.statBuff.st_gid = gid;
+  fileStat.statBuff.st_mode = permOctal;
+  fileStat.statBuff.st_ctim = spec;
+  fileStat.statBuff.st_ctime = spec.tv_sec;
+
+  std::stringstream stream;
+  stream << io->chunkSize();
+
+  fileStat.extraData[XATTR_FILE_CHUNK_SIZE] = stream.str();
+
+  stream.str("");
+
+  stream << inlineBufferSize;
+  fileStat.extraData[XATTR_FILE_INLINE_BUFFER_SIZE] = stream.str();
+
+  int ret = indexObject(&parentStat, &fileStat, '+');
+
+  if (ret == -ECANCELED)
+  {
+    return -EEXIST;
+  }
+
+  if (fileStatRet)
+    *fileStatRet = fileStat;
+
+  return ret;
+}
+
+int
 FileInodePriv::registerFile(const std::string &path, uid_t uid, gid_t gid,
                             int mode, size_t inlineBufferSize)
 {
@@ -119,42 +167,8 @@ FileInodePriv::registerFile(const std::string &path, uid_t uid, gid_t gid,
   if (ret == 0)
     return -EEXIST;
 
-  long int permOctal = DEFAULT_MODE_FILE;
-
-  if (mode >= 0)
-    permOctal = mode | S_IFREG;
-
-  timespec spec;
-  clock_gettime(CLOCK_REALTIME, &spec);
-
-  fileStat.path = filePath;
-  fileStat.translatedPath = io->inode();
-  fileStat.pool = io->pool();
-  fileStat.statBuff = parentStat.statBuff;
-  fileStat.statBuff.st_uid = uid;
-  fileStat.statBuff.st_gid = gid;
-  fileStat.statBuff.st_mode = permOctal;
-  fileStat.statBuff.st_ctim = spec;
-  fileStat.statBuff.st_ctime = spec.tv_sec;
-
-  std::stringstream stream;
-  stream << io->chunkSize();
-
-  fileStat.extraData[XATTR_FILE_CHUNK_SIZE] = stream.str();
-
-  stream.str("");
-
-  stream << inlineBufferSize;
-  fileStat.extraData[XATTR_FILE_INLINE_BUFFER_SIZE] = stream.str();
-
-  ret = indexObject(&parentStat, &fileStat, '+');
-
-  if (ret == -ECANCELED)
-  {
-    return -EEXIST;
-  }
-
-  return ret;
+  return registerFileWithStats(path, uid, gid, mode, inlineBufferSize,
+                               parentStat, 0);
 }
 
 int
