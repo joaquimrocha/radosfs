@@ -359,7 +359,7 @@ FilesystemPriv::getDirInode(const std::string &path, Inode &inode,
                             PoolSP &mtdPool)
 {
   {
-    boost::unique_lock<boost::mutex> dirPathInodeMutex;
+    boost::unique_lock<boost::mutex> (dirPathInodeMutex);
 
     if (dirPathInodeMap.count(path) > 0)
       inode = dirPathInodeMap[path];
