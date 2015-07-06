@@ -92,6 +92,8 @@ protected:
 
   void * parentFsStat(void);
 
+  void setExists(bool exists);
+
 private:
   FsObjPriv *mPriv;
 };

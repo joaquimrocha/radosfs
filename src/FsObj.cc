@@ -578,6 +578,12 @@ FsObj::parentFsStat()
   return &mPriv->parentDirStat;
 }
 
+void
+FsObj::setExists(bool exists)
+{
+  mPriv->exists = exists;
+}
+
 /**
  * Should be implemented (if supported) to change the permissions of the object.
  * The FsObj implementation simply returns -EOPNOTSUPP.
