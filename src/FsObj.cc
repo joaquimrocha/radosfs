@@ -248,7 +248,9 @@ FsObj::FsObj(Filesystem *radosFs, const std::string &path)
 }
 
 FsObj::~FsObj()
-{}
+{
+  delete mPriv;
+}
 
 /**
  * Copy constructor.

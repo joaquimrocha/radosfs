@@ -20,7 +20,6 @@
 #ifndef RADOS_FS_DIR_HH
 #define RADOS_FS_DIR_HH
 
-#include <boost/scoped_ptr.hpp>
 #include <cstdlib>
 #include <set>
 
@@ -101,7 +100,7 @@ public:
   int getTMId(std::string &id);
 
 private:
-  boost::scoped_ptr<DirPriv> mPriv;
+  DirPriv *mPriv;
 
   friend class ::RadosFsTest;
   friend class DirPriv;

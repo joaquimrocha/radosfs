@@ -452,7 +452,9 @@ Dir::Dir(Filesystem *radosFs,
 {}
 
 Dir::~Dir()
-{}
+{
+  delete mPriv;
+}
 
 /**
  * Copy assignment operator.

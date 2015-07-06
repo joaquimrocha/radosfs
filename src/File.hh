@@ -20,7 +20,6 @@
 #ifndef RADOS_FS_FILE_HH
 #define RADOS_FS_FILE_HH
 
-#include <boost/scoped_ptr.hpp>
 #include <cstdlib>
 
 #include "Filesystem.hh"
@@ -97,7 +96,7 @@ public:
   size_t inlineBufferSize(void) const;
 
 private:
-  boost::scoped_ptr<FilePriv> mPriv;
+  FilePriv *mPriv;
 
   friend class ::RadosFsTest;
   friend class FilePriv;

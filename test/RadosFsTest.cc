@@ -112,13 +112,13 @@ RadosFsTest::AddPool(int numExtraPools)
 radosfs::FilePriv *
 RadosFsTest::radosFsFilePriv(radosfs::File &file)
 {
-  return file.mPriv.get();
+  return file.mPriv;
 }
 
 radosfs::DirPriv *
 RadosFsTest::radosFsDirPriv(radosfs::Dir &dir)
 {
-  return dir.mPriv.get();
+  return dir.mPriv;
 }
 
 radosfs::FileInodePriv *

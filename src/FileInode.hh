@@ -20,8 +20,6 @@
 #ifndef RADOS_FS_INODE_FILE_HH
 #define RADOS_FS_INODE_FILE_HH
 
-#include <boost/scoped_ptr.hpp>
-
 #include "Filesystem.hh"
 
 RADOS_FS_BEGIN_NAMESPACE

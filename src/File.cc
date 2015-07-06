@@ -374,7 +374,9 @@ File::File(Filesystem *radosFs, const std::string &path, File::OpenMode mode)
 {}
 
 File::~File()
-{}
+{
+  delete mPriv;
+}
 
 /**
  * Copy constructor for creating a file instance.

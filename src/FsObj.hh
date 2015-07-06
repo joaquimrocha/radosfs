@@ -20,7 +20,6 @@
 #ifndef RADOS_FS_OBJ_HH
 #define RADOS_FS_OBJ_HH
 
-#include <boost/scoped_ptr.hpp>
 #include <cstdlib>
 #include <set>
 
@@ -94,7 +93,7 @@ protected:
   void * parentFsStat(void);
 
 private:
-  boost::scoped_ptr<FsObjPriv> mPriv;
+  FsObjPriv *mPriv;
 };
 
 RADOS_FS_END_NAMESPACE
