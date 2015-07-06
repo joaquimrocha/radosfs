@@ -319,12 +319,14 @@ FilePriv::setInode(const size_t chunkSize)
 }
 
 int
-FilePriv::create(int mode, uid_t uid, gid_t gid, size_t chunk)
+FilePriv::create(int mode, uid_t uid, gid_t gid, size_t chunk, Stat *fileStatRet)
 {
   setInode(chunk ? chunk : fsFile->filesystem()->fileChunkSize());
+  Stat *parentStat = parentFsStat();
 
-  int ret = inode->mPriv->registerFile(fsFile->path(), uid, gid, mode,
-                                       inlineBufferSize);
+  int ret = inode->mPriv->registerFileWithStats(fsFile->path(), uid, gid, mode,
+                                                inlineBufferSize, *parentStat,
+                                                fileStatRet);
 
   getFsPriv()->updateTMId(fsStat());
 
@@ -638,12 +640,15 @@ File::create(int mode, const std::string pool, size_t chunk,
   if (inlineBufferSize > -1)
     mPriv->inlineBufferSize = inlineBufferSize;
 
-  ret = mPriv->create(mode, uid, gid, chunk);
+  Stat fileStat;
+  ret = mPriv->create(mode, uid, gid, chunk, &fileStat);
 
-  if (ret < 0)
-    return ret;
-
-  update();
+  if (ret == 0)
+  {
+    setFsStat(&fileStat);
+    setExists(true);
+    mPriv->updatePath();
+  }
 
   return ret;
 }
