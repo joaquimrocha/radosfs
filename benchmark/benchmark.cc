@@ -340,7 +340,7 @@ main(int argc, char **argv)
   BenchmarkMgr benchmark(confPath.c_str(), user, mtdPool, dataPool, createPools);
   benchmark.setupPools();
 
-  fprintf(stderr, "\n*** RadosFs Benchmark ***\n\n"
+  fprintf(stdout, "\n*** RadosFs Benchmark ***\n\n"
           "Running on cluster configured by %s "
           "for %d seconds with %d threads %s...\n",
           confPath.c_str(),
