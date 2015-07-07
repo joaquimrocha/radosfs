@@ -956,7 +956,7 @@ Dir::setMetadata(const std::string &entry, const std::string &key,
       int ret = indexObjectMetadata(ioctx, mPriv->dirInfo->inode(), entry,
                                     metadata, '+');
 
-      mPriv->radosFsPriv()->updateDirTimes(mPriv->fsStat());
+      mPriv->radosFsPriv()->updateTMId(mPriv->fsStat());
 
       return ret;
     }
@@ -1081,7 +1081,7 @@ Dir::removeMetadata(const std::string &entry, const std::string &key)
                                     '-');
 
 
-      mPriv->radosFsPriv()->updateDirTimes(mPriv->fsStat());
+      mPriv->radosFsPriv()->updateTMId(mPriv->fsStat());
 
       return ret;
     }
