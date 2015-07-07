@@ -446,8 +446,6 @@ int indexObject(const Stat *parentStat,
                                      parentStat->translatedPath, contents,
                                      &xattrs);
 
-  updateTimeAsync(parentStat, XATTR_MTIME);
-
   return ret;
 }
 
@@ -536,6 +534,7 @@ writeContentsAtomically(librados::IoCtx &ioctx,
   librados::bufferlist contentsBuff;
 
   omap[DIR_LOG_UPDATED].append(DIR_LOG_UPDATED_TRUE);
+  omap[XATTR_MTIME].append(getCurrentTimeStr());
 
   contentsBuff.append(contents);
   writeOp.append(contentsBuff);
