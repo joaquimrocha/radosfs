@@ -1355,24 +1355,6 @@ FilesystemPriv::updateTMId(Stat *stat)
 }
 
 void
-FilesystemPriv::updateDirTimes(Stat *stat, timespec *spec)
-{
-  std::string timeStr;
-  timespec timeInfo;
-
-  if (spec)
-    timeInfo = *spec;
-  else
-    clock_gettime(CLOCK_REALTIME, &timeInfo);
-
-  timeStr = timespecToStr(&timeInfo);
-
-  updateTimeAsync(stat, XATTR_MTIME, timeStr);
-
-  updateTMId(stat);
-}
-
-void
 FilesystemPriv::checkFileLocks(void)
 {
   const boost::chrono::milliseconds sleepTime(FILE_OPS_IDLE_CHECKER_SLEEP);

@@ -199,8 +199,6 @@ public:
 
   void updateTMId(Stat *stat);
 
-  void updateDirTimes(Stat *stat, timespec *spec = 0);
-
   void statEntryInThread(std::string path, std::string entry,
                          size_t inlineBufferSize, Stat *stat, int *ret,
                          boost::mutex *mutex, boost::condition_variable *cond,
