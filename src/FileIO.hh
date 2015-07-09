@@ -184,6 +184,7 @@ private:
   bool mLazyRemoval;
   std::vector<rados_completion_t> mCompletionList;
   boost::chrono::system_clock::time_point mLockStart;
+  boost::chrono::system_clock::time_point mLockUpdated;
   boost::mutex mLockMutex;
   std::string mLocker;
   OpsManager mOpManager;

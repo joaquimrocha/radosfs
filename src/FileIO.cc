@@ -564,10 +564,13 @@ FileIO::lockShared(const std::string &uuid)
   {
     boost::unique_lock<boost::mutex> lock(mLockMutex);
     boost::chrono::duration<double> seconds;
-    seconds = boost::chrono::system_clock::now() - mLockStart;
+    boost::chrono::system_clock::time_point now =
+        boost::chrono::system_clock::now();
+    seconds = now - mLockStart;
     if (seconds.count() < FILE_LOCK_DURATION - 1)
     {
       radosfs_debug("Keep shared lock: %s %s", mLocker.c_str(), uuid.c_str());
+      mLockUpdated = now;
       if (mLocker == "")
         mLocker = uuid;
 
@@ -588,6 +591,7 @@ FileIO::lockShared(const std::string &uuid)
   boost::unique_lock<boost::mutex> lock(mLockMutex);
   mLocker = uuid;
   mLockStart = boost::chrono::system_clock::now();
+  mLockUpdated = mLockStart;
 
   radosfs_debug("Set/renew shared lock: %s ", mLocker.c_str());
 }
@@ -600,11 +604,13 @@ FileIO::lockExclusive(const std::string &uuid)
   {
     boost::unique_lock<boost::mutex> lock(mLockMutex);
     boost::chrono::duration<double> seconds;
-
-    seconds = boost::chrono::system_clock::now() - mLockStart;
+    boost::chrono::system_clock::time_point now =
+        boost::chrono::system_clock::now();
+    seconds = now - mLockStart;
     if (seconds.count() < FILE_LOCK_DURATION - 1)
     {
       radosfs_debug("Keep exclusive lock: %s %s", mLocker.c_str(), uuid.c_str());
+      mLockUpdated = now;
       if (mLocker == "")
       {
         mLocker = uuid;
@@ -626,6 +632,7 @@ FileIO::lockExclusive(const std::string &uuid)
   boost::unique_lock<boost::mutex> lock(mLockMutex);
   mLocker = uuid;
   mLockStart = boost::chrono::system_clock::now();
+  mLockUpdated = mLockStart;
 
   radosfs_debug("Set/renew exclusive lock: %s ", mLocker.c_str());
 }
@@ -1157,7 +1164,7 @@ FileIO::manageIdleLock(double idleTimeout)
     if (mLocker == "")
     {
       boost::chrono::duration<double> seconds;
-      seconds = boost::chrono::system_clock::now() - mLockStart;
+      seconds = boost::chrono::system_clock::now() - mLockUpdated;
       bool lockIsIdle = seconds.count() >= idleTimeout;
       bool lockTimedOut = seconds.count() > FILE_LOCK_DURATION;
 
@@ -1171,6 +1178,7 @@ FileIO::manageIdleLock(double idleTimeout)
         // unlock it anymore.
         mLockStart = boost::chrono::system_clock::now() -
                      boost::chrono::seconds(FILE_LOCK_DURATION + 1);
+        mLockUpdated = mLockStart;
       }
     }
 
