@@ -313,6 +313,7 @@ FilePriv::setInode(const size_t chunkSize)
                                         fsFile->path(),
                                         chunk));
   inode->mPriv->setFileIO(fileIO);
+  fsFile->filesystem()->mPriv->setFileIO(fileIO);
 
   if (inlineBufferSize > 0)
     inode->mPriv->io->setInlineBuffer(fsFile->path(), inlineBufferSize);
