@@ -32,6 +32,14 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
+inline static
+boost::chrono::system_clock::time_point
+expiredLockDuration()
+{
+  return boost::chrono::system_clock::now() -
+      boost::chrono::seconds(FILE_LOCK_DURATION + 1);
+}
+
 FileReadDataImp::FileReadDataImp(char *buff, off_t offset, size_t length,
                                  ssize_t *retValue)
   : FileReadData(buff, offset, length, retValue),
@@ -96,6 +104,8 @@ FileIO::FileIO(Filesystem *radosFs, const PoolSP pool, const std::string &iNode,
     mPath(path),
     mChunkSize(chunkSize),
     mLazyRemoval(false),
+    mLockStart(expiredLockDuration()),
+    mLockUpdated(mLockStart),
     mLocker(""),
     mInlineBuffer(0),
     // If the path is not set, then we assume the backlink has been set in order
