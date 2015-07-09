@@ -52,6 +52,9 @@ FilesystemPriv::FilesystemPriv(Filesystem *radosFs)
 
 FilesystemPriv::~FilesystemPriv()
 {
+  asyncWork.reset();
+  generalWorkerThreads.join_all();
+
   fileOpsIdleChecker.interrupt();
   operationsMutex.lock();
   operations.clear();
