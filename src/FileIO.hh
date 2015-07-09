@@ -225,6 +225,7 @@ private:
                               const std::string &fileChunk,
                               const size_t offset,
                               const std::string &newContents);
+  void unlockIfTimeIsOut(double idleTimeout);
 };
 
 RADOS_FS_END_NAMESPACE

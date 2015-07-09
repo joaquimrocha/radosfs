@@ -126,8 +126,7 @@ FileIO::~FileIO()
   }
 
   boost::unique_lock<boost::mutex> lock(mLockMutex);
-  unlockShared();
-  unlockExclusive();
+  unlockIfTimeIsOut(FILE_IDLE_LOCK_TIMEOUT);
 }
 
 void
@@ -1173,26 +1172,33 @@ FileIO::manageIdleLock(double idleTimeout)
   {
     if (mLocker == "")
     {
-      boost::chrono::duration<double> seconds;
-      seconds = boost::chrono::system_clock::now() - mLockUpdated;
-      bool lockIsIdle = seconds.count() >= idleTimeout;
-      bool lockTimedOut = seconds.count() > FILE_LOCK_DURATION;
-
-      if (lockIsIdle && !lockTimedOut)
-      {
-        radosfs_debug("Unlocked idle lock.");
-
-        unlockShared();
-        unlockExclusive();
-        // Set the lock start to look as if it expired so it does not try to
-        // unlock it anymore.
-        mLockStart = boost::chrono::system_clock::now() -
-                     boost::chrono::seconds(FILE_LOCK_DURATION + 1);
-        mLockUpdated = mLockStart;
-      }
+      unlockIfTimeIsOut(idleTimeout);
     }
 
     mLockMutex.unlock();
+  }
+}
+
+void
+FileIO::unlockIfTimeIsOut(double idleTimeout)
+{
+  // Important: this method needs to be run in a scoped where mLockMutex is
+  // locked
+  boost::chrono::duration<double> seconds;
+  seconds = boost::chrono::system_clock::now() - mLockUpdated;
+  bool lockIsIdle = seconds.count() >= idleTimeout;
+  bool lockTimedOut = seconds.count() > FILE_LOCK_DURATION;
+
+  if (lockIsIdle && !lockTimedOut)
+  {
+    radosfs_debug("Unlocked idle lock.");
+
+    unlockShared();
+    unlockExclusive();
+    // Set the lock start to look as if it expired so it does not try to
+    // unlock it anymore.
+    mLockStart = expiredLockDuration();
+    mLockUpdated = mLockStart;
   }
 }
 
