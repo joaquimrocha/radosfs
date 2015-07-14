@@ -33,14 +33,6 @@ BenchmarkMgr::BenchmarkMgr(const char *conf, const std::string &user,
     std::list<std::string> pools;
     pools.push_back(mtdPool);
     pools.push_back(dataPool);
-
-    std::map<std::string, librados::pool_stat_t> stats;
-    int ret = cluster.get_pool_stats(pools, stats);
-    if (ret != 0)
-    {
-      fprintf(stderr, "Problem getting pools' stats\n");
-      exit(ret);
-    }
   }
 
   cluster.shutdown();
