@@ -94,7 +94,10 @@ AyncOpPriv::waitForCompletion(void)
                   id.c_str(), returnCode, strerror(abs(returnCode)));
   }
 
-  complete = true;
+  {
+    boost::unique_lock<boost::mutex> lock(opMutex);
+    complete = true;
+  }
 
   if (callback)
   {
