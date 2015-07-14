@@ -43,6 +43,8 @@
 #define USER_ARG_CHAR 'u'
 #define POOLS_CONF_ARG "pools"
 #define POOLS_CONF_ARG_CHAR 'p'
+#define DELETE_OBJS_ARG "delete-objects"
+#define DELETE_OBJS_ARG_CHAR 'E'
 
 static std::string commonPrefix;
 
@@ -190,7 +192,8 @@ parseArguments(int argc, char **argv,
                int *numThreads,
                bool *createInDir,
                size_t *bufferSize,
-               size_t *bufferDivision)
+               size_t *bufferDivision,
+               bool *deleteObjects)
 {
   confPath = "";
   const char *confFromEnv(getenv(CONF_ENV_VAR));
@@ -198,6 +201,7 @@ parseArguments(int argc, char **argv,
   int duration = 0;
   int bufSize = 0;
   int bufDiv = 1;
+  *deleteObjects = false;
 
   if (confFromEnv != 0)
     confPath = confFromEnv;
@@ -210,6 +214,7 @@ parseArguments(int argc, char **argv,
    {BUFFER_SIZE_ARG, required_argument, 0, BUFFER_SIZE_ARG_CHAR},
    {BUFFER_DIVISION_ARG, required_argument, 0, BUFFER_DIVISION_CHAR},
    {POOLS_CONF_ARG, required_argument, 0, POOLS_CONF_ARG_CHAR},
+   {DELETE_OBJS_ARG, required_argument, 0, DELETE_OBJS_ARG_CHAR},
    {0, 0, 0, 0}
   };
 
@@ -240,7 +245,8 @@ parseArguments(int argc, char **argv,
       user = optarg;
     else if (c == POOLS_CONF_ARG_CHAR)
       poolsStr = optarg;
-
+    else if (c == DELETE_OBJS_ARG_CHAR)
+      *deleteObjects = strcmp(optarg, "yes") == 0;
   }
 
   if (!poolsStr.empty())
@@ -306,7 +312,7 @@ main(int argc, char **argv)
 {
   std::string confPath, user;
   int runTime, numThreads;
-  bool createInDir;
+  bool createInDir, deleteObjects;
   size_t bufferSize, bufferDivision;
   std::vector<std::string> pools;
 
@@ -316,7 +322,7 @@ main(int argc, char **argv)
 
   int ret = parseArguments(argc, argv, confPath, user, pools, &runTime,
                            &numThreads, &createInDir, &bufferSize,
-                           &bufferDivision);
+                           &bufferDivision, &deleteObjects);
 
   if (ret != 0)
   {
@@ -351,6 +357,7 @@ main(int argc, char **argv)
           (createInDir ? "(using their own directory)": "(all writing to / )"));
 
   benchmark.setCreateInDir(createInDir);
+  benchmark.setDeleteObjects(deleteObjects);
 
   const int hostnameLength = 32;
   char hostname[hostnameLength];
