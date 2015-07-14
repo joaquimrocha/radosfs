@@ -11,7 +11,8 @@ BenchmarkMgr::BenchmarkMgr(const char *conf, const std::string &user,
     mDataPool(dataPool),
     mNumFiles(0),
     mCreateInDir(false),
-    mCreatedPools(false)
+    mCreatedPools(false),
+    mDeleteObjects(false)
 {
   librados::Rados cluster;
   cluster.init(mUser.empty() ? 0 : mUser.c_str());
@@ -58,7 +59,7 @@ BenchmarkMgr::~BenchmarkMgr()
     cluster.pool_delete(mMtdPool.c_str());
     cluster.pool_delete(mDataPool.c_str());
   }
-  else
+  else if (mDeleteObjects)
   {
     std::list<std::string> pools;
     pools.push_back(mMtdPool);

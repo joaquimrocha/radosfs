@@ -23,6 +23,7 @@ public:
   void setNumFiles(int numFiles);
   void incFiles(void);
   void setCreateInDir(bool create) { mCreateInDir = create; }
+  void setDeleteObjects(bool deleteObjects) { mDeleteObjects = deleteObjects; }
   bool createInDir(void) const { return mCreateInDir; }
   int setupPools(void);
 
@@ -37,6 +38,7 @@ private:
   bool mCreateInDir;
   boost::mutex mNumFilesMutex;
   bool mCreatedPools;
+  bool mDeleteObjects;
 };
 
 #endif // __BENCHMARK_MGR_HH__
