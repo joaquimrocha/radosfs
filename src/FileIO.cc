@@ -119,6 +119,11 @@ FileIO::FileIO(Filesystem *radosFs, const PoolSP pool, const std::string &iNode,
 
 FileIO::~FileIO()
 {
+  {
+    boost::unique_lock<boost::mutex> lock(mLockMutex);
+    unlockIfTimeIsOut(FILE_IDLE_LOCK_TIMEOUT);
+  }
+
   mOpManager.sync(false);
   mOpManager.waitForLoneOps();
 
@@ -127,9 +132,6 @@ FileIO::~FileIO()
     remove();
     return;
   }
-
-  boost::unique_lock<boost::mutex> lock(mLockMutex);
-  unlockIfTimeIsOut(FILE_IDLE_LOCK_TIMEOUT);
 }
 
 void
@@ -649,22 +651,31 @@ FileIO::lockExclusive(const std::string &uuid)
   radosfs_debug("Set/renew exclusive lock: %s ", mLocker.c_str());
 }
 
-void
+int
 FileIO::unlockShared()
 {
-  mPool->ioctx.unlock(inode(), FILE_CHUNK_LOCKER,
-                      FILE_CHUNK_LOCKER_COOKIE_WRITE);
+  int ret = mPool->ioctx.unlock(inode(), FILE_CHUNK_LOCKER,
+                                FILE_CHUNK_LOCKER_COOKIE_WRITE);
   mLocker = "";
-  radosfs_debug("Unlocked shared lock.");
+  radosfs_debug("Unlocked shared lock: %d", ret);
+  return ret;
 }
 
-void
+int
 FileIO::unlockExclusive()
 {
-  mPool->ioctx.unlock(inode(), FILE_CHUNK_LOCKER,
-                      FILE_CHUNK_LOCKER_COOKIE_OTHER);
+  int ret = mPool->ioctx.unlock(inode(), FILE_CHUNK_LOCKER,
+                                FILE_CHUNK_LOCKER_COOKIE_OTHER);
   mLocker = "";
-  radosfs_debug("Unlocked exclusive lock.");
+  radosfs_debug("Unlocked exclusive lock: %d", ret);
+  return ret;
+}
+
+int
+FileIO::unlock()
+{
+  if (unlockShared() != 0)
+    unlockExclusive();
 }
 
 int
@@ -780,8 +791,6 @@ FileIO::realWrite(char *buff, off_t offset, size_t blen, bool deleteBuffer,
     }
   }
 
-  updateTimeAsyncInXAttr(mPool, mInode, XATTR_MTIME);
-
   off_t currentOffset =  offset % mChunkSize;
   size_t bytesToWrite = blen;
   size_t firstChunk = offset / mChunkSize;
@@ -795,7 +804,9 @@ FileIO::realWrite(char *buff, off_t offset, size_t blen, bool deleteBuffer,
   else
     lockShared(opId);
 
-  setSizeIfBigger(totalSize);
+  setSizeIfBigger(totalSize, asyncOp);
+
+  updateTimeAsyncInXAttr(mPool, mInode, XATTR_MTIME);
 
   radosfs_debug("Writing in inode '%s' (op id: '%s') to size %lu affecting "
                 "chunks %lu-%lu", inode().c_str(), opId.c_str(), totalSize,
@@ -1120,47 +1131,59 @@ inodeBackLinkCb(rados_completion_t comp, void *arg)
 }
 
 int
-FileIO::setSizeIfBigger(size_t size)
+FileIO::setSizeIfBigger(size_t size, AsyncOpSP asyncOp)
 {
   librados::ObjectWriteOperation writeOp;
-  librados::bufferlist sizeBl;
+  librados::bufferlist sizeBl, backLinkBl;
   sizeBl.append(fileSizeToHex(size));
+  backLinkBl.append(mPath);
 
   // Set the new size only if it's greater than the one already set
   writeOp.setxattr(XATTR_FILE_SIZE, sizeBl);
   writeOp.cmpxattr(XATTR_FILE_SIZE, LIBRADOS_CMPXATTR_OP_GT, sizeBl);
+  writeOp.setxattr(XATTR_INODE_HARD_LINK, backLinkBl);
 
-  int ret = mPool->ioctx.operate(inode(), &writeOp);
+  librados::AioCompletion *completion = librados::Rados::aio_create_completion();
 
-  // Set the back link because this op might create the object
-  if (ret == 0 && shouldSetBacklink())
-  {
-    setInodeBacklinkAsync(mPool, mPath, inode(), 0, inodeBackLinkCb, this);
-  }
+  std::stringstream stream;
+  stream << "Set size because it was bigger "
+            "(od id='" << asyncOp->id() << "') on '" << inode() << "'";
+  setCompletionDebugMsg(completion, stream.str());
 
-  radosfs_debug("Set size %d to '%s' if it's greater: retcode=%d (%s)",
-                size, inode().c_str(), ret, strerror(abs(ret)));
+  mPool->ioctx.aio_operate(inode(), completion, &writeOp);
+  asyncOp->mPriv->addCompletion(completion);
 
-  return ret;
+//  // Set the back link because this op might create the object
+//  if (ret == 0 && shouldSetBacklink())
+//  {
+//    setInodeBacklinkAsync(mPool, mPath, inode(), 0, inodeBackLinkCb, this);
+//  }
+
+//  radosfs_debug("Set size %d to '%s' if it's greater: retcode=%d (%s)",
+//                size, inode().c_str(), ret, strerror(abs(ret)));
+
+  return 0;
 }
 
 int
 FileIO::setSize(size_t size)
 {
-  librados::bufferlist sizeBl;
+  librados::bufferlist sizeBl, backLinkBl;
   sizeBl.append(fileSizeToHex(size));
+  backLinkBl.append(mPath);
 
   librados::ObjectWriteOperation writeOp;
   writeOp.create(false);
   writeOp.setxattr(XATTR_FILE_SIZE, sizeBl);
+  writeOp.setxattr(XATTR_INODE_HARD_LINK, backLinkBl);
 
   int ret = mPool->ioctx.operate(inode(), &writeOp);
 
-  // Set the back link because this op might create the object
-  if (ret == 0 && shouldSetBacklink())
-  {
-    setInodeBacklinkAsync(mPool, mPath, inode(), 0, inodeBackLinkCb, this);
-  }
+//  // Set the back link because this op might create the object
+//  if (ret == 0 && shouldSetBacklink())
+//  {
+//    setInodeBacklinkAsync(mPool, mPath, inode(), 0, inodeBackLinkCb, this);
+//  }
 
   radosfs_debug("Set size %d to '%s': retcode=%d (%s)", size,
                 inode().c_str(), ret, strerror(abs(ret)));
@@ -1196,8 +1219,8 @@ FileIO::unlockIfTimeIsOut(double idleTimeout)
   {
     radosfs_debug("Unlocked idle lock.");
 
-    unlockShared();
-    unlockExclusive();
+    unlock();
+
     // Set the lock start to look as if it expired so it does not try to
     // unlock it anymore.
     mLockStart = expiredLockDuration();
@@ -1209,7 +1232,7 @@ void
 FileIO::syncAndResetLocker(AsyncOpSP op)
 {
   boost::unique_lock<boost::mutex> lock(mLockMutex);
-  op->waitForCompletion();
+  //op->waitForCompletion();
   mLocker = "";
 }
 
@@ -1288,10 +1311,10 @@ FileIO::updateBackLink(const std::string *oldBackLink)
                         this);
 }
 
-size_t
-FileIO::numRunningAsyncOps()
+bool
+FileIO::hasRunningAsyncOps()
 {
-  return mOpManager.numRunningOps();
+  return mOpManager.hasRunningOps();
 }
 
 int
@@ -1377,18 +1400,26 @@ OpsManager::addOperation(AsyncOpSP op)
   mOperations[op->id()] = op;
 }
 
-size_t
-OpsManager::numRunningOps()
+bool
+OpsManager::hasRunningOps()
 {
-  size_t numOps = 0;
-  boost::unique_lock<boost::mutex> lock(opsMutex);
-  std::map<std::string, AsyncOpSP>::iterator it;
-  for (it = mOperations.begin(); it != mOperations.end(); ++it)
+  bool runningOps = false;
+
+  if (opsMutex.try_lock())
   {
-    if (!(*it).second->isFinished())
-      ++numOps;
+    std::map<std::string, AsyncOpSP>::iterator it;
+    for (it = mOperations.begin(); it != mOperations.end(); ++it)
+    {
+      if (!(*it).second->isFinished())
+      {
+        runningOps = true;
+        break;
+      }
+    }
+    opsMutex.unlock();
   }
-  return numOps;
+
+  return runningOps;
 }
 
 RADOS_FS_END_NAMESPACE

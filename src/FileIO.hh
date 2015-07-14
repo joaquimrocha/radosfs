@@ -98,7 +98,7 @@ struct OpsManager
   int sync(const std::string &opId, bool lock=true, bool removeOps=true);
   void waitForLoneOps(void);
   void addOperation(AsyncOpSP op);
-  size_t numRunningOps(void);
+  bool hasRunningOps(void);
 };
 
 class FileIO
@@ -150,9 +150,11 @@ public:
 
   void lockExclusive(const std::string &uuid);
 
-  void unlockShared(void);
+  int unlockShared(void);
 
-  void unlockExclusive(void);
+  int unlockExclusive(void);
+
+  int unlock(void);
 
   void manageIdleLock(double idleTimeout);
 
@@ -176,7 +178,7 @@ public:
 
   void updateBackLink(const std::string *oldBackLink=0);
 
-  size_t numRunningAsyncOps(void);
+  bool hasRunningAsyncOps(void);
 
 private:
   Filesystem *mRadosFs;
@@ -200,7 +202,7 @@ private:
   int verifyWriteParams(off_t offset, size_t length);
   int realWrite(char *buff, off_t offset, size_t blen, bool deleteBuffer,
                 AsyncOpSP asyncOp);
-  int setSizeIfBigger(size_t size);
+  int setSizeIfBigger(size_t size, AsyncOpSP asyncOp);
   int setSize(size_t size);
   void setCompletionDebugMsg(librados::AioCompletion *completion,
                              const std::string &message);

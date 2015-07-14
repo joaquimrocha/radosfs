@@ -75,7 +75,6 @@ createFiles(BenchmarkInfo *benchmarkInfo)
 
   std::stringstream prefix;
   prefix << "/t-" << commonPrefix << "-" << threadId;
-
   if (benchmark->createInDir())
   {
     prefix << "/";
@@ -110,7 +109,7 @@ createFiles(BenchmarkInfo *benchmarkInfo)
                        stream.str(),
                        radosfs::File::MODE_WRITE);
 
-    int ret = file.create();
+    int ret = file.create(-1, "", 0, 0);
 
     if (buffer)
     {
@@ -141,7 +140,6 @@ createFiles(BenchmarkInfo *benchmarkInfo)
 
     if (diffTime > benchmarkInfo->maxCreationTime)
       benchmarkInfo->maxCreationTime = diffTime;
-
   }
 
   delete[] buffer;

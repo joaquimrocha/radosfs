@@ -1373,7 +1373,7 @@ FilesystemPriv::checkFileLocks(void)
       FileIOSP io = (*it).second;
       if (io)
       {
-        if (io->numRunningAsyncOps() == 0 && FileIO::hasSingleClient(io))
+        if (!io->hasRunningAsyncOps() && FileIO::hasSingleClient(io))
         {
           oldIt = it;
           it++;
