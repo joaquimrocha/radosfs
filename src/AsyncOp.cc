@@ -171,6 +171,7 @@ AsyncOp::id(void)
 bool
 AsyncOp::isFinished(void)
 {
+  boost::unique_lock<boost::mutex> lock(mPriv->opMutex);
   return mPriv->complete;
 }
 
