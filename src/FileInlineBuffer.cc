@@ -149,7 +149,8 @@ FileInlineBuffer::write(const char *buff, off_t offset, size_t blen)
     boost::chrono::milliseconds sleepDuration(25);
     while (true)
     {
-      std::string currentContents, inlineBuffer;
+      std::string currentContents(capacity(), 0);
+      std::string inlineBuffer;
       librados::bufferlist contents;
 
       ret = getInlineBuffer(&contents);
