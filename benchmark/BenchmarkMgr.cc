@@ -40,27 +40,6 @@ BenchmarkMgr::BenchmarkMgr(const char *conf, const std::string &user,
       fprintf(stderr, "Problem getting pools' stats\n");
       exit(ret);
     }
-
-    std::list<std::string>::const_iterator it;
-    for (it = pools.begin(); it != pools.end(); it++)
-    {
-      const std::string &pool = *it;
-      if (stats.count(pool) == 0)
-      {
-        fprintf(stderr, "Could not find pool '%s'\n", pool.c_str());
-        exit(ret);
-      }
-      else
-      {
-        librados::pool_stat_t poolStats = stats[pool];
-        if (poolStats.num_objects > 0)
-        {
-          fprintf(stderr, "Pool '%s' needs to be empty for the benchmark\n",
-                  pool.c_str());
-          exit(ret);
-        }
-      }
-    }
   }
 
   cluster.shutdown();
