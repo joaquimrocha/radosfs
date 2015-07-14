@@ -36,13 +36,13 @@ AyncOpPriv::AyncOpPriv(const std::string &id)
 
 AyncOpPriv::~AyncOpPriv()
 {
-  boost::unique_lock<boost::mutex> lock(mOpMutex);
+  boost::unique_lock<boost::mutex> lock(opMutex);
 
-  CompletionList::iterator it = mOperations.begin();
-  while(it != mOperations.end())
+  CompletionList::iterator it = operations.begin();
+  while(it != operations.end())
   {
     (*it)->release();
-    it = mOperations.erase(it);
+    it = operations.erase(it);
   }
 }
 
@@ -51,7 +51,7 @@ AyncOpPriv::waitForCompletion(void)
 {
   while (returnCode == -EINPROGRESS)
   {
-    boost::unique_lock<boost::mutex> lock(mOpMutex);
+    boost::unique_lock<boost::mutex> lock(opMutex);
 
     if (ready != 0)
       continue;
@@ -59,15 +59,15 @@ AyncOpPriv::waitForCompletion(void)
     radosfs_debug("Async op with id='%s' will now wait for completion...",
                   id.c_str());
 
-    if (mOperations.size() == 0)
+    if (operations.size() == 0)
     {
       radosfs_debug("Async op with id='%s' had no operations to complete. "
                     "Setting as complete.", id.c_str());
       returnCode = 0;
     }
 
-    CompletionList::iterator it = mOperations.begin();
-    while(it != mOperations.end())
+    CompletionList::iterator it = operations.begin();
+    while(it != operations.end())
     {
       librados::AioCompletion *completion = *it;
       completion->wait_for_complete();
@@ -87,7 +87,7 @@ AyncOpPriv::waitForCompletion(void)
       }
 
       completion->release();
-      it = mOperations.erase(it);
+      it = operations.erase(it);
     }
     radosfs_debug("Async op with id='%s' finished waiting for completion. "
                   "retcode=%d (%s)",
@@ -107,8 +107,8 @@ AyncOpPriv::waitForCompletion(void)
 void
 AyncOpPriv::addCompletion(librados::AioCompletion *comp)
 {
-  boost::unique_lock<boost::mutex> lock(mOpMutex);
-  mOperations.push_back(comp);
+  boost::unique_lock<boost::mutex> lock(opMutex);
+  operations.push_back(comp);
 
   if (ready < 0)
     ready = 1;
@@ -119,14 +119,14 @@ AyncOpPriv::addCompletion(librados::AioCompletion *comp)
 void
 AyncOpPriv::setReady()
 {
-  boost::unique_lock<boost::mutex> lock(mOpMutex);
+  boost::unique_lock<boost::mutex> lock(opMutex);
   ready = 0;
 }
 
 void
 AyncOpPriv::setPartialReady()
 {
-  boost::unique_lock<boost::mutex> lock(mOpMutex);
+  boost::unique_lock<boost::mutex> lock(opMutex);
   if (ready > 0)
     ready--;
 }
@@ -134,16 +134,16 @@ AyncOpPriv::setPartialReady()
 void
 AyncOpPriv::setOverriddenReturnCode(librados::completion_t comp, int ret)
 {
-  boost::unique_lock<boost::mutex> lock(mOpMutex);
-  mOpsReturnCodes[comp] = ret;
+  boost::unique_lock<boost::mutex> lock(opMutex);
+  opsReturnCodes[comp] = ret;
 }
 
 bool
 AyncOpPriv::overriddenReturnCode(librados::AioCompletion *comp, int *ret)
 {
-  CompletionRetCodesMap::const_iterator it = mOpsReturnCodes.find(comp->pc);
+  CompletionRetCodesMap::const_iterator it = opsReturnCodes.find(comp->pc);
 
-  if (it != mOpsReturnCodes.end())
+  if (it != opsReturnCodes.end())
   {
     *ret = (*it).second;
     return true;

@@ -44,6 +44,7 @@ public:
   void setReady(void);
   void setPartialReady(void);
   void setOverriddenReturnCode(librados::completion_t comp, int ret);
+  bool overriddenReturnCode(librados::AioCompletion *comp, int *ret);
 
   std::string id;
   bool complete;
@@ -51,13 +52,9 @@ public:
   int ready;
   AsyncOpCallback callback;
   void *callbackArg;
-
-private:
-  bool overriddenReturnCode(librados::AioCompletion *comp, int *ret);
-
-  boost::mutex mOpMutex;
-  CompletionList mOperations;
-  CompletionRetCodesMap mOpsReturnCodes;
+  boost::mutex opMutex;
+  CompletionList operations;
+  CompletionRetCodesMap opsReturnCodes;
 };
 
 RADOS_FS_END_NAMESPACE
