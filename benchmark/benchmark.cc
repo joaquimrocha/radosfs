@@ -44,6 +44,8 @@
 #define POOLS_CONF_ARG "pools"
 #define POOLS_CONF_ARG_CHAR 'p'
 
+static std::string commonPrefix;
+
 typedef struct
 {
   int threadId;
@@ -70,7 +72,7 @@ createFiles(BenchmarkInfo *benchmarkInfo)
     buffer = new char[benchmarkInfo->bufferSize];
 
   std::stringstream prefix;
-  prefix << "/t" << threadId;
+  prefix << "/t-" << commonPrefix << "-" << threadId;
 
   if (benchmark->createInDir())
   {
@@ -349,6 +351,15 @@ main(int argc, char **argv)
           (createInDir ? "(using their own directory)": "(all writing to / )"));
 
   benchmark.setCreateInDir(createInDir);
+
+  const int hostnameLength = 32;
+  char hostname[hostnameLength];
+  gethostname(hostname, hostnameLength);
+
+  std::stringstream stream;
+  stream << hostname << "-" << getpid();
+
+  commonPrefix = stream.str();
 
   boost::thread *threads[numThreads];
   BenchmarkInfo *infos[numThreads];
