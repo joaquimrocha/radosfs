@@ -120,7 +120,7 @@ createFiles(BenchmarkInfo *benchmarkInfo)
 
       for (offset = 0; offset + slice <= bufferSize; offset += slice)
       {
-        file.write(buffer, offset, slice);
+        file.write(buffer, offset, slice, true);
       }
     }
 
