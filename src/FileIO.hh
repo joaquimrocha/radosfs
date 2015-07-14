@@ -94,9 +94,9 @@ struct OpsManager
   boost::mutex opsMutex;
   std::map<std::string, AsyncOpSP> mOperations;
 
-  int sync(void);
-  int sync(const std::string &opId, bool lock=true);
-
+  int sync(bool removeOps=true);
+  int sync(const std::string &opId, bool lock=true, bool removeOps=true);
+  void waitForLoneOps(void);
   void addOperation(AsyncOpSP op);
 };
 

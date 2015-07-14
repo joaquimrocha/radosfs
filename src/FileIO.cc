@@ -32,6 +32,8 @@
 
 RADOS_FS_BEGIN_NAMESPACE
 
+#define WAIT_FOR_LONE_OPS_CYCLE_SLEEP 250 // milliseconds
+
 inline static
 boost::chrono::system_clock::time_point
 expiredLockDuration()
@@ -117,7 +119,8 @@ FileIO::FileIO(Filesystem *radosFs, const PoolSP pool, const std::string &iNode,
 
 FileIO::~FileIO()
 {
-  mOpManager.sync();
+  mOpManager.sync(false);
+  mOpManager.waitForLoneOps();
 
   if (mLazyRemoval)
   {
@@ -1286,7 +1289,7 @@ FileIO::updateBackLink(const std::string *oldBackLink)
 }
 
 int
-OpsManager::sync(void)
+OpsManager::sync(bool removeOps)
 {
   int ret = 0;
   std::map<std::string, AsyncOpSP>::iterator it, oldIt;
@@ -1298,7 +1301,7 @@ OpsManager::sync(void)
     oldIt = it;
     oldIt++;
 
-    int syncResult = sync((*it).first, false);
+    int syncResult = sync((*it).first, false, removeOps);
 
     // Assign the first error we eventually find
     if (ret == 0)
@@ -1311,7 +1314,7 @@ OpsManager::sync(void)
 }
 
 int
-OpsManager::sync(const std::string &opId, bool lock)
+OpsManager::sync(const std::string &opId, bool lock, bool removeOps)
 {
   int ret = -ENOENT;
   boost::unique_lock<boost::mutex> uniqueLock;
@@ -1324,9 +1327,40 @@ OpsManager::sync(const std::string &opId, bool lock)
     return ret;
 
   ret = mOperations[opId]->waitForCompletion();
-  mOperations.erase(opId);
+
+  if (removeOps)
+    mOperations.erase(opId);
 
   return ret;
+}
+
+void
+OpsManager::waitForLoneOps(void)
+{
+  // Wait until the ops are only kept by this FileIO instance and not also by
+  // some async method. This is useful to see if it's safe to destroy this
+  // instance.
+  size_t numOps = 1;
+  while (numOps > 0)
+  {
+    {
+      boost::unique_lock<boost::mutex> lock(opsMutex);
+      std::map<std::string, AsyncOpSP>::iterator it;
+      for (it = mOperations.begin(); it != mOperations.end(); ++it)
+      {
+        if ((*it).second.use_count() == 1)
+          mOperations.erase(it);
+      }
+
+      numOps = mOperations.size();
+    }
+
+    if (numOps > 0)
+    {
+      boost::this_thread::sleep_for(
+            boost::chrono::milliseconds(WAIT_FOR_LONE_OPS_CYCLE_SLEEP));
+    }
+  }
 }
 
 void
