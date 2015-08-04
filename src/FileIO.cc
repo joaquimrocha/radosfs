@@ -635,7 +635,7 @@ FileIO::lockExclusive(const std::string &uuid)
   tm.tv_usec = 0;
   while ((ret = mPool->ioctx.lock_exclusive(inode(), FILE_CHUNK_LOCKER,
                                             FILE_CHUNK_LOCKER_COOKIE_OTHER,
-                                            "", &tm, 0)) != 0)
+                                            "", &tm, 0)) == -EBUSY)
   {}
 
   boost::unique_lock<boost::mutex> lock(mLockMutex);
