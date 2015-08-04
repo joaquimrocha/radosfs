@@ -149,12 +149,19 @@ FileInlineBuffer::write(const char *buff, off_t offset, size_t blen)
     boost::chrono::milliseconds sleepDuration(25);
     while (true)
     {
-      std::string currentContents(capacity(), 0);
+      std::string currentContents;
       std::string inlineBuffer;
       librados::bufferlist contents;
 
       ret = getInlineBuffer(&contents);
       readInlineBuffer(contents, 0, &currentContents);
+
+      if (currentContents.length() < (offset + replaceLength))
+      {
+        const size_t lengthToFill = offset + replaceLength -
+                                    currentContents.length();
+        currentContents.append(lengthToFill, '\0');
+      }
 
       inlineBuffer = currentContents;
       inlineBuffer.replace(offset, replaceLength, buff, replaceLength);
