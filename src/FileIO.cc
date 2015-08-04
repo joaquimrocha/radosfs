@@ -649,22 +649,31 @@ FileIO::lockExclusive(const std::string &uuid)
   radosfs_debug("Set/renew exclusive lock: %s ", mLocker.c_str());
 }
 
-void
+int
 FileIO::unlockShared()
 {
-  mPool->ioctx.unlock(inode(), FILE_CHUNK_LOCKER,
-                      FILE_CHUNK_LOCKER_COOKIE_WRITE);
+  int ret = mPool->ioctx.unlock(inode(), FILE_CHUNK_LOCKER,
+                                FILE_CHUNK_LOCKER_COOKIE_WRITE);
   mLocker = "";
-  radosfs_debug("Unlocked shared lock.");
+  radosfs_debug("Unlocked shared lock: %d", ret);
+  return ret;
 }
 
-void
+int
 FileIO::unlockExclusive()
 {
-  mPool->ioctx.unlock(inode(), FILE_CHUNK_LOCKER,
-                      FILE_CHUNK_LOCKER_COOKIE_OTHER);
+  int ret = mPool->ioctx.unlock(inode(), FILE_CHUNK_LOCKER,
+                                FILE_CHUNK_LOCKER_COOKIE_OTHER);
   mLocker = "";
-  radosfs_debug("Unlocked exclusive lock.");
+  radosfs_debug("Unlocked exclusive lock: %d", ret);
+  return ret;
+}
+
+int
+FileIO::unlock()
+{
+  if (unlockShared() != 0)
+    unlockExclusive();
 }
 
 int
@@ -1196,8 +1205,8 @@ FileIO::unlockIfTimeIsOut(double idleTimeout)
   {
     radosfs_debug("Unlocked idle lock.");
 
-    unlockShared();
-    unlockExclusive();
+    unlock();
+
     // Set the lock start to look as if it expired so it does not try to
     // unlock it anymore.
     mLockStart = expiredLockDuration();

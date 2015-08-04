@@ -150,9 +150,11 @@ public:
 
   void lockExclusive(const std::string &uuid);
 
-  void unlockShared(void);
+  int unlockShared(void);
 
-  void unlockExclusive(void);
+  int unlockExclusive(void);
+
+  int unlock(void);
 
   void manageIdleLock(double idleTimeout);
 
