@@ -1297,10 +1297,10 @@ FileIO::updateBackLink(const std::string *oldBackLink)
                         this);
 }
 
-size_t
-FileIO::numRunningAsyncOps()
+bool
+FileIO::hasRunningAsyncOps()
 {
-  return mOpManager.numRunningOps();
+  return mOpManager.hasRunningOps();
 }
 
 int
@@ -1386,18 +1386,26 @@ OpsManager::addOperation(AsyncOpSP op)
   mOperations[op->id()] = op;
 }
 
-size_t
-OpsManager::numRunningOps()
+bool
+OpsManager::hasRunningOps()
 {
-  size_t numOps = 0;
-  boost::unique_lock<boost::mutex> lock(opsMutex);
-  std::map<std::string, AsyncOpSP>::iterator it;
-  for (it = mOperations.begin(); it != mOperations.end(); ++it)
+  bool runningOps = false;
+
+  if (opsMutex.try_lock())
   {
-    if (!(*it).second->isFinished())
-      ++numOps;
+    std::map<std::string, AsyncOpSP>::iterator it;
+    for (it = mOperations.begin(); it != mOperations.end(); ++it)
+    {
+      if (!(*it).second->isFinished())
+      {
+        runningOps = true;
+        break;
+      }
+    }
+    opsMutex.unlock();
   }
-  return numOps;
+
+  return runningOps;
 }
 
 RADOS_FS_END_NAMESPACE

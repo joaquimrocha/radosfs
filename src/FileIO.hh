@@ -98,7 +98,7 @@ struct OpsManager
   int sync(const std::string &opId, bool lock=true, bool removeOps=true);
   void waitForLoneOps(void);
   void addOperation(AsyncOpSP op);
-  size_t numRunningOps(void);
+  bool hasRunningOps(void);
 };
 
 class FileIO
@@ -178,7 +178,7 @@ public:
 
   void updateBackLink(const std::string *oldBackLink=0);
 
-  size_t numRunningAsyncOps(void);
+  bool hasRunningAsyncOps(void);
 
 private:
   Filesystem *mRadosFs;
