@@ -1350,7 +1350,7 @@ getFileInodeBackLink(Pool *pool, const std::string &inode,
 
   int ret = pool->ioctx.getxattr(inode, XATTR_INODE_HARD_LINK, buff);
 
-  if (ret >= 0)
+  if (ret > 0)
   {
     backLink->assign(buff.c_str(), 0, buff.length());
     return 0;
