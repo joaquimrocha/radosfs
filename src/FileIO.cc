@@ -804,7 +804,7 @@ FileIO::realWrite(char *buff, off_t offset, size_t blen, bool deleteBuffer,
   else
     lockShared(opId);
 
-  setSizeIfBigger(totalSize);
+  setSizeIfBigger(totalSize, asyncOp);
 
   radosfs_debug("Writing in inode '%s' (op id: '%s') to size %lu affecting "
                 "chunks %lu-%lu", inode().c_str(), opId.c_str(), totalSize,
@@ -1129,28 +1129,33 @@ inodeBackLinkCb(rados_completion_t comp, void *arg)
 }
 
 int
-FileIO::setSizeIfBigger(size_t size)
+FileIO::setSizeIfBigger(size_t size, AsyncOpSP asyncOp)
 {
   librados::ObjectWriteOperation writeOp;
-  librados::bufferlist sizeBl;
+  librados::bufferlist sizeBl, backLinkBl;
   sizeBl.append(fileSizeToHex(size));
 
   // Set the new size only if it's greater than the one already set
   writeOp.setxattr(XATTR_FILE_SIZE, sizeBl);
   writeOp.cmpxattr(XATTR_FILE_SIZE, LIBRADOS_CMPXATTR_OP_GT, sizeBl);
 
-  int ret = mPool->ioctx.operate(inode(), &writeOp);
-
-  // Set the back link because this op might create the object
-  if (ret == 0 && shouldSetBacklink())
+  if (!mPath.empty() && shouldSetBacklink())
   {
-    setInodeBacklinkAsync(mPool, mPath, inode(), 0, inodeBackLinkCb, this);
+    backLinkBl.append(mPath);
+    writeOp.setxattr(XATTR_INODE_HARD_LINK, backLinkBl);
   }
 
-  radosfs_debug("Set size %d to '%s' if it's greater: retcode=%d (%s)",
-                size, inode().c_str(), ret, strerror(abs(ret)));
+  librados::AioCompletion *completion = librados::Rados::aio_create_completion();
 
-  return ret;
+  std::stringstream stream;
+  stream << "Set size because it was bigger "
+            "(od id='" << asyncOp->id() << "') on '" << inode() << "'";
+  setCompletionDebugMsg(completion, stream.str());
+
+  mPool->ioctx.aio_operate(inode(), completion, &writeOp);
+  asyncOp->mPriv->addCompletion(completion);
+
+  return 0;
 }
 
 int

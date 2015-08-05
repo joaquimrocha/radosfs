@@ -202,7 +202,7 @@ private:
   int verifyWriteParams(off_t offset, size_t length);
   int realWrite(char *buff, off_t offset, size_t blen, bool deleteBuffer,
                 AsyncOpSP asyncOp);
-  int setSizeIfBigger(size_t size);
+  int setSizeIfBigger(size_t size, AsyncOpSP asyncOp);
   int setSize(size_t size);
   void setCompletionDebugMsg(librados::AioCompletion *completion,
                              const std::string &message);
