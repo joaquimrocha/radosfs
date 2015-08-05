@@ -512,7 +512,12 @@ FileInode::registerFile(const std::string &path, uid_t uid, gid_t gid, int mode)
 int
 FileInode::getBackLink(std::string *backLink)
 {
-  return getFileInodeBackLink(mPriv->io->pool().get(), name(), backLink);
+  int ret = getFileInodeBackLink(mPriv->io->pool().get(), name(), backLink);
+
+  if (ret == 0 && backLink->empty())
+    ret = -ENODATA;
+
+  return ret;
 }
 
 RADOS_FS_END_NAMESPACE
