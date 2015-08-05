@@ -1241,10 +1241,9 @@ FileIO::hasSingleClient(const FileIOSP &io)
 }
 
 void
-FileIO::setInlineBuffer(const std::string path, size_t bufferSize)
+FileIO::setInlineBuffer(const Stat *parentStat, const std::string path,
+                        size_t bufferSize)
 {
-
-  Stat parentStat;
   std::string parentPath = getParentDir(path, 0);
 
   if (parentPath == "")
@@ -1258,10 +1257,7 @@ FileIO::setInlineBuffer(const std::string path, size_t bufferSize)
     mInlineBuffer.reset();
   }
 
-  if (mRadosFs->mPriv->stat(parentPath, &parentStat) != 0)
-    return;
-
-  mInlineBuffer.reset(new FileInlineBuffer(mRadosFs, &parentStat,
+  mInlineBuffer.reset(new FileInlineBuffer(mRadosFs, parentStat,
                                            path.substr(parentPath.length()),
                                            bufferSize));
 }

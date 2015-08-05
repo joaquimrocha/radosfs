@@ -164,7 +164,8 @@ public:
 
   PoolSP pool(void) const { return mPool; }
 
-  void setInlineBuffer(const std::string path, size_t bufferSize);
+  void setInlineBuffer(const Stat *parentStat, const std::string path,
+                       size_t bufferSize);
 
   FileInlineBuffer *inlineBuffer(void) const { return mInlineBuffer.get(); }
 

@@ -118,7 +118,11 @@ FilePriv::updatePath()
     inode->mPriv->setFileIO(radosFs->mPriv->getOrCreateFileIO(stat->translatedPath,
                                                               stat));
     if (inlineBufferSize > 0)
-      inode->mPriv->io->setInlineBuffer(fsFile->path(), inlineBufferSize);
+    {
+      const Stat *parentStat = parentFsStat();
+      inode->mPriv->io->setInlineBuffer(parentStat, fsFile->path(),
+                                        inlineBufferSize);
+    }
   }
 }
 
@@ -315,8 +319,11 @@ FilePriv::setInode(const size_t chunkSize)
   inode->mPriv->setFileIO(fileIO);
   fsFile->filesystem()->mPriv->setFileIO(fileIO);
 
+  const Stat *parentStat = parentFsStat();
+
   if (inlineBufferSize > 0)
-    inode->mPriv->io->setInlineBuffer(fsFile->path(), inlineBufferSize);
+    inode->mPriv->io->setInlineBuffer(parentStat, fsFile->path(),
+                                      inlineBufferSize);
 }
 
 int
