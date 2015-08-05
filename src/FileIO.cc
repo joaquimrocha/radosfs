@@ -1161,20 +1161,25 @@ FileIO::setSizeIfBigger(size_t size, AsyncOpSP asyncOp)
 int
 FileIO::setSize(size_t size)
 {
-  librados::bufferlist sizeBl;
+  librados::bufferlist sizeBl, backLinkBl;
   sizeBl.append(fileSizeToHex(size));
 
   librados::ObjectWriteOperation writeOp;
   writeOp.create(false);
   writeOp.setxattr(XATTR_FILE_SIZE, sizeBl);
 
+  bool backLinkIsSet = !shouldSetBacklink();
+
+  if (!mPath.empty() && !backLinkIsSet)
+  {
+    backLinkBl.append(mPath);
+    writeOp.setxattr(XATTR_INODE_HARD_LINK, backLinkBl);
+  }
+
   int ret = mPool->ioctx.operate(inode(), &writeOp);
 
-  // Set the back link because this op might create the object
-  if (ret == 0 && shouldSetBacklink())
-  {
-    setInodeBacklinkAsync(mPool, mPath, inode(), 0, inodeBackLinkCb, this);
-  }
+  if (ret == 0 && !backLinkIsSet)
+    setHasBackLink(true);
 
   radosfs_debug("Set size %d to '%s': retcode=%d (%s)", size,
                 inode().c_str(), ret, strerror(abs(ret)));
