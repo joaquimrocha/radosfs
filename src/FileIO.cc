@@ -866,9 +866,10 @@ FileIO::remove()
   const std::string &opId = generateUuid();
   mOpManager.sync();
 
-  mLockMutex.lock();
-  unlockShared();
-  mLockMutex.unlock();
+  {
+    boost::unique_lock<boost::mutex> lock(mLockMutex);
+    unlockShared();
+  }
 
   lockExclusive(opId);
 
@@ -938,9 +939,10 @@ FileIO::truncate(size_t newSize)
 
   const std::string &opId = generateUuid();
 
-  mLockMutex.lock();
-  unlockShared();
-  mLockMutex.unlock();
+  {
+    boost::unique_lock<boost::mutex> lock(mLockMutex);
+    unlockShared();
+  }
 
   lockExclusive(opId);
 
