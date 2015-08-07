@@ -283,6 +283,14 @@ RadosFsTest::testXAttrInFsInfo(radosfs::FsObj &info)
 }
 
 void
+notifyWithDelay(boost::condition_variable *cond, boost::mutex *mutex, uint delay)
+{
+  boost::this_thread::sleep_for(boost::chrono::milliseconds(delay));
+  cond->notify_all();
+  mutex->unlock();
+}
+
+void
 runFileActionInThread(FsActionInfo *actionInfo)
 {
   bool useMutex = actionInfo->mutex != 0;
@@ -297,10 +305,16 @@ runFileActionInThread(FsActionInfo *actionInfo)
 
   actionInfo->started = true;
 
+  boost::thread notifyThread;
+
   if (useMutex)
   {
-    actionInfo->cond->notify_all();
-    actionInfo->mutex->unlock();
+    // We notify the other client to run using a delay because we need the
+    // actions below to start before the other client's. E.g. in the case of
+    // write, which is asynchronous, it was not being executed (modifying the
+    // inode object) before the other client's action.
+    notifyThread = boost::thread(boost::bind(notifyWithDelay, actionInfo->cond,
+                                             actionInfo->mutex, 500));
   }
 
   if (actionInfo->action == "create")
@@ -311,6 +325,8 @@ runFileActionInThread(FsActionInfo *actionInfo)
     EXPECT_EQ(0, file.truncate(actionInfo->length));
   else if (actionInfo->action == "remove")
     EXPECT_EQ(0, file.remove());
+
+  notifyThread.join();
 }
 
 void
