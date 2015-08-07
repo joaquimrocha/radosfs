@@ -930,21 +930,21 @@ FileIO::truncate(size_t newSize)
 
   mOpManager.sync();
 
-  if (mInlineBuffer)
-  {
-    mInlineBuffer->truncate(newSize);
-  }
-
   updateTimeAsyncInXAttr(mPool, mInode, XATTR_MTIME);
-
-  const std::string &opId = generateUuid();
 
   {
     boost::unique_lock<boost::mutex> lock(mLockMutex);
     unlockShared();
   }
 
+  const std::string &opId = generateUuid();
+
   lockExclusive(opId);
+
+  if (mInlineBuffer)
+  {
+    mInlineBuffer->truncate(newSize);
+  }
 
   size_t currentSize;
   ssize_t lastChunk = getLastChunkIndexAndSize(&currentSize);
