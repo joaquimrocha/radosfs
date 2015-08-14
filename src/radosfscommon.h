@@ -67,7 +67,7 @@ struct Stat {
 
   void reset(void)
   {
-    memset(&statBuff, sizeof (struct stat), 0);
+    memset(&statBuff, 0, sizeof(struct stat));
     path = "";
     translatedPath = "";
     statBuff.st_uid = NOBODY_UID;
