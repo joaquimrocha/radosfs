@@ -11,7 +11,7 @@ Source:        %{name}-%{version}-%{release}.tar.gz
 BuildRoot:     %{_tmppath}/%{name}-root
 
 BuildRequires: cmake >= 2.6
-BuildRequires: librados2 ceph-devel libuuid-devel
+BuildRequires: librados2 ceph-devel libuuid-devel boost-devel
 
 %if %{?_EXTRA_REQUIRES:1}%{!?_EXTRA_REQUIRES:0}
 BuildRequires: %{_EXTRA_REQUIRES}
