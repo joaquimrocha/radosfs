@@ -53,6 +53,20 @@ foreach( NAME ${PUBLIC_FILE_NAMES} )
 endforeach()
 
 if( NOT NO_SOURCE )
+  include(CheckCXXCompilerFlag)
+
+  CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
+  CHECK_CXX_COMPILER_FLAG("-std=c++0x" COMPILER_SUPPORTS_CXX0X)
+  if(COMPILER_SUPPORTS_CXX11)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+    message(STATUS "Compiler ${CMAKE_CXX_COMPILER} supports C++11")
+  elseif(COMPILER_SUPPORTS_CXX0X)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+    message(STATUS "Compiler ${CMAKE_CXX_COMPILER} supports C++11")
+  else()
+    message(STATUS "Compiler ${CMAKE_CXX_COMPILER} does not support C++11")
+  endif()
+
   if ( "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR
        "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" )
     set( WARNING_LEVEL "-Wall" )
@@ -61,7 +75,7 @@ if( NOT NO_SOURCE )
       set( WARNING_LEVEL "${WARNING_LEVEL} -Wno-unused-local-typedefs" )
     endif()
 
-    set( CMAKE_CXX_FLAGS ${WARNING_LEVEL}
+    set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WARNING_LEVEL}"
          CACHE STRING "C++ compiler flags." FORCE )
     set( CMAKE_C_FLAGS  ${WARNING_LEVEL}
          CACHE STRING "C compiler flags." FORCE )
