@@ -2192,8 +2192,6 @@ TEST_F(RadosFsTest, DirOpsMultipleClients)
                                        cli2ActionInfos[i]);
   }
 
-  sleep(3);
-
   for (int i = 0; i < numOps; i++)
   {
     cli1Threads[i]->join();
