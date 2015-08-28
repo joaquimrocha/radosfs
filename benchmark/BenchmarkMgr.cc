@@ -28,12 +28,6 @@ BenchmarkMgr::BenchmarkMgr(const char *conf, const std::string &user,
     cluster.pool_create(mDataPool.c_str());
     mCreatedPools = true;
   }
-  else
-  {
-    std::list<std::string> pools;
-    pools.push_back(mtdPool);
-    pools.push_back(dataPool);
-  }
 
   cluster.shutdown();
 }
