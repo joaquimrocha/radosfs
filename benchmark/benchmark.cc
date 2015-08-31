@@ -122,6 +122,8 @@ createFiles(BenchmarkInfo *benchmarkInfo)
       {
         file.write(buffer, offset, slice, true);
       }
+
+      file.sync();
     }
 
     clock_gettime(CLOCK_REALTIME, &timeAfter);
