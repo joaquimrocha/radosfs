@@ -52,6 +52,7 @@ typedef struct
 {
   int threadId;
   BenchmarkMgr *benchmark;
+  char *buffer;
   size_t bufferSize;
   size_t bufferDivision;
   std::vector<int> creationTimes;
@@ -64,14 +65,10 @@ typedef struct
 void
 createFiles(BenchmarkInfo *benchmarkInfo)
 {
-  char *buffer = 0;
   int threadId = benchmarkInfo->threadId;
   BenchmarkMgr *benchmark = benchmarkInfo->benchmark;
   benchmarkInfo->minCreationTime = std::numeric_limits<float>::max();
   benchmarkInfo->maxCreationTime = .0;
-
-  if (benchmarkInfo->bufferSize != 0)
-    buffer = new char[benchmarkInfo->bufferSize];
 
   std::stringstream prefix;
   prefix << "/t-" << commonPrefix << "-" << threadId;
@@ -112,7 +109,7 @@ createFiles(BenchmarkInfo *benchmarkInfo)
 
     int ret = file.create();
 
-    if (buffer)
+    if (benchmarkInfo->buffer)
     {
       off_t offset = 0;
       const size_t bufferSize = benchmarkInfo->bufferSize;
@@ -120,7 +117,7 @@ createFiles(BenchmarkInfo *benchmarkInfo)
 
       for (offset = 0; offset + slice <= bufferSize; offset += slice)
       {
-        file.write(buffer, offset, slice, true);
+        file.write(benchmarkInfo->buffer, offset, slice);
       }
 
       file.sync();
@@ -146,9 +143,7 @@ createFiles(BenchmarkInfo *benchmarkInfo)
 
   }
 
-  delete[] buffer;
-
-  exitThread:
+exitThread:
 
   benchmarkInfo->exited = true;
 }
@@ -372,6 +367,10 @@ main(int argc, char **argv)
 
   boost::thread *threads[numThreads];
   BenchmarkInfo *infos[numThreads];
+  char *buffer = 0;
+
+  if (bufferSize > 0)
+    buffer = new char[bufferSize];
 
   int i;
 
@@ -382,6 +381,7 @@ main(int argc, char **argv)
     info->exited = false;
     info->shouldExit = false;
     info->threadId = i;
+    info->buffer = buffer;
     info->bufferSize = bufferSize;
     info->bufferDivision = bufferDivision;
 
@@ -455,6 +455,8 @@ main(int argc, char **argv)
 
   fprintf(stdout, "\tMin creation time:    %10.2f sec\n", minCreationTime);
   fprintf(stdout, "\tMax creation time:    %10.2f sec\n", maxCreationTime);
+
+  delete [] buffer;
 
   return 0;
 }
