@@ -75,7 +75,7 @@ public:
 
   bool isReadable(void);
 
-  void update(void);
+  void refresh(void);
 
   void setPath(const std::string &path);
 

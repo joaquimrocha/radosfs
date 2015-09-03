@@ -293,7 +293,7 @@ Finder::find(FinderData *data)
   Dir dir(radosFs, data->dir);
   std::set<std::string>::iterator it;
 
-  dir.update();
+  dir.refresh();
 
   if (dir.isLink())
     return 0;

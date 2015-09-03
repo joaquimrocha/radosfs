@@ -671,7 +671,7 @@ File::remove()
 {
   int ret;
 
-  FsObj::update();
+  FsObj::refresh();
 
   ret = mPriv->verifyExistanceAndType();
 
@@ -697,7 +697,7 @@ File::remove()
   else
     return -EACCES;
 
-  FsObj::update();
+  FsObj::refresh();
 
   return ret;
 }
@@ -781,9 +781,9 @@ File::isReadable()
  * needs to be checked, update should be called before checking it.
  */
 void
-File::update()
+File::refresh()
 {
-  FsObj::update();
+  FsObj::refresh();
   mPriv->updatePath();
 }
 
@@ -812,7 +812,7 @@ File::stat(struct stat *buff)
 {
   Stat *stat;
 
-  FsObj::update();
+  FsObj::refresh();
 
   if (!exists())
     return -ENOENT;

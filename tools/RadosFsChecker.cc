@@ -390,7 +390,7 @@ RadosFsChecker::checkDir(std::string path, bool recursive,
 
   radosfs::Dir dir(mRadosFs, path);
 
-  dir.update();
+  dir.refresh();
 
   std::set<std::string> entries;
   ret = dir.entryList(entries);

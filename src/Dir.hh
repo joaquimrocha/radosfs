@@ -54,7 +54,7 @@ public:
 
   int entryList(std::set<std::string> &entries);
 
-  void update(void);
+  void refresh(void);
 
   int entry(int entryIndex, std::string &path);
 

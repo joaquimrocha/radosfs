@@ -58,7 +58,7 @@ public:
 
   virtual int stat(struct stat *buff);
 
-  virtual void update(void);
+  virtual void refresh(void);
 
   virtual int setXAttr(const std::string &attrName,
                const std::string &value);

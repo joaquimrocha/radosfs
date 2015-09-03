@@ -281,7 +281,7 @@ void
 FsObj::setPath(const std::string &path)
 {
   mPriv->setPath(path);
-  update();
+  refresh();
 }
 
 /**
@@ -344,7 +344,7 @@ FsObj::exists() const
 int
 FsObj::stat(struct stat *buff)
 {
-  FsObj::update();
+  FsObj::refresh();
 
   if (!isReadable())
     return -EPERM;
@@ -363,7 +363,7 @@ FsObj::stat(struct stat *buff)
  * object in the system.
  */
 void
-FsObj::update()
+FsObj::refresh()
 {
   mPriv->exists = false;
 

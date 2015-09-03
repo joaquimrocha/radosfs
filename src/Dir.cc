@@ -630,7 +630,7 @@ Dir::create(int mode,
 
   indexObject(&parentStat, &stat, '+');
 
-  FsObj::update();
+  FsObj::refresh();
   mPriv->updateDirInfoPtr();
 
   mPriv->radosFsPriv()->updateTMId(&stat);
@@ -652,7 +652,7 @@ Dir::remove()
   Filesystem *radosFs = filesystem();
   Stat stat, *statPtr;
 
-  FsObj::update();
+  FsObj::refresh();
 
   ret = mPriv->radosFsPriv()->stat(mPriv->parentDir, &stat);
 
@@ -697,7 +697,7 @@ Dir::remove()
   if (ret == 0)
     indexObject(&stat, statPtr, '-');
 
-  FsObj::update();
+  FsObj::refresh();
 
   if (info)
     mPriv->updateFsDirCache();
@@ -725,14 +725,14 @@ Dir::remove()
  * @see The \ref updateobjs and \ref listdir sections of the \ref arch page.
  */
 void
-Dir::update()
+Dir::refresh()
 {
-  FsObj::update();
+  FsObj::refresh();
 
   if (isLink())
   {
     if (mPriv->target)
-      return mPriv->target->update();
+      return mPriv->target->refresh();
 
     radosfs_debug("No target for link %s", path().c_str());
     return;
@@ -940,7 +940,7 @@ Dir::setMetadata(const std::string &entry, const std::string &key,
   if (key == "")
     return -EINVAL;
 
-  update();
+  refresh();
 
   if (!isWritable())
     return -EACCES;
@@ -991,7 +991,7 @@ Dir::getMetadata(const std::string &entry, const std::string &key,
   if (key == "")
     return -EINVAL;
 
-  update();
+  refresh();
 
   if (!isReadable())
     return -EACCES;
@@ -1025,7 +1025,7 @@ Dir::getMetadataMap(const std::string &entry,
     return -ENOLINK;
   }
 
-  update();
+  refresh();
 
   if (!isReadable())
     return -EACCES;
@@ -1060,7 +1060,7 @@ Dir::removeMetadata(const std::string &entry, const std::string &key)
   if (key == "")
     return -EINVAL;
 
-  update();
+  refresh();
 
   if (!isWritable())
     return -EACCES;

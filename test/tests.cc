@@ -203,7 +203,7 @@ TEST_F(RadosFsTest, CharacterConsistency)
   EXPECT_EQ('/' + path + '/', otherDir.path());
 
   radosfs::Dir rootDir(&radosFs, "/");
-  rootDir.update();
+  rootDir.refresh();
 
   std::set<std::string> entries;
   rootDir.entryList(entries);
@@ -251,7 +251,7 @@ TEST_F(RadosFsTest, PathsLength)
   // Get the entries in the root directory
 
   radosfs::Dir dir(&radosFs, "/");
-  dir.update();
+  dir.refresh();
 
   std::set<std::string> entries;
 
@@ -592,7 +592,7 @@ TEST_F(RadosFsTest, RemoveFile)
 
   file1->writeSync(inlineContents, 0, contentsLength);
 
-  file2->update();
+  file2->refresh();
 
   EXPECT_TRUE(file2->exists());
 
@@ -604,7 +604,7 @@ TEST_F(RadosFsTest, RemoveFile)
 
   EXPECT_TRUE(strncmp(inlineContents, inlineContents2, contentsLength));
 
-  file2->update();
+  file2->refresh();
 
   EXPECT_FALSE(file2->exists());
 
@@ -671,7 +671,7 @@ TEST_F(RadosFsTest, CreateFileInDir)
 
   EXPECT_NE(0, file.create());
 
-  file.update();
+  file.refresh();
 
   EXPECT_EQ(0, file.create());
 }
@@ -777,7 +777,7 @@ TEST_F(RadosFsTest, DirPermissions)
 
   radosFs.setIds(TEST_UID, TEST_GID);
 
-  dir.update();
+  dir.refresh();
 
   EXPECT_TRUE(dir.isWritable());
 
@@ -813,7 +813,7 @@ TEST_F(RadosFsTest, DirPermissions)
 
   radosFs.setIds(TEST_UID, TEST_GID);
 
-  subDir.update();
+  subDir.refresh();
 
   EXPECT_EQ(0, subDir.create(S_IRWXU));
 
@@ -821,7 +821,7 @@ TEST_F(RadosFsTest, DirPermissions)
 
   radosFs.setIds(TEST_UID + 1, TEST_GID + 1);
 
-  subDir.update();
+  subDir.refresh();
 
   EXPECT_TRUE(subDir.isReadable());
 
@@ -829,17 +829,17 @@ TEST_F(RadosFsTest, DirPermissions)
 
   radosFs.setIds(TEST_UID, TEST_GID);
 
-  subDir.update();
+  subDir.refresh();
 
   EXPECT_EQ(0, subDir.chmod(0));
 
-  subDir.update();
+  subDir.refresh();
 
   EXPECT_FALSE(subDir.isReadable());
 
   radosFs.setIds(ROOT_UID, ROOT_UID);
 
-  subDir.update();
+  subDir.refresh();
 
   EXPECT_TRUE(subDir.isWritable());
 
@@ -849,7 +849,7 @@ TEST_F(RadosFsTest, DirPermissions)
 
   EXPECT_EQ(0, subDir.chmod(S_IREAD));
 
-  subDir.update();
+  subDir.refresh();
 
   EXPECT_TRUE(subDir.isReadable());
 }
@@ -924,7 +924,7 @@ TEST_F(RadosFsTest, FilePermissions)
 
   radosFs.setIds(TEST_UID + 1, TEST_GID + 1);
 
-  otherFile.update();
+  otherFile.refresh();
 
   EXPECT_FALSE(otherFile.isReadable());
 
@@ -936,7 +936,7 @@ TEST_F(RadosFsTest, FilePermissions)
 
   radosFs.setIds(TEST_UID + 1, TEST_GID + 1);
 
-  file.update();
+  file.refresh();
 
   EXPECT_TRUE(file.isReadable());
 
@@ -944,11 +944,11 @@ TEST_F(RadosFsTest, FilePermissions)
 
   radosFs.setIds(TEST_UID, TEST_GID);
 
-  file.update();
+  file.refresh();
 
   EXPECT_EQ(0, file.chmod(0));
 
-  file.update();
+  file.refresh();
 
   EXPECT_FALSE(file.isReadable());
 
@@ -956,7 +956,7 @@ TEST_F(RadosFsTest, FilePermissions)
 
   radosFs.setIds(ROOT_UID, ROOT_UID);
 
-  file.update();
+  file.refresh();
 
   EXPECT_TRUE(file.isWritable());
 
@@ -968,7 +968,7 @@ TEST_F(RadosFsTest, FilePermissions)
 
   EXPECT_EQ(0, file.chmod(S_IREAD));
 
-  file.update();
+  file.refresh();
 
   EXPECT_TRUE(file.isReadable());
 }
@@ -1000,7 +1000,7 @@ TEST_F(RadosFsTest, DirContents)
 
   EXPECT_EQ(0, entries.size());
 
-  dir.update();
+  dir.refresh();
 
   EXPECT_EQ(0, dir.entryList(entries));
 
@@ -1012,7 +1012,7 @@ TEST_F(RadosFsTest, DirContents)
 
   EXPECT_EQ(-EEXIST, sameFile.create());
 
-  dir.update();
+  dir.refresh();
 
   entries.clear();
 
@@ -1029,7 +1029,7 @@ TEST_F(RadosFsTest, DirContents)
 
   EXPECT_EQ(0, otherFile.create());
 
-  dir.update();
+  dir.refresh();
 
   entries.clear();
 
@@ -1045,7 +1045,7 @@ TEST_F(RadosFsTest, DirContents)
 
   EXPECT_EQ(0, subDir.create());
 
-  dir.update();
+  dir.refresh();
 
   entries.clear();
 
@@ -1059,7 +1059,7 @@ TEST_F(RadosFsTest, DirContents)
 
   EXPECT_EQ(0, sameSubDir.create(-1, true));
 
-  dir.update();
+  dir.refresh();
 
   entries.clear();
 
@@ -1071,7 +1071,7 @@ TEST_F(RadosFsTest, DirContents)
 
   EXPECT_EQ(0, file.remove());
 
-  dir.update();
+  dir.refresh();
 
   entries.clear();
 
@@ -1288,7 +1288,7 @@ TEST_F(RadosFsTest, FileInodeDirect)
 
   ASSERT_EQ(0, inode.registerFile(file.path(), TEST_UID, TEST_GID, O_RDWR));
 
-  file.update();
+  file.refresh();
 
   // Verify the registered file exists
 
@@ -1384,7 +1384,7 @@ TEST_F(RadosFsTest, FileTruncate)
 
   EXPECT_EQ(0, file.truncate(0));
 
-  sameFile.update();
+  sameFile.refresh();
 
   EXPECT_EQ(0, sameFile.stat(&buff));
 
@@ -1396,7 +1396,7 @@ TEST_F(RadosFsTest, FileTruncate)
 
   EXPECT_EQ(0, file.truncate(size));
 
-  sameFile.update();
+  sameFile.refresh();
 
   EXPECT_EQ(0, sameFile.stat(&buff));
 
@@ -1408,7 +1408,7 @@ TEST_F(RadosFsTest, FileTruncate)
 
   EXPECT_EQ(0, file.truncate(size));
 
-  sameFile.update();
+  sameFile.refresh();
 
   EXPECT_EQ(0, sameFile.stat(&buff));
 
@@ -1909,7 +1909,7 @@ TEST_F(RadosFsTest, RenameFile)
 
   std::set<std::string> entries;
 
-  userDir.update();
+  userDir.refresh();
 
   EXPECT_EQ(0, userDir.entryList(entries));
 
@@ -1939,7 +1939,7 @@ TEST_F(RadosFsTest, RenameFile)
 
   std::set<std::string> entries1;
 
-  userDir.update();
+  userDir.refresh();
 
   EXPECT_EQ(0, userDir.entryList(entries1));
 
@@ -1953,7 +1953,7 @@ TEST_F(RadosFsTest, RenameFile)
 
   radosfs::Dir rootDir(&radosFs, "/");
 
-  rootDir.update();
+  rootDir.refresh();
 
   EXPECT_EQ(0, rootDir.entryList(entries));
 
@@ -1989,7 +1989,7 @@ TEST_F(RadosFsTest, RenameFile)
 
   EXPECT_EQ(path, file.path());
 
-  sameFile.update();
+  sameFile.refresh();
 
   EXPECT_FALSE(sameFile.exists());
 
@@ -2205,7 +2205,7 @@ TEST_F(RadosFsTest, DirOpsMultipleClients)
 
   // Verify that both dir instances have the same number of entries
 
-  cli1DirInst.update();
+  cli1DirInst.refresh();
 
   std::set<std::string> entries;
 
@@ -2214,7 +2214,7 @@ TEST_F(RadosFsTest, DirOpsMultipleClients)
   EXPECT_EQ(2 * numOps, entries.size());
 
   entries.clear();
-  cli2DirInst.update();
+  cli2DirInst.refresh();
 
   EXPECT_EQ(0, cli2DirInst.entryList(entries));
 
@@ -2464,7 +2464,7 @@ TEST_F(RadosFsTest, DirCache)
   // Update the parent dir of the one we created and verify
   // that the cache size increments (because now it has an entry)
 
-  dir.update();
+  dir.refresh();
 
   EXPECT_EQ(4, radosFsPriv()->dirCache.size());
 
@@ -2487,14 +2487,14 @@ TEST_F(RadosFsTest, DirCache)
   // Update dir with one entry and verify it doesn't get cached
   // (because the cache size would be greater than the maximum)
 
-  dir.update();
+  dir.refresh();
 
   EXPECT_EQ(0, radosFsPriv()->dirCache.size());
 
   // Update the subdir (with no entries) and verify the cache
   // size increments
 
-  subdir.update();
+  subdir.refresh();
 
   EXPECT_EQ(1, radosFsPriv()->dirCache.size());
 
@@ -2511,7 +2511,7 @@ TEST_F(RadosFsTest, DirCache)
   radosfs::Dir notCachedDir(&radosFs, "/notcached", false);
   EXPECT_EQ(0, notCachedDir.create());
 
-  notCachedDir.update();
+  notCachedDir.refresh();
 
   EXPECT_EQ(0, radosFsPriv()->dirCache.size());
 }
@@ -2550,7 +2550,7 @@ TEST_F(RadosFsTest, CompactDir)
   radosFs.stat(dirPath, &statBefore);
 
   radosfs::Dir dir(&radosFs, dirPath);
-  dir.update();
+  dir.refresh();
 
   radosFs.stat(dirPath, &statAfter);
 
@@ -2567,7 +2567,7 @@ TEST_F(RadosFsTest, CompactDir)
 
   radosfs::Dir sameDir(&otherClient, dir.path());
 
-  sameDir.update();
+  sameDir.refresh();
 
   std::set<std::string> otherClientEntries;
   sameDir.entryList(otherClientEntries);
@@ -2581,7 +2581,7 @@ TEST_F(RadosFsTest, CompactDir)
 
   radosFs.setDirCompactRatio(0.9);
 
-  dir.update();
+  dir.refresh();
 
   // Check if it compacted after the update
 
@@ -2605,7 +2605,7 @@ TEST_F(RadosFsTest, CompactDir)
   // Check the integrity of the entries in the dir, before and after the
   // compaction
 
-  dir.update();
+  dir.refresh();
 
   dir.entryList(entriesAfter);
 
@@ -2614,7 +2614,7 @@ TEST_F(RadosFsTest, CompactDir)
   // Check that the other client's dir instance also gets the same entries
   // after it had been compacted from a different client
 
-  sameDir.update();
+  sameDir.refresh();
 
   otherClientEntries.clear();
   sameDir.entryList(otherClientEntries);
@@ -2761,7 +2761,7 @@ TEST_F(RadosFsTest, RenameDir)
 
   // Check that the subdir of the user dir no longer exists (it was moved)
 
-  sameDir.update();
+  sameDir.refresh();
 
   EXPECT_FALSE(sameDir.exists());
 
@@ -2773,7 +2773,7 @@ TEST_F(RadosFsTest, RenameDir)
 
   // Check that the file in the old user dir no longer exists
 
-  file.update();
+  file.refresh();
 
   EXPECT_FALSE(file.exists());
 
@@ -2834,7 +2834,7 @@ TEST_F(RadosFsTest, RenameWithLinks)
 
   // Verify that the old dir link object is now the file we renamed
 
-  linkDir.update();
+  linkDir.refresh();
 
   EXPECT_TRUE(linkDir.exists());
 
@@ -2969,7 +2969,7 @@ TEST_F(RadosFsTest, LinkDir)
 
   // Get the dir's entries using the link and verify them
 
-  dirLink.update();
+  dirLink.refresh();
 
   std::set<std::string> entries, entriesAfter;
 
@@ -3026,7 +3026,7 @@ TEST_F(RadosFsTest, LinkDir)
 
   // Check that the subdir was correctly created
 
-  dir.update();
+  dir.refresh();
 
   entries.clear();
 
@@ -3064,19 +3064,19 @@ TEST_F(RadosFsTest, LinkDir)
 
   entries.clear();
 
-  dir.update();
+  dir.refresh();
 
   EXPECT_EQ(0, dir.entryList(entries));
 
   EXPECT_EQ(0, otherDirLink.remove());
 
-  dir.update();
+  dir.refresh();
 
   EXPECT_EQ(0, dir.entryList(entriesAfter));
 
   EXPECT_LT(entriesAfter.size(), entries.size());
 
-  dir.update();
+  dir.refresh();
 
   EXPECT_TRUE(dir.exists());
 
@@ -3269,7 +3269,7 @@ TEST_F(RadosFsTest, LinkPermissions)
 
   radosFs.setIds(ROOT_UID, ROOT_UID);
 
-  fileLink.update();
+  fileLink.refresh();
 
   EXPECT_NE(-EACCES, fileLink.read(buff, 0, 1));
 
@@ -3281,7 +3281,7 @@ TEST_F(RadosFsTest, LinkPermissions)
 
   radosFs.setIds(TEST_UID, TEST_UID);
 
-  fileLink.update();
+  fileLink.refresh();
 
   EXPECT_EQ(-EACCES, fileLink.write(buff, 0, 1));
 }
@@ -3314,7 +3314,7 @@ TEST_F(RadosFsTest, Find)
   std::set<std::string> results;
 
   dir.setPath("/");
-  dir.update();
+  dir.refresh();
 
   // Find contents using an empty search string
 
@@ -3426,7 +3426,7 @@ TEST_F(RadosFsTest, Find)
 
   dir.setPath("/d0/d2/");
 
-  dir.update();
+  dir.refresh();
 
   std::set<std::string> entries;
   ASSERT_EQ(0, dir.entryList(entries));
@@ -3523,7 +3523,7 @@ TEST_F(RadosFsTest, Find)
 
   dir.setPath("/d0/d2/");
 
-  dir.update();
+  dir.refresh();
 
   entries.clear();
 
@@ -3702,7 +3702,7 @@ TEST_F(RadosFsTest, PoolAlignment)
 
   radosFsFilePriv(file)->dataPool->alignment = alignment;
 
-  file.update();
+  file.refresh();
 
   // Create contents which should go into chunks with a size that is a multiple
   // of the alignment and less than the chunk size originally set
@@ -3791,7 +3791,7 @@ TEST_F(RadosFsTest, DirTimes)
 
   ASSERT_EQ(0, dir.create());
 
-  dir.update();
+  dir.refresh();
 
   // Check the creation and modification time
 
@@ -3894,7 +3894,7 @@ TEST_F(RadosFsTest, DirTMId)
 
   // Set and remove metadata and see how it affects the times
 
-  dirB.update();
+  dirB.refresh();
 
   ASSERT_EQ(0, dirB.setMetadata("c/", "metadata", "value"));
 
@@ -4137,7 +4137,7 @@ TEST_F(RadosFsTest, ChownFile)
 
   EXPECT_EQ(0, file.setUid(newUid));
 
-  file.update();
+  file.refresh();
 
   ASSERT_EQ(0, file.stat(&statBuff));
 
@@ -4151,7 +4151,7 @@ TEST_F(RadosFsTest, ChownFile)
 
   EXPECT_EQ(0, file.setGid(newGid));
 
-  file.update();
+  file.refresh();
 
   ASSERT_EQ(0, file.stat(&statBuff));
 
@@ -4166,7 +4166,7 @@ TEST_F(RadosFsTest, ChownFile)
 
   EXPECT_EQ(0, file.chown(newUid, newGid));
 
-  file.update();
+  file.refresh();
 
   ASSERT_EQ(0, file.stat(&statBuff));
 
@@ -4207,7 +4207,7 @@ TEST_F(RadosFsTest, ChownDir)
 
   EXPECT_EQ(0, dir.setUid(newUid));
 
-  dir.update();
+  dir.refresh();
 
   ASSERT_EQ(0, dir.stat(&statBuff));
 
@@ -4221,7 +4221,7 @@ TEST_F(RadosFsTest, ChownDir)
 
   EXPECT_EQ(0, dir.setGid(newGid));
 
-  dir.update();
+  dir.refresh();
 
   ASSERT_EQ(0, dir.stat(&statBuff));
 
@@ -4236,7 +4236,7 @@ TEST_F(RadosFsTest, ChownDir)
 
   EXPECT_EQ(0, dir.chown(newUid, newGid));
 
-  dir.update();
+  dir.refresh();
 
   ASSERT_EQ(0, dir.stat(&statBuff));
 
