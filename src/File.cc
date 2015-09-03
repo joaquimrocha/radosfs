@@ -743,7 +743,7 @@ File::truncate(unsigned long long size)
  *
  * @note This operation works over the information that this instance has of the
  *       permissions and the File::OpenMode, it does not get the latest values
- *       from the object in the cluster. For updating those values, File::update
+ *       from the object in the cluster. For updating those values, File::refresh
  *       has to be called.
  *
  * @return true is the file is writable, false otherwise.
@@ -760,7 +760,7 @@ File::isWritable()
  *
  * @note This operation works over the information that this instance has of the
  *       permissions and the File::OpenMode, it does not get the latest values
- *       from the object in the cluster. For updating those values, File::update
+ *       from the object in the cluster. For updating those values, File::refresh
  *       has to be called.
  *
  * @return true is the file is readable, false otherwise.
@@ -778,7 +778,7 @@ File::isReadable()
  * Traditionally this could be considered as reopening the file. It is used to
  * get the latest status of the file in the system. E.g. if a file instance has
  * been used for a long time and the status of the permissions, existance, etc.
- * needs to be checked, update should be called before checking it.
+ * needs to be checked, refresh should be called before checking it.
  */
 void
 File::refresh()

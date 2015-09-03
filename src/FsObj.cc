@@ -355,7 +355,7 @@ FsObj::stat(struct stat *buff)
 }
 
 /**
- * Updates the state of this FsObj instance according to the status of the
+ * Refreshes the state of this FsObj instance according to the status of the
  * actual object in the system.
  *
  * Traditionally this could be considered as reopening the file or directory

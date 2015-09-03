@@ -493,7 +493,7 @@ Dir::getParent(const std::string &path, int *pos)
  * Gets the list of files and directories in the directory.
  *
  * @note This method returns the entries cached in this instance since the last
- * call to Dir::update. To get an updated list of entries, Dir::update should be
+ * call to Dir::refresh. To get an updated list of entries, Dir::refresh should be
  * called before this method.
  *
  * @param[out] entries a set to store the directory's entries.
@@ -717,7 +717,7 @@ Dir::remove()
  * to get the latest status of the directory in the system, including the list
  * of entries. E.g. if a directory instance has been used for a long time and
  * the status of the permissions or the existance needs to be checked, or the
- * latest entry list needs to be checked, then update should be called.
+ * latest entry list needs to be checked, then refresh should be called.
  *
  * @note This method should be always called when getting the list of entries in
  *       the directory. Check out the Dir::entryList method.
@@ -754,7 +754,7 @@ Dir::refresh()
 /**
  * Gets the entry with the index \a entryIndex from the directory.
  *
- * @see Dir::update
+ * @see Dir::refresh
  *
  * @param entryIndex the index of the entry to fetch.
  * @param[out] entry a string reference where the entry name will be stored.
@@ -817,7 +817,7 @@ Dir::setPath(const std::string &path)
  *
  * @note This operation works over the information that this instance has of the
  *       permissions, it does not get the latest values from the object in the
- *       cluster. For updating those values, Dir::update has to be called.
+ *       cluster. For updating those values, Dir::refresh has to be called.
  *
  * @return true is the directory is writable, false otherwise.
  */
@@ -849,7 +849,7 @@ Dir::isWritable()
  *
  * @note This operation works over the information that this instance has of the
  *       permissions, it does not get the latest values from the object in the
- *       cluster. For updating those values, Dir::update has to be called.
+ *       cluster. For updating those values, Dir::refresh has to be called.
  *
  * @return true is the directory is readable, false otherwise.
  */

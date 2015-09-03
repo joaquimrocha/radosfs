@@ -116,7 +116,7 @@ Filesystem::setDirCompactRatio and will affect all the Dir objects associated
 with it. By default, the ratio that triggers the automatic compaction is **0.2**
 which means that if the *compact ratio* is lesser than or equal to that value,
 than the directory is compacted. Note that this automatic compaction (when
-needed) is only triggered by the Dir::update method. Certainly, setting a
+needed) is only triggered by the Dir::refresh method. Certainly, setting a
 *compact ratio* or zero will result in the automatic compaction never being
 called.
 
@@ -159,7 +159,7 @@ the cacheable argument to *false* and this directory will not be cached.
 The method used to obtain a directory's entries is Dir::entryList. However, this
 method does not read the entries that are effectively stored in the objects in
 the cluster but rather takes them from the cached list in memory. This means
-that in order to get the latest list of entries, Dir::update needs to be called
+that in order to get the latest list of entries, Dir::refresh needs to be called
 right before Dir::entryList. See the \ref updateobjs section.
 
 \subsubsection dirtmid TMId in directories
@@ -299,7 +299,7 @@ However, unlike directory cache objects, FileIO instances are discarded when no
 FileInode instance (or File instance, by association) needs them anymore.
 
 
-\section updateobjs File and directory updating
+\section updateobjs File and directory refreshing
 
 When a File or Dir object is intantiated, it reads some of the corresponding
 data or metadata from the cluster, for example the permissions. This data is not
@@ -309,10 +309,10 @@ very ineficient. In a similar way, Dir objects keep the last read entries of the
 directory so when calling Dir::entryList, it does retrieves this list from a
 cache, instead of reading the real data from the cluster.
 Of course, getting the latest data from the cluster is of extreme importance, so
-File and Dir objects implement an *update* method which updates the status of
-the objects according to the latest data in the cluster. In the case of
-directories, calling *update* also reads their entries.
-Traditionally, the update operation can be seen as reopening a file.
+File and Dir objects implement a *refresh* method which updates the status of
+the instances according to the latest data in the cluster. In the case of
+directories, calling *refresh* also reads their entries.
+Traditionally, the refresh operation can be seen as reopening a file.
 
 
 \section archlinks Links

@@ -159,7 +159,7 @@ FsObj::isReadable and FsObj::isWritable methods, respectively.
 
 \note The values of the permissions for a file or directory are cached in their
       instances, so, if there's a need to get the latest values for the
-      permissions, remember to call their \ref FsObj::update "update" methods
+      permissions, remember to call their \ref FsObj::refresh "refresh" methods
       before the intended operations.
 
 \subsubsection usestat Statting an object
@@ -249,7 +249,7 @@ Listing a directory can be done using its Dir::entryList method. For example:
 
 \note Listing a directory with Dir::entryList uses the last entry list read from
       the directory, which might be outdated depending on the use-case and the
-      filesystem use. Remember to call Dir::update before listing the entries if
+      filesystem use. Remember to call Dir::refresh before listing the entries if
       there is a need for getting the updated list of entries.
 
 \subsubsection usefindindir Finding contents in a directory
