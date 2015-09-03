@@ -16,7 +16,7 @@ class BenchmarkMgr
 public:
   BenchmarkMgr(const char *conf, const std::string &user,
                const std::string &mtdPool, const std::string &dataPool,
-               bool createPools);
+               bool createPools, size_t bufferSize);
   ~BenchmarkMgr(void);
 
   int numFiles(void);
@@ -34,6 +34,7 @@ private:
   const std::string mUser;
   std::string mMtdPool;
   std::string mDataPool;
+  const size_t mMaxFileSize;
   int mNumFiles;
   bool mCreateInDir;
   boost::mutex mNumFilesMutex;

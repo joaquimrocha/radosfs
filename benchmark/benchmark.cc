@@ -342,7 +342,8 @@ main(int argc, char **argv)
     createPools = true;
   }
 
-  BenchmarkMgr benchmark(confPath.c_str(), user, mtdPool, dataPool, createPools);
+  BenchmarkMgr benchmark(confPath.c_str(), user, mtdPool, dataPool, createPools,
+                         bufferSize / 1000);
   benchmark.setupPools();
 
   fprintf(stdout, "\n*** RadosFs Benchmark ***\n\n"

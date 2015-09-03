@@ -4,11 +4,13 @@
 
 BenchmarkMgr::BenchmarkMgr(const char *conf, const std::string &user,
                            const std::string &mtdPool,
-                           const std::string &dataPool, bool createPools)
+                           const std::string &dataPool, bool createPools,
+                           size_t maxFileSize)
   : mConf(conf),
     mUser(user),
     mMtdPool(mtdPool),
     mDataPool(dataPool),
+    mMaxFileSize(maxFileSize),
     mNumFiles(0),
     mCreateInDir(false),
     mCreatedPools(false),
@@ -102,7 +104,7 @@ BenchmarkMgr::setupPools()
   if (ret != 0)
     return ret;
 
-  ret = radosFs.addDataPool(mDataPool, "/", 1000);
+  ret = radosFs.addDataPool(mDataPool, "/", mMaxFileSize);
 
   if (ret == 0)
     ret = radosFs.addMetadataPool(mMtdPool, "/");
