@@ -22,7 +22,7 @@ set( VERSION_PATCH "7")
 set( RELEASE       "1")
 
 cmake_minimum_required( VERSION 2.6 )
-project( radosfs )
+project( libradosfs )
 
 enable_testing()
 
@@ -103,8 +103,8 @@ ADD_CUSTOM_TARGET(uninstall
 # 'distcheck' target
 #-------------------------------------------------------------------------------
 
-set(SPEC_FILE_IN "pkg/rhel/radosfs.spec.in")
-set(SPEC_FILE "pkg/rhel/radosfs.spec")
+set(SPEC_FILE_IN "pkg/rhel/libradosfs.spec.in")
+set(SPEC_FILE "pkg/rhel/libradosfs.spec")
 
 add_custom_target(spec
   COMMAND cat ${SPEC_FILE_IN} | sed s/__VERSION_MAJOR__/${VERSION_MAJOR}/ |

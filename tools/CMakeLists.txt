@@ -22,6 +22,6 @@ find_package( Boost REQUIRED COMPONENTS thread chrono )
 include_directories( ${PROJECT_SOURCE_DIR}/src ${RADOS_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} )
 
 add_executable( radosfsck radosfsck.cc RadosFsChecker.cc RadosFsChecker.hh)
-target_link_libraries( radosfsck ${RADOS_LIB} radosfs ${Boost_LIBRARIES} )
+target_link_libraries( radosfsck ${RADOS_LIB} libradosfs ${Boost_LIBRARIES} )
 
 install( TARGETS radosfsck RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR} )

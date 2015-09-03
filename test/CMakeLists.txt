@@ -24,7 +24,7 @@ if (GTEST_FOUND)
 include_directories( ${PROJECT_SOURCE_DIR}/src ${GTEST_INCLUDE_DIRS} ${RADOS_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} )
 
 add_executable( run-tests tests.cc RadosFsTest.cc RadosFsTest.hh )
-target_link_libraries( run-tests ${GTEST_LIBRARIES} ${RADOS_LIB} radosfs )
+target_link_libraries( run-tests ${GTEST_LIBRARIES} ${RADOS_LIB} libradosfs )
 
 add_test(
     NAME run-tests
