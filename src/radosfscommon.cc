@@ -1,7 +1,7 @@
 /*
  * Rados Filesystem - A filesystem library based in librados
  *
- * Copyright (C) 2014 CERN, Switzerland
+ * Copyright (C) 2014-2015 CERN, Switzerland
  *
  * Author: Joaquim Rocha <joaquim.rocha@cern.ch>
  *
