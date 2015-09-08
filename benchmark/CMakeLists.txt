@@ -21,5 +21,5 @@ find_package( Boost REQUIRED COMPONENTS thread )
 
 include_directories( ${PROJECT_SOURCE_DIR}/src ${RADOS_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} )
 
-add_executable( radosfs-bench benchmark.cc BenchmarkMgr.cc BenchmarkMgr.hh )
-target_link_libraries( radosfs-bench ${RADOS_LIB} libradosfs )
+add_executable( libradosfs-bench benchmark.cc BenchmarkMgr.cc BenchmarkMgr.hh )
+target_link_libraries( libradosfs-bench ${RADOS_LIB} libradosfs )
