@@ -25,9 +25,7 @@ find_package( Doxygen )
 if (DOXYGEN_FOUND)
 set( DOXYGEN_MAIN_PAGE ${CMAKE_CURRENT_SOURCE_DIR}/main.md )
 
-set( DOC_FILES "${CMAKE_CURRENT_SOURCE_DIR}/arch.md
-                ${CMAKE_CURRENT_SOURCE_DIR}/use.md
-                ${CMAKE_CURRENT_SOURCE_DIR}/main.md" )
+set( DOC_FILES "${CMAKE_CURRENT_SOURCE_DIR}/arch.md ${CMAKE_CURRENT_SOURCE_DIR}/use.md ${CMAKE_CURRENT_SOURCE_DIR}/main.md" )
 
 foreach( NAME ${PUBLIC_FILE_NAMES} )
   set( DOC_FILES "${CMAKE_SOURCE_DIR}/src/${NAME}.cc ${DOC_FILES}" )
