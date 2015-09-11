@@ -72,7 +72,7 @@ endif( Linux )
 install( TARGETS libradosfs LIBRARY DESTINATION ${LIB_INSTALL_DIR} )
 install( FILES
          Filesystem.hh Dir.hh File.hh FsObj.hh FileInode.hh
-         DESTINATION include/libradosfs )
+         DESTINATION include/radosfs )
 install( FILES
          libradosfs.hh
          DESTINATION include )
