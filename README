@@ -1,34 +1,34 @@
 ==============================================
-RadosFs - A filesystem library based in RADOS
+libradosfs - A filesystem library based in RADOS
 ==============================================
 
-RadosFs is a complete client-side implementation of filesystem-like
+libradosfs is a complete client-side implementation of filesystem-like
 functionality based on the RADOS object store (Ceph).
-RadosFs was designed according to the requirements of the CERN Data Storage
+libradosfs was designed according to the requirements of the CERN Data Storage
 Services group in terms of scalability and flexibility: it provides a scale-out
 namespace and pseudo-hierarchical storage view with optimized directory and file
 access (no strict POSIX semantics), parallel metadata queries, modification time
 propagation, file striping and other features.
 
-RadosFs should not be confused with CephFS. CephFS is a high-performance
+libradosfs should not be confused with CephFS. CephFS is a high-performance
 POSIX-compliant filesystem implementation built on top of RADOS and supported by
 Inktank/Redhat.
 
-RadosFs is published under the terms of the LGPLv3 license:
+libradosfs is published under the terms of the LGPLv3 license:
   http://www.gnu.org/licenses/lgpl-3.0.html
 
 
 Usage
 ======
 
-Here is a quick example of how to use RadosFs (it might also be a good idea to
+Here is a quick example of how to use libradosfs (it might also be a good idea to
 take a look at the unit tests for further examples):
 
   #include <libradosfs.hh>
 
   int ret;
 
-  // Initialize RadosFs
+  // Initialize libradosfs
   radosfs::Filesystem fs;
   ret = fs.init("someusername", "/path/to/conf/ceph.conf");
 
@@ -68,37 +68,37 @@ take a look at the unit tests for further examples):
 Tools
 ======
 
-RadosFs comes with a radosfsck tool for checking the filesystem for issues
-and possibly correct them.
+libradosfs comes with a libradosfs-fsck tool for checking the filesystem for
+issues and possibly correct them.
 
 Here is how to use it:
 
-  $ radosfsck --conf=CLUSTER_CONF /:data-pool:mtd-pool --check-dirs=/users -R
+  $ libradosfs-fsck --conf=CLUSTER_CONF /:data-pool:mtd-pool --check-dirs=/users -R
 
   Check the directory "/users" recursively in the cluster configured by
   CLUSTER_CONF with the data pool "data-pool" and metadata pool "mtd-pool" set
   for objects with the prefix "/" (all files and directories)
 
-  $ radosfsck --conf=CLUSTER_CONF /:data-pool:mtd-pool --check-paths=/users/joe/file1,/trash/
+  $ libradosfs-fsck --conf=CLUSTER_CONF /:data-pool:mtd-pool --check-paths=/users/joe/file1,/trash/
 
   Simply check the file "/users/joe/file1" and the directory "/trash/" (does not
   check its entries) using the cluster and pools configured as in the previous
   example.
 
-  $ radosfsck --conf=PATH_TO_CLUSTER_CONF /:data-pool:mtd-pool --check-dirs=/ -R --fix
+  $ libradosfs-fsck --conf=PATH_TO_CLUSTER_CONF /:data-pool:mtd-pool --check-dirs=/ -R --fix
 
   Checks all files and directories recursively in the filesystem. When a fixable
   issue is found, it will be fixed. Currently, the only fixable issues are
   broken links (to inodes, in the logical path objects) and broken back links
   (in inodes, to their logical path objects).
 
-  $ radosfsck --conf=PATH_TO_CLUSTER_CONF /:data-pool:mtd-pool --check-inodes --fix
+  $ libradosfs-fsck --conf=PATH_TO_CLUSTER_CONF /:data-pool:mtd-pool --check-inodes --fix
 
   Checks all the inode objects in the configured pools ("data-pool" and
   "mtd-pool") and attempts to fix the issues found. As mentioned before, the
   only fixable issues are broken links in both directions.
 
-  $ radosfsck --conf=PATH_TO_CLUSTER_CONF --check-inodes=data-pool-2
+  $ libradosfs-fsck --conf=PATH_TO_CLUSTER_CONF --check-inodes=data-pool-2
 
   Checks all the inode objects in the given pool ("data-pool"). In this case,
   since there are no pools configured, the check will be less thorough than
