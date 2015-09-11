@@ -1,6 +1,6 @@
-# Using RadosFs {#use}
+# Using libradosfs {#use}
 
-This page explains how to use the RadosFs to cover filesystem-related
+This page explains how to use the *libradosfs* to cover filesystem-related
 use-cases.
 
 \note Instead of throwing exceptions, most of the methods in the library will
@@ -12,7 +12,7 @@ use-cases.
 
 \section usebegin Beginning
 
-The first step for using RadosFs is to instanciate a Filesystem object which
+The first step for using *libradosfs* is to instanciate a Filesystem object which
 represents the whole filesystem and is associated with a Ceph cluster.
 
 \subsection radosfsinit Initialize the filesystem
@@ -63,7 +63,7 @@ allowed for the files in those pools.
 
 \subsection usesetids Setting the user and group ids
 
-RadosFs keeps a user id and a group id which are used as if the operations were
+*libradosfs* keeps a user id and a group id which are used as if the operations were
 performed by that user or group. For example, when creating a directory or file,
 the permissions for writing in a parent directory are checked against the user
 and group id values which will also become the owner user and group, if the
@@ -77,7 +77,7 @@ Those values are thread local so the same instance of Filesystem can be used in
 different threads without sharing the same user and group ids.
 
 \note Although the user and group id values are used for checking the
-permissions, RadosFs as no authentication in place for checking if the client
+permissions, *libradosfs* as no authentication in place for checking if the client
 who sets those values, is allowed to do so. This means that 
 
 By default, the user and group id is set to the *root*.
@@ -167,7 +167,7 @@ FsObj::isReadable and FsObj::isWritable methods, respectively.
 Like common *POSIX* filesystems, File and Dir objects have a \ref FsObj::stat
 "stat" method for getting information about them.
 
-There are two ways of statting objects in RadosFs, from their very instance:
+There are two ways of statting objects in *libradosfs*, from their very instance:
 
     radosfs::File file(&fs, "/my-file");
 
@@ -260,7 +260,7 @@ inside a directory (and recursively inside its subdirectories).
 The criteria for matching contents is specified as key/value pairs in a string
 argument. Even though the method blocks until the operation is finished,
 internally the operation is performed asynchronously and in parallel leveraging
-Rados's asynchronous API and RadosFs's
+Rados's asynchronous API and *libradosfs*'s
 [generic worker threads](\ref genericworkers).
 
 Example:
@@ -334,7 +334,7 @@ of the \ref arch page.
 Files are represented by the File class which, as mentioned before, derives from
 FsObj, sharing a part of its interface with Dir.
 
-The File class is used for the common file operations in RadosFs,
+The File class is used for the common file operations in *libradosfs*,
 creating/removing, writing, reading, truncating, etc.
 
 \subsubsection usefileinstancing Instanciating a File object
@@ -460,7 +460,7 @@ Here is an example of how to use a FileInode:
 
 \subsection uselinks Links
 
-RadosFs supports symbolic links to File and Dir objects (note that a link to a
+*libradosfs* supports symbolic links to File and Dir objects (note that a link to a
 link is not allowed).
 
 Links can be created using the FsObj::createLink method, for example:

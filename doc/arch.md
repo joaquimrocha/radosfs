@@ -1,6 +1,6 @@
 # Architecture {#arch}
 
-RadosFs was designed taking into account scalability and flexibility so it
+*libradosfs* was designed taking into account scalability and flexibility so it
 offers similar ways of accomplishing the same things, although each way might
 mean, for example, that the succeeding operations will be faster.
 
@@ -236,7 +236,7 @@ default value for the global file chunk size is **128 MB**.
 
 Creating full inode objects may not be very efficient for use-cases where files
 are rather small. For this reason, inline files are also supported.
-In RadosFs, inline files are files that can keep a limited amount of data
+In *libradosfs*, inline files are files that can keep a limited amount of data
 outside of their inode objects. Like the file path entry, this data is stored in
 the file's parent directory's omap.
 
