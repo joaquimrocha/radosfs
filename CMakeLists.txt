@@ -85,6 +85,7 @@ if( NOT NO_SOURCE )
   add_subdirectory( test )
   add_subdirectory( benchmark )
   add_subdirectory( tools )
+  add_subdirectory( bindings )
 endif( NOT NO_SOURCE )
 
 #-------------------------------------------------------------------------------
