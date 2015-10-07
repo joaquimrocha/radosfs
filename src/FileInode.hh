@@ -61,6 +61,8 @@ public:
 
   int getBackLink(std::string *backLink);
 
+  int getSize(u_int64_t &size);
+
 private:
   FileInode(FileInodePriv *priv);
   FileInodePriv *mPriv;

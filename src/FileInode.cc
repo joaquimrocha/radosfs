@@ -520,4 +520,18 @@ FileInode::getBackLink(std::string *backLink)
   return ret;
 }
 
+int
+FileInode::getSize(u_int64_t &size)
+{
+  if (!mPriv->io)
+    return -ENOENT;
+
+  ssize_t ret = mPriv->io->getLastChunkIndexAndSize(&size);
+
+  if (ret < 0)
+    return ret;
+
+  return 0;
+}
+
 RADOS_FS_END_NAMESPACE
