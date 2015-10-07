@@ -209,11 +209,11 @@ FileInode::FileInode(Filesystem *fs, const std::string &pool)
  * Creates an new instance of FileInode with the given \a name.
  *
  * @param fs a pointer to the Filesystem that contains this file.
- * @param name the name for this file inode.
  * @param pool the pool where the file inode should be created.
+ * @param name the name for this file inode.
  */
-FileInode::FileInode(Filesystem *fs, const std::string &name,
-                     const std::string &pool)
+FileInode::FileInode(Filesystem *fs, const std::string &pool,
+                     const std::string &name)
   : mPriv(new FileInodePriv(fs, pool, name, fs->fileChunkSize()))
 {}
 
@@ -221,12 +221,12 @@ FileInode::FileInode(Filesystem *fs, const std::string &name,
  * Creates an new instance of FileInode with the given \a name and \a stripeSize.
  *
  * @param fs a pointer to the Filesystem that contains this file.
- * @param name the name for this file inode.
  * @param pool the pool where the file inode should be created.
+ * @param name the name for this file inode.
  * @param stripeSize the stripe size to be used by this file inode.
  */
-FileInode::FileInode(Filesystem *fs, const std::string &name,
-                     const std::string &pool, const size_t chunkSize)
+FileInode::FileInode(Filesystem *fs, const std::string &pool,
+                     const std::string &name, const size_t chunkSize)
   : mPriv(new FileInodePriv(fs, pool, name, chunkSize))
 {}
 

@@ -1185,7 +1185,7 @@ TEST_F(RadosFsTest, FileInodeDirect)
 
   std::string inodeName(generateUuid());
 
-  radosfs::FileInode inode(&radosFs, inodeName, TEST_POOL);
+  radosfs::FileInode inode(&radosFs, TEST_POOL, inodeName);
 
   EXPECT_EQ(inode.name(), inodeName);
 

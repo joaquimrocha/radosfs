@@ -33,8 +33,8 @@ RADOS_FS_BEGIN_NAMESPACE
 class FileInodePriv
 {
 public:
-  FileInodePriv(Filesystem *fs, const std::string &name,
-                const std::string &pool, const size_t chunkSize);
+  FileInodePriv(Filesystem *fs, const std::string &pool,
+                const std::string &name, const size_t chunkSize);
   FileInodePriv(Filesystem *fs, PoolSP &pool, const std::string &name,
                 const size_t chunkSize);
   FileInodePriv(Filesystem *fs, FileIOSP fileIO);

@@ -427,7 +427,7 @@ RadosFsTest::testFileInodeBackLink(const std::string &path)
   if (ret != 0)
     return;
 
-  radosfs::FileInode inode(&radosFs, stat.translatedPath, stat.pool->name);
+  radosfs::FileInode inode(&radosFs, stat.pool->name, stat.translatedPath);
 
   std::string backLink;
   ret = -ENOENT;
