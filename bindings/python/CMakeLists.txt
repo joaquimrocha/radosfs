@@ -3,7 +3,7 @@
 #
 # Copyright (C) 2014 CERN, Switzerland
 #
-# Author: Joaquim Rocha <joaquim.rocha@cern.ch>
+# Author: Michal Simon <michal.simon@cern.ch>
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
@@ -31,6 +31,6 @@ find_package(PythonEasy REQUIRED)
 
 file(GLOB radosfs_python_sources "*.cc")
 
-#add_library(radosfspy SHARED ${radosfs_python_sources})
-#target_link_libraries(radosfspy radosfs ${Boost_PYTHON_LIBRARIES} ${PYTHON_LIBRARIES})
+add_library(radosfspy SHARED ${radosfs_python_sources})
+target_link_libraries(radosfspy libradosfs ${Boost_PYTHON_LIBRARIES} ${PYTHON_LIBRARIES})
 
