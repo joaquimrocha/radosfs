@@ -1211,6 +1211,14 @@ TEST_F(RadosFsTest, FileInodeDirect)
 
   ASSERT_EQ(0, inode.writeSync(contents, 0, contentsSize));
 
+  // Check the size of the inode
+
+  u_int64_t size = 0;
+
+  ASSERT_EQ(0, inode.getSize(size));
+
+  ASSERT_EQ(static_cast<u_int64_t>(contentsSize), size);
+
   // Read its contents
 
   ASSERT_GT(inode.read(buff, 0, contentsSize), 0);
