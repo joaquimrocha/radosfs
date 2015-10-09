@@ -14,10 +14,10 @@ void radosfs::PyFilesystem::export_bindings()
       .value("LOG_LEVEL_DEBUG", LOG_LEVEL_DEBUG)
   ;
 
-  py::class_<PyFileReadData>("FileReadData", py::init<py::object, off_t, size_t>())
+  py::class_<PyFileReadData>("FileReadData", py::init<py::object, off_t>())
       .add_property( "retValue",  &PyFileReadData::getRetValue )
+      .add_property( "buff",  &PyFileReadData::getBuff )
   ;
-
 
   py::class_<PyFilesystem>("Filesystem")
       // 'init' method

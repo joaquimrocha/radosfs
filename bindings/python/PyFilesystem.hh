@@ -23,8 +23,8 @@ RADOS_FS_BEGIN_NAMESPACE
 
 struct PyFileReadData : public FileReadData
 {
-  PyFileReadData(py::object arr, off_t offset, size_t length)
-    : FileReadData( 0, offset, length, &retValue ), retValue( 0 )
+  PyFileReadData(py::object arr, off_t offset)
+    : FileReadData( 0, offset, 0, &retValue ), arr( arr ), retValue( 0 )
   {
     if( ! PyByteArray_Check( arr.ptr() ) )
     {
@@ -33,6 +33,7 @@ struct PyFileReadData : public FileReadData
     }
 
     buff = PyByteArray_AsString( arr.ptr() );
+    length = PyByteArray_Size( arr.ptr() );
   }
 
   ssize_t getRetValue()
@@ -40,6 +41,12 @@ struct PyFileReadData : public FileReadData
     return retValue;
   }
 
+  py::object getBuff()
+  {
+    return arr;
+  }
+
+  py::object arr;
   ssize_t retValue;
 };
 
