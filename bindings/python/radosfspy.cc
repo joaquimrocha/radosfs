@@ -9,6 +9,8 @@
 #include "PyFsObj.hh"
 #include "PyFilesystem.hh"
 #include "PyFileInode.hh"
+#include "PyFile.hh"
+#include "PyDir.hh"
 
 #include <Python.h>
 #include <boost/python.hpp>
@@ -49,4 +51,10 @@ BOOST_PYTHON_MODULE(libradosfspy)
 
   // export bindings for 'FileInode'
   radosfs::PyFileInode::export_bindings();
+
+  // export bindings for 'File'
+  radosfs::PyFile::export_bindings();
+
+  // export bindings for 'Dir'
+  radosfs::PyDir::export_bindings();
 }

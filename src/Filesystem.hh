@@ -60,7 +60,7 @@ class Filesystem
 {
 public:
   Filesystem();
-  ~Filesystem();
+  virtual ~Filesystem();
 
   enum LogLevel
   {

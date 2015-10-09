@@ -6,10 +6,19 @@
  */
 
 #include "PyFsObj.hh"
+#include "PyFilesystem.hh"
+
+radosfs::PyFsObj::PyFsObj(PyFilesystem &radosFs, const py::str &path) : FsObj( &radosFs, py::extract<std::string>( path ) ) {}
+
+radosfs::PyFilesystem* radosfs::PyFsObj::filesystem_impl(void) const
+{
+  Filesystem* ptr = FsObj::filesystem();
+  return dynamic_cast<PyFilesystem*>( ptr );
+}
 
 void radosfs::PyFsObj::export_bindings()
 {
-  py::class_<PyFsObj>( "FsObj", py::no_init )//py::init<PyFilesystem, py::str>())
+  py::class_<PyFsObj>( "FsObj", py::no_init )
       // 'isWritable' method
       .def( "isWritable", py::pure_virtual( &PyFsObj::isWritable ) )
       // 'isReadable' method
@@ -52,5 +61,7 @@ void radosfs::PyFsObj::export_bindings()
       .def( "setGid",        &PyFsObj::setGid )
       // 'rename' method
       .def( "rename",        &PyFsObj::rename )
+      // 'filesystem' method
+      .def( "filesystem",    &PyFsObj::filesystem_impl, py::return_value_policy<py::reference_existing_object>() )
   ;
 }

@@ -12,6 +12,8 @@
 
 #include "PyFilesystem.hh"
 
+#include "ReadWriteHelper.h"
+
 #include <iostream>
 
 
@@ -40,23 +42,23 @@ class PyFileInode : public FileInode
 
     ssize_t read(py::object arr, off_t offset)
     {
-      if( ! PyByteArray_Check( arr.ptr() ) )
-      {
-        PyErr_SetString(PyExc_TypeError, "A bytearray was expected !");
-        throw py::error_already_set();
-      }
-
-      char *buff  = PyByteArray_AsString( arr.ptr() );
-      size_t blen = PyByteArray_Size( arr.ptr() );
-
-      return FileInode::read( buff, offset, blen );
+      return ReadWriteHelper::read_impl<FileInode>( arr, offset, *this );
     }
 
-    py::tuple read3(const py::list& intervals, py::object callback, py::object callbackArg);
+    py::tuple read3(const py::list& intervals, py::object callback, py::object callbackArg)
+    {
+      return ReadWriteHelper::read_impl<FileInode>( intervals, callback, callbackArg, *this );
+    }
 
-    py::tuple read2(const py::list& intervals, py::object callback);
+    py::tuple read2(const py::list& intervals, py::object callback)
+    {
+      return ReadWriteHelper::read_impl<FileInode>( intervals, callback, py::object(), *this );
+    }
 
-    py::tuple read1(const py::list& intervals);
+    py::tuple read1(const py::list& intervals)
+    {
+      return ReadWriteHelper::read_impl<FileInode>( intervals, py::object(), py::object(), *this );
+    }
 
     /////////////////////////////////////////////////////////////////////////////////////
     //
@@ -64,13 +66,25 @@ class PyFileInode : public FileInode
     //
     /////////////////////////////////////////////////////////////////////////////////////
 
-    py::tuple write5(py::object arr, off_t offset, bool copyBuffer, py::object callback, py::object callbackArg);
+    py::tuple write5(py::object arr, off_t offset, bool copyBuffer, py::object callback, py::object callbackArg)
+    {
+      return ReadWriteHelper::write_impl<FileInode>( arr, offset, copyBuffer, callback, callbackArg, *this );
+    }
 
-    py::tuple write4(py::object arr, off_t offset, bool copyBuffer, py::object callback);
+    py::tuple write4(py::object arr, off_t offset, bool copyBuffer, py::object callback)
+    {
+      return ReadWriteHelper::write_impl<FileInode>( arr, offset, copyBuffer, callback, py::object(), *this );
+    }
 
-    py::tuple write3(py::object arr, off_t offset, bool copyBuffer);
+    py::tuple write3(py::object arr, off_t offset, bool copyBuffer)
+    {
+      return ReadWriteHelper::write_impl<FileInode>( arr, offset, copyBuffer, py::object(), py::object(), *this );
+    }
 
-    py::tuple write2(py::object arr, off_t offset);
+    py::tuple write2(py::object arr, off_t offset)
+    {
+      return ReadWriteHelper::write_impl<FileInode>( arr, offset, false, py::object(), py::object(), *this );
+    }
 
     /////////////////////////////////////////////////////////////////////////////////////
     //
@@ -80,16 +94,7 @@ class PyFileInode : public FileInode
 
     int writeSync(py::object arr, off_t offset)
     {
-      if( ! PyByteArray_Check( arr.ptr() ) )
-      {
-        PyErr_SetString(PyExc_TypeError, "A bytearray was expected !");
-        throw py::error_already_set();
-      }
-
-      char *buff  = PyByteArray_AsString( arr.ptr() );
-      size_t blen = PyByteArray_Size( arr.ptr() );
-
-      return FileInode::writeSync( buff, offset, blen );
+      return ReadWriteHelper::writeSync_impl<FileInode>( arr, offset, *this );
     }
 
     /////////////////////////////////////////////////////////////////////////////////////
