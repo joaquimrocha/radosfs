@@ -9,6 +9,8 @@
 #include "PyFilesystem.hh"
 
 
+radosfs::PyFile::PyFile(PyFilesystem &radosFs, const py::str &path) : File( &radosFs, py::extract<std::string>( path ) ) {}
+
 radosfs::PyFile::PyFile(PyFilesystem &radosFs, const py::str &path, OpenMode mode) : File( &radosFs, py::extract<std::string>( path ), mode ) {}
 
 

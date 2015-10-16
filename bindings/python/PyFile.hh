@@ -31,6 +31,8 @@ class PyFile : public File
     //
     /////////////////////////////////////////////////////////////////////////////////////
 
+    PyFile(PyFilesystem &radosFs, const py::str &path);
+
     PyFile(PyFilesystem &radosFs, const py::str &path, OpenMode mode);
 
     PyFile(const PyFile &file) : File( file ) {}
