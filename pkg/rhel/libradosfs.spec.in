@@ -85,12 +85,12 @@ rm -rf $RPM_BUILD_ROOT
 %files devel
 %defattr(-,root,root,-)
 %{_includedir}/libradosfs.hh
-%{_includedir}/libradosfs/
+%{_includedir}/radosfs/
 
 
 %files tools
 %defattr(-,root,root,-)
-%{_sbindir}/radosfsck
+%{_sbindir}/libradosfs-fsck
 
 
 
