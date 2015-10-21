@@ -1039,4 +1039,182 @@ File::inlineBufferSize(void) const
   return mPriv->inlineBufferSize;
 }
 
+/**
+ * Sets an xattribute in this file.
+ * @param attrName the name of the xattribute to set.
+ * @param value the value of the xattribute to set.
+ * @return 0 on success, an error code otherwise.
+ */
+int
+File::setXAttr(const std::string &attrName, const std::string &value)
+{
+  // We don't call the similar methods from Filesystem for avoiding extra stat
+  // calls (except for links).
+
+  if (isLink())
+    return filesystem()->setXAttr(mPriv->target->path(), attrName, value);
+
+  if (!mPriv->fsStat() || !mPriv->fsStat()->pool)
+    return -ENODEV;
+
+  uid_t uid;
+  gid_t gid;
+  filesystem()->getIds(&uid, &gid);
+  int ret = checkPermissionsForXAttr(mPriv->fsStat()->statBuff, attrName, uid,
+                                     gid, O_WRONLY);
+
+  bool needsPrefix = false;
+  if (ret != 0)
+  {
+    if (ret == -EINVAL)
+      needsPrefix = true;
+    else
+      return ret;
+  }
+
+  std::string xattrKey = attrName;
+  if (needsPrefix)
+    xattrKey = XATTR_USER_PREFIX + attrName;
+
+  return mPriv->inode->setXAttr(xattrKey, value);
+}
+
+/**
+ * Gets the value of an xattribute in this file.
+ * @param attrName the name of the xattribute to get.
+ * @param[out] value a reference to return the value of the xattribute.
+ * @return 0 on success, an error code otherwise.
+ */
+int
+File::getXAttr(const std::string &attrName, std::string &value)
+{
+  // We don't call the similar methods from Filesystem for avoiding extra stat
+  // calls (except for links).
+
+  if (isLink())
+    return filesystem()->getXAttr(mPriv->target->path(), attrName, value);
+
+  if (!mPriv->fsStat() || !mPriv->fsStat()->pool)
+    return -ENODEV;
+
+  uid_t uid;
+  gid_t gid;
+  filesystem()->getIds(&uid, &gid);
+
+  int ret = checkPermissionsForXAttr(mPriv->fsStat()->statBuff, attrName, uid,
+                                     gid, O_RDONLY);
+
+  bool needsPrefix = false;
+  if (ret != 0)
+  {
+    if (ret == -EINVAL)
+      needsPrefix = true;
+    else
+      return ret;
+  }
+
+  std::string xattrKey = attrName;
+  if (needsPrefix)
+    xattrKey = XATTR_USER_PREFIX + attrName;
+
+  ret = mPriv->inode->getXAttr(xattrKey, value);
+  if (ret == -ENOENT && exists())
+    return -ENODATA;
+
+  return ret;
+}
+
+/**
+ * Removes an xattribute in this file.
+ * @param attrName the name of the xattribute to remove.
+ * @return 0 on success, an error code otherwise.
+ */
+int
+File::removeXAttr(const std::string &attrName)
+{
+  // We don't call the similar methods from Filesystem for avoiding extra stat
+  // calls (except for links).
+
+  if (isLink())
+    return filesystem()->removeXAttr(mPriv->target->path(), attrName);
+
+  if (!mPriv->fsStat() || !mPriv->fsStat()->pool)
+    return -ENODEV;
+
+  uid_t uid;
+  gid_t gid;
+  filesystem()->getIds(&uid, &gid);
+
+  int ret = checkPermissionsForXAttr(mPriv->fsStat()->statBuff, attrName, uid,
+                                     gid, O_WRONLY);
+
+  if (ret != 0)
+      return ret;
+
+  return mPriv->inode->removeXAttr(attrName);
+}
+
+/**
+ * Gets a map with all the xattributes in this file.
+ * @param map the map reference in which to set the keys and values of the
+ *        xattributes.
+ * @return 0 on success, an error code otherwise.
+ */
+int
+File::getXAttrsMap(std::map<std::string, std::string> &map)
+{
+  // We don't call the similar methods from Filesystem for avoiding extra stat
+  // calls (except for links).
+
+  if (isLink())
+    return filesystem()->getXAttrsMap(mPriv->target->path(), map);
+
+  if (!mPriv->fsStat() || !mPriv->fsStat()->pool)
+    return -ENODEV;
+
+  uid_t uid;
+  gid_t gid;
+  filesystem()->getIds(&uid, &gid);
+
+  if (!statBuffHasPermission(mPriv->fsStat()->statBuff, uid, gid, O_RDONLY))
+    return -EACCES;
+
+  std::map<std::string, librados::bufferlist> xattrsMap;
+  int ret = mPriv->fsStat()->pool->ioctx.getxattrs(mPriv->inode->name(),
+                                                   xattrsMap);
+
+  if (ret == 0)
+  {
+    const size_t sysPrefixSize = strlen(XATTR_SYS_PREFIX);
+    const size_t usrPrefixSize = strlen(XATTR_USER_PREFIX);
+    for (const auto &elem : xattrsMap)
+    {
+      const std::string &name = elem.first;
+      librados::bufferlist value = elem.second;
+      bool hasSysPrefix = strncmp(name.c_str(), XATTR_SYS_PREFIX,
+                                  sysPrefixSize) == 0;
+
+      // Only include xattrs that have a usr or sys prefixes (for the latter, only
+      // include them if user is root)
+      if (hasSysPrefix)
+      {
+        if (uid != ROOT_UID)
+          continue;
+      }
+      else if (strncmp(name.c_str(), XATTR_USER_PREFIX, usrPrefixSize) != 0)
+      {
+        continue;
+      }
+
+      map[name] = std::string(value.c_str(), value.length());
+    }
+
+  }
+
+  if (ret == -ENOENT && exists())
+    ret = 0;
+
+  return ret;
+}
+
 RADOS_FS_END_NAMESPACE

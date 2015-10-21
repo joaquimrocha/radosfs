@@ -257,4 +257,8 @@ void splitToVector(const std::string &str, std::vector<std::string> &vec,
 
 bool xattrHasPrefix(const std::string &xattr);
 
+int checkPermissionsForXAttr(const struct stat &statBuff,
+                             const std::string &attrName, uid_t uid, gid_t gid,
+                             int permission);
+
 #endif /* __RADOS_FS_COMMON_HH__ */

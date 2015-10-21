@@ -95,6 +95,15 @@ public:
 
   size_t inlineBufferSize(void) const;
 
+  int setXAttr(const std::string &attrName,
+               const std::string &value);
+
+  int getXAttr(const std::string &attrName, std::string &value);
+
+  int removeXAttr(const std::string &attrName);
+
+  int getXAttrsMap(std::map<std::string, std::string> &map);
+
 private:
   FilePriv *mPriv;
 
