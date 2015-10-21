@@ -1248,6 +1248,29 @@ TEST_F(RadosFsTest, FileInodeDirect)
 
   EXPECT_EQ(contentsSize / 3, inode.read(buff, 0, contentsSize / 3));
 
+  // Set xattr on the inode
+
+  std::string xattrKey("xattr-test-key");
+  std::string xattrValue("xattr-test-value");
+
+  EXPECT_EQ(0, inode.setXAttr(xattrKey, xattrValue));
+
+  // Get xattr from the inode
+  std::string xattrOutValue;
+
+  EXPECT_EQ(xattrValue.length(), inode.getXAttr(xattrKey, xattrOutValue));
+
+  EXPECT_EQ(xattrValue, xattrOutValue);
+
+  // Get the map of xattributes from the inode
+  std::map<std::string, std::string> xattrsMap;
+
+  EXPECT_EQ(0, inode.getXAttrsMap(xattrsMap));
+
+  ASSERT_EQ(1, xattrsMap.count(XATTR_SYS_PREFIX + xattrKey));
+
+  EXPECT_EQ(xattrValue, xattrsMap[XATTR_SYS_PREFIX + xattrKey]);
+
   // Check the backlink set on the inode
 
   std::string backLink;
@@ -1298,6 +1321,47 @@ TEST_F(RadosFsTest, FileInodeDirect)
   ASSERT_EQ(0, inode.registerFile(file.path(), TEST_UID, TEST_GID, O_RDWR));
 
   file.refresh();
+
+  // Verify the xattributes previously set on the inode
+
+  xattrOutValue.clear();
+
+  ASSERT_EQ(xattrValue.length(),
+            file.getXAttr(XATTR_SYS_PREFIX + xattrKey, xattrOutValue));
+
+  EXPECT_EQ(xattrValue, xattrOutValue);
+
+  xattrsMap.clear();
+
+  ASSERT_EQ(0, file.getXAttrsMap(xattrsMap));
+
+  ASSERT_EQ(1, xattrsMap.count(XATTR_SYS_PREFIX + xattrKey));
+
+  // Set xattribute from file
+
+  xattrKey = "xattr-from-file";
+  xattrValue = "value-from-file";
+
+  ASSERT_EQ(0, file.setXAttr(xattrKey, xattrValue));
+
+  // Verify the xattribute from inode
+
+  ASSERT_EQ(xattrValue.length(), file.getXAttr(XATTR_USER_PREFIX + xattrKey,
+                                               xattrOutValue));
+
+  ASSERT_EQ(xattrValue, xattrOutValue);
+
+  // Remove the xattribute from the inode
+
+  ASSERT_EQ(0, inode.removeXAttr(XATTR_USER_PREFIX + xattrKey));
+
+  // Verify that the xattribute no longer exists
+
+  ASSERT_EQ(-ENODATA, inode.getXAttr(XATTR_USER_PREFIX + xattrKey,
+                                     xattrOutValue));
+
+  ASSERT_EQ(-ENODATA, file.getXAttr(XATTR_USER_PREFIX + xattrKey,
+                                    xattrOutValue));
 
   // Verify the registered file exists
 
