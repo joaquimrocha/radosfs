@@ -1439,3 +1439,10 @@ splitToVector(const std::string &str, std::vector<std::string> &vec,
     token.clear();
   }
 }
+
+bool
+xattrHasPrefix(const std::string &xattr)
+{
+  return (xattr.compare(0, strlen(XATTR_USER_PREFIX), XATTR_USER_PREFIX) == 0) ||
+      (xattr.compare(0, strlen(XATTR_SYS_PREFIX), XATTR_SYS_PREFIX) == 0);
+}

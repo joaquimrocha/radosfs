@@ -255,4 +255,6 @@ std::string makeInodeXattr(const Stat *stat);
 void splitToVector(const std::string &str, std::vector<std::string> &vec,
                    const char separator = ',');
 
+bool xattrHasPrefix(const std::string &xattr);
+
 #endif /* __RADOS_FS_COMMON_HH__ */

@@ -534,4 +534,67 @@ FileInode::getSize(u_int64_t &size)
   return 0;
 }
 
+int
+FileInode::setXAttr(const std::string &attrName,
+                    const std::string &value)
+{
+  if (!mPriv->io)
+    return -ENODEV;
+
+  std::string xattrKey = attrName;
+  librados::bufferlist bl;
+  bl.append(value);
+
+  if (!xattrHasPrefix(attrName))
+    xattrKey = XATTR_SYS_PREFIX + xattrKey;
+
+  return mPriv->io->pool()->ioctx.setxattr(name(), xattrKey.c_str(), bl);
+}
+
+int
+FileInode::getXAttr(const std::string &attrName, std::string &value)
+{
+  if (!mPriv->io)
+    return -ENODEV;
+
+  std::string xattrKey = attrName;
+  librados::bufferlist bl;
+
+  if (!xattrHasPrefix(attrName))
+    xattrKey = XATTR_SYS_PREFIX + xattrKey;
+
+  int ret = mPriv->io->pool()->ioctx.getxattr(name(), xattrKey.c_str(), bl);
+
+  if (ret >= 0)
+  {
+    value.assign(bl.c_str(), bl.length());
+  }
+
+  return ret;
+}
+
+int
+FileInode::removeXAttr(const std::string &attrName)
+{
+  return mPriv->io->pool()->ioctx.rmxattr(name(), attrName.c_str());
+}
+
+int
+FileInode::getXAttrsMap(std::map<std::string, std::string> &map)
+{
+  std::map<std::string, librados::bufferlist> xattrsMap;
+  int ret = mPriv->io->pool()->ioctx.getxattrs(name(), xattrsMap);
+
+  if (ret != 0)
+    return ret;
+
+  for (const auto &elem : xattrsMap)
+  {
+    librados::bufferlist bl = elem.second;
+    map[elem.first] = std::string(bl.c_str(), bl.length());
+  }
+
+  return ret;
+}
+
 RADOS_FS_END_NAMESPACE
