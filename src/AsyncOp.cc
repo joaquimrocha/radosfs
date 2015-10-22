@@ -70,7 +70,7 @@ AyncOpPriv::waitForCompletion(void)
     while(it != operations.end())
     {
       librados::AioCompletion *completion = *it;
-      completion->wait_for_complete();
+      completion->wait_for_safe();
 
       if (returnCode == -EINPROGRESS || returnCode == 0)
       {
