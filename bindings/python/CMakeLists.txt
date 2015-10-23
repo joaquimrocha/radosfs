@@ -18,7 +18,7 @@
 
 cmake_minimum_required( VERSION 2.6 )
 
-FIND_PACKAGE( PythonLibs REQUIRED )
+FIND_PACKAGE( PythonEasy REQUIRED )
 include_directories( ${PYTHON_INCLUDE_PATH} )
 include_directories( BEFORE ${PROJECT_SOURCE_DIR}/src/ )
 
@@ -27,8 +27,6 @@ execute_process( COMMAND python -c "from distutils.sysconfig import get_python_l
                  OUTPUT_VARIABLE PYTHON_SITE_PACKAGES
                  OUTPUT_STRIP_TRAILING_WHITESPACE )
                  
-find_package(PythonEasy REQUIRED)
-
 file(GLOB radosfs_python_sources "*.cc")
 
 add_library(radosfspy SHARED ${radosfs_python_sources})
