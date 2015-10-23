@@ -262,8 +262,10 @@ FilesystemPriv::statLink(PoolSP mtdPool, Stat *stat, std::string &pool)
 {
   int ret = 0;
   const std::string &parentDir = getParentDir(stat->path, 0);
-  const std::string &pathXAttr = XATTR_FILE_PREFIX +
-                                 stat->path.substr(parentDir.length());
+  const std::string entryName = stat->path.substr(parentDir.length());
+  const std::string &fileEntry = XATTR_FILE_PREFIX + getFilePath(entryName);
+  const std::string &dirEntry = XATTR_FILE_PREFIX + getDirPath(entryName);
+  std::string pathXAttr = XATTR_FILE_PREFIX + entryName;
 
   stat->statBuff.st_size = 0;
 
@@ -279,17 +281,30 @@ FilesystemPriv::statLink(PoolSP mtdPool, Stat *stat, std::string &pool)
   std::set<std::string> keys;
   std::map<std::string, librados::bufferlist> omap;
 
-  keys.insert(pathXAttr);
+  keys.insert(fileEntry);
+  keys.insert(dirEntry);
   ret = inode.pool->ioctx.omap_get_vals_by_keys(inode.inode, keys, &omap);
 
-  if (omap.count(pathXAttr) == 0)
+  if (omap.count(fileEntry) > 0)
+  {
+    pathXAttr = fileEntry;
+  }
+  else if (omap.count(dirEntry) > 0)
+  {
+    pathXAttr = dirEntry;
+  }
+  else
+  {
     ret = -ENOENT;
+  }
 
   if (ret < 0)
     return ret;
 
   librados::bufferlist fileXAttr = omap[pathXAttr];
   std::string linkStr(fileXAttr.c_str(), fileXAttr.length());
+
+  stat->path = parentDir + pathXAttr;
 
   ret = statFromXAttr(stat->path, linkStr, &stat->statBuff,
                       stat->translatedPath, pool, stat->extraData);
@@ -834,40 +849,38 @@ FilesystemPriv::statFile(PoolSP mtdPool, Stat *stat)
   int ret;
   PoolSP dataPool;
   std::string poolName("");
-  stat->path = getFilePath(stat->path);
   ret = statLink(mtdPool, stat, poolName);
 
-  if (ret == -ENOENT)
+  if (ret == 0)
   {
-    stat->path = getDirPath(stat->path);
-    ret = statLink(mtdPool, stat, poolName);
-
-    if (ret == 0)
-      stat->pool = getMtdPoolFromName(poolName);
-  }
-  else
-  {
-    const PoolList &pools = getDataPools(stat->path);
-    if (poolName != "")
+    if (!S_ISLNK(stat->statBuff.st_mode))
     {
-      const PoolList &pools = getDataPools(stat->path);
-      PoolList::const_iterator it;
-
-      for (it = pools.begin(); it != pools.end(); it++)
-      {
-        if ((*it)->name == poolName)
-        {
-          dataPool = *it;
-          break;
-        }
-      }
+      stat->pool = getMtdPoolFromName(poolName);
     }
     else
     {
-      dataPool = pools.front();
-    }
+      const PoolList &pools = getDataPools(stat->path);
+      if (poolName != "")
+      {
+        const PoolList &pools = getDataPools(stat->path);
+        PoolList::const_iterator it;
 
-    stat->pool = dataPool;
+        for (it = pools.begin(); it != pools.end(); it++)
+        {
+          if ((*it)->name == poolName)
+          {
+            dataPool = *it;
+            break;
+          }
+        }
+      }
+      else
+      {
+        dataPool = pools.front();
+      }
+
+      stat->pool = dataPool;
+    }
   }
 
   return ret;
