@@ -10,6 +10,8 @@
 
 #include "Dir.hh"
 
+#include "PyFsObj.hh"
+
 #include "ReadWriteHelper.h"
 
 #include <boost/python.hpp>
@@ -21,7 +23,7 @@ RADOS_FS_BEGIN_NAMESPACE
 
 class PyFilesystem;
 
-class PyDir : public Dir
+class PyDir : public Dir, public PyFsObj
 {
   public:
 
@@ -35,7 +37,29 @@ class PyDir : public Dir
 
     PyDir(PyFilesystem &radosFs, const py::str &path, bool cacheable);
 
-    PyDir(const PyDir &file) : Dir( file ) {}
+    PyDir(const PyDir &file) : FsObj( file ), Dir( file ), PyFsObj( file ) {}
+
+    /////////////////////////////////////////////////////////////////////////////////////
+    //
+    // 'isWritable' method
+    //
+    /////////////////////////////////////////////////////////////////////////////////////
+
+    bool isWritable(void)
+    {
+      return Dir::isWritable();
+    }
+
+    /////////////////////////////////////////////////////////////////////////////////////
+    //
+    // 'isRaedable' method
+    //
+    /////////////////////////////////////////////////////////////////////////////////////
+
+    bool isReadable(void)
+    {
+      return Dir::isReadable();
+    }
 
     /////////////////////////////////////////////////////////////////////////////////////
     //

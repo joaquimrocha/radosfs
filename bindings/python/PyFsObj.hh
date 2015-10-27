@@ -21,7 +21,7 @@ RADOS_FS_BEGIN_NAMESPACE
 
 class PyFilesystem;
 
-class PyFsObj : public FsObj, public py::wrapper<PyFsObj>
+class PyFsObj : public virtual FsObj
 {
   public:
 
@@ -43,7 +43,8 @@ class PyFsObj : public FsObj, public py::wrapper<PyFsObj>
 
     bool isWritable(void)
     {
-      return this->get_override("isWritable")();
+      PyErr_SetString(PyExc_TypeError, "Not implemented!");
+      throw py::error_already_set();
     }
 
     /////////////////////////////////////////////////////////////////////////////////////
@@ -54,7 +55,8 @@ class PyFsObj : public FsObj, public py::wrapper<PyFsObj>
 
     bool isReadable(void)
     {
-      return this->get_override("isReadable")();
+      PyErr_SetString(PyExc_TypeError, "Not implemented!");
+      throw py::error_already_set();
     }
 
     /////////////////////////////////////////////////////////////////////////////////////

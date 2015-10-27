@@ -7,13 +7,13 @@
 
 #include "PyDir.hh"
 
-radosfs::PyDir::PyDir(PyFilesystem &radosFs, const py::str &path) : Dir( &radosFs, py::extract<std::string>( path ) ) {}
+radosfs::PyDir::PyDir(PyFilesystem &radosFs, const py::str &path) : FsObj( &radosFs, py::extract<std::string>( path ) ), Dir( &radosFs, py::extract<std::string>( path ) ), PyFsObj( radosFs, path ) {}
 
-radosfs::PyDir::PyDir(PyFilesystem &radosFs, const py::str &path, bool cacheable) : Dir( &radosFs, py::extract<std::string>( path ), cacheable ) {}
+radosfs::PyDir::PyDir(PyFilesystem &radosFs, const py::str &path, bool cacheable) : FsObj( &radosFs, py::extract<std::string>( path ) ), Dir( &radosFs, py::extract<std::string>( path ), cacheable ), PyFsObj( radosFs, path ) {}
 
 void radosfs::PyDir::export_bindings()
 {
-  py::class_<PyDir>( "Dir", py::init<PyFilesystem&, py::str>() )
+  py::class_<PyDir, py::bases<PyFsObj> >( "Dir", py::init<PyFilesystem&, py::str>() )
       // other constructors
       .def( py::init<PyFilesystem&, py::str, bool>() )
       .def( py::init<PyDir&>() )
@@ -70,4 +70,5 @@ void radosfs::PyDir::export_bindings()
       // 'getTMId' method
       .def( "getTMId",        &PyDir::getTMId )
   ;
+
 }

@@ -9,9 +9,9 @@
 #include "PyFilesystem.hh"
 
 
-radosfs::PyFile::PyFile(PyFilesystem &radosFs, const py::str &path) : File( &radosFs, py::extract<std::string>( path ) ) {}
+radosfs::PyFile::PyFile(PyFilesystem &radosFs, const py::str &path) : FsObj( &radosFs, py::extract<std::string>( path ) ), File( &radosFs, py::extract<std::string>( path ) ), PyFsObj( radosFs, path ) {}
 
-radosfs::PyFile::PyFile(PyFilesystem &radosFs, const py::str &path, OpenMode mode) : File( &radosFs, py::extract<std::string>( path ), mode ) {}
+radosfs::PyFile::PyFile(PyFilesystem &radosFs, const py::str &path, OpenMode mode) : FsObj( &radosFs, py::extract<std::string>( path ) ), File( &radosFs, py::extract<std::string>( path ), mode ), PyFsObj( radosFs, path ) {}
 
 
 void radosfs::PyFile::export_bindings()
@@ -23,7 +23,8 @@ void radosfs::PyFile::export_bindings()
       .value( "MODE_READ_WRITE", MODE_READ_WRITE )
   ;
 
-  py::class_<PyFile>( "File", py::init<PyFilesystem&, py::str, OpenMode>() )
+  py::class_< PyFile, py::bases<PyFsObj> >( "File", py::init<PyFilesystem&, py::str, OpenMode>() )
+    .def( py::init<PyFilesystem&, py::str>() )
     // copy constructor
     .def( py::init<PyFile&>() )
     // 'mode' method

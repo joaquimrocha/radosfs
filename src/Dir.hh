@@ -31,7 +31,7 @@ RADOS_FS_BEGIN_NAMESPACE
 
 class DirPriv;
 
-class Dir : public FsObj
+class Dir : public virtual FsObj
 {
 public:
   Dir(Filesystem *radosFs, const std::string &path);

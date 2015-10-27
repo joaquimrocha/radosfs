@@ -31,7 +31,7 @@ RADOS_FS_BEGIN_NAMESPACE
 
 class FilePriv;
 
-class File : public FsObj
+class File : public virtual FsObj
 {
 public:
   enum OpenMode
