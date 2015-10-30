@@ -304,7 +304,7 @@ FilesystemPriv::statLink(PoolSP mtdPool, Stat *stat, std::string &pool)
   librados::bufferlist fileXAttr = omap[pathXAttr];
   std::string linkStr(fileXAttr.c_str(), fileXAttr.length());
 
-  stat->path = parentDir + pathXAttr;
+  stat->path = parentDir + pathXAttr.substr(strlen(XATTR_FILE_PREFIX));
 
   ret = statFromXAttr(stat->path, linkStr, &stat->statBuff,
                       stat->translatedPath, pool, stat->extraData);
