@@ -855,7 +855,14 @@ FilesystemPriv::statFile(PoolSP mtdPool, Stat *stat)
   {
     if (S_ISLNK(stat->statBuff.st_mode))
     {
-      stat->pool = getMtdPoolFromName(poolName);
+      if (poolName.empty())
+      {
+        stat->pool = mtdPool;
+      }
+      else
+      {
+        stat->pool = getMtdPoolFromName(poolName);
+      }
     }
     else
     {
