@@ -265,7 +265,7 @@ FilesystemPriv::statLink(PoolSP mtdPool, Stat *stat, std::string &pool)
   const std::string entryName = stat->path.substr(parentDir.length());
   const std::string &fileEntry = XATTR_FILE_PREFIX + getFilePath(entryName);
   const std::string &dirEntry = XATTR_FILE_PREFIX + getDirPath(entryName);
-  std::string pathXAttr = XATTR_FILE_PREFIX + entryName;
+  const std::string *pathXAttr = 0;
 
   stat->statBuff.st_size = 0;
 
@@ -287,11 +287,11 @@ FilesystemPriv::statLink(PoolSP mtdPool, Stat *stat, std::string &pool)
 
   if (omap.count(fileEntry) > 0)
   {
-    pathXAttr = fileEntry;
+    pathXAttr = &fileEntry;
   }
   else if (omap.count(dirEntry) > 0)
   {
-    pathXAttr = dirEntry;
+    pathXAttr = &dirEntry;
   }
   else
   {
@@ -301,10 +301,10 @@ FilesystemPriv::statLink(PoolSP mtdPool, Stat *stat, std::string &pool)
   if (ret < 0)
     return ret;
 
-  librados::bufferlist fileXAttr = omap[pathXAttr];
+  librados::bufferlist fileXAttr = omap[*pathXAttr];
   std::string linkStr(fileXAttr.c_str(), fileXAttr.length());
 
-  stat->path = parentDir + pathXAttr.substr(strlen(XATTR_FILE_PREFIX));
+  stat->path = parentDir + pathXAttr->substr(strlen(XATTR_FILE_PREFIX));
 
   ret = statFromXAttr(stat->path, linkStr, &stat->statBuff,
                       stat->translatedPath, pool, stat->extraData);
