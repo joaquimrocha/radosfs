@@ -30,5 +30,5 @@ execute_process( COMMAND python -c "from distutils.sysconfig import get_python_l
 file(GLOB radosfs_python_sources "*.cc")
 
 add_library(radosfspy SHARED ${radosfs_python_sources})
-target_link_libraries(radosfspy libradosfs ${Boost_PYTHON_LIBRARIES} ${PYTHON_LIBRARIES})
+target_link_libraries(radosfspy radosfs ${Boost_PYTHON_LIBRARIES} ${PYTHON_LIBRARIES})
 
