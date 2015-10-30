@@ -853,7 +853,7 @@ FilesystemPriv::statFile(PoolSP mtdPool, Stat *stat)
 
   if (ret == 0)
   {
-    if (!S_ISLNK(stat->statBuff.st_mode))
+    if (S_ISLNK(stat->statBuff.st_mode))
     {
       stat->pool = getMtdPoolFromName(poolName);
     }
