@@ -520,6 +520,13 @@ FileInode::getBackLink(std::string *backLink)
   return ret;
 }
 
+/**
+ * Gets the size of this file inode.
+ *
+ * @note This method can be used to check whether the file inode exists.
+ * @param[out] size a reference in which to return the size of the inode.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 FileInode::getSize(u_int64_t &size)
 {
@@ -534,6 +541,13 @@ FileInode::getSize(u_int64_t &size)
   return 0;
 }
 
+/**
+ * Sets an extended attribute in the file inode.
+ *
+ * @param attrName the name (or key) for the attribute.
+ * @param value the value for the attribute.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 FileInode::setXAttr(const std::string &attrName,
                     const std::string &value)
@@ -551,6 +565,14 @@ FileInode::setXAttr(const std::string &attrName,
   return mPriv->io->pool()->ioctx.setxattr(name(), xattrKey.c_str(), bl);
 }
 
+/**
+ * Gets the value of an extended attribute from the file inode.
+ *
+ * @param attrName the name (or key) of the attribute to be retrieved.
+ * @param[out] value a string reference in which to return the value of the
+ *             attribute.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 FileInode::getXAttr(const std::string &attrName, std::string &value)
 {
@@ -573,12 +595,25 @@ FileInode::getXAttr(const std::string &attrName, std::string &value)
   return ret;
 }
 
+/**
+ * Removes an extended attribute from the file inode.
+ *
+ * @param attrName the name of the attribute to be removed.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 FileInode::removeXAttr(const std::string &attrName)
 {
   return mPriv->io->pool()->ioctx.rmxattr(name(), attrName.c_str());
 }
 
+/**
+ * Gets a map with the extended attributes set in this file inode.
+ *
+ * @param[out] map a reference to a map in which the key/values of the attribues
+ *             will be returned.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 FileInode::getXAttrsMap(std::map<std::string, std::string> &map)
 {
