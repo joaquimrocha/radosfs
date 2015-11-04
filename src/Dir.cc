@@ -1720,7 +1720,7 @@ Dir::useTMId(bool useTMId)
 }
 
 /**
- * Sets whether the *Transversal Modification Id* (TMId) should be used in
+ * Gets whether the *Transversal Modification Id* (TMId) should be used in
  * this directory.
  *
  * @see Check out the section \ref usetmid for learning what the \b TMId
