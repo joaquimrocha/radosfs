@@ -1817,18 +1817,40 @@ Dir::getTMId(std::string &id)
   return ret;
 }
 
+/**
+ * Adds this directory to the given Quota.
+ *
+ * @param quota a Quota instance.
+ * @param applyRecursively true is subdirectories should also be added
+ *        recursively, false otherwise.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 Dir::addToQuota(const Quota &quota, bool applyRecursively)
 {
   return mPriv->addQuotaObject(quota, applyRecursively);
 }
 
+/**
+ * Removes this directory from the given Quota.
+ *
+ * @param quota a Quota instance.
+ * @param applyRecursively true is subdirectories should also be removed
+ *        recursively, false otherwise.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 Dir::removeFromQuota(const Quota &quota, bool applyRecursively)
 {
   return mPriv->removeQuotaObject(quota, applyRecursively);
 }
 
+/**
+ * Retrieves the Quota objects with which this directory is associated.
+ *
+ * @param[out] quotas a vector in which to return the Quota objects.
+ * @return 0 on success, an error code otherwise.
+ */
 int
 Dir::getQuotas(std::vector<Quota> &quotas) const
 {
@@ -1860,6 +1882,11 @@ Dir::getQuotas(std::vector<Quota> &quotas) const
   return 0;
 }
 
+/**
+ * Checks whether this directory is associated with a Quota object.
+ *
+ * @return true if the directory is associated with any Quota, false otherwise.
+ */
 bool
 Dir::hasQuota() const
 {
