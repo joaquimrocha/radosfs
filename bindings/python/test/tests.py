@@ -12,10 +12,14 @@ metadataPool = ''
 
 class RadosFsTestBase(unittest.TestCase):
 
-    fs = radosfs.Filesystem()
+
+    def __init__(self, *args, **kwargs):
+        unittest.TestCase.__init__(self, *args, **kwargs)
+        self.fs = radosfs.Filesystem()
+        self.assertEqual(self.fs.init(confUser, confPath), 0)
 
     def setUp(self):
-        self.assertEqual(self.fs.init(confUser, confPath), 0)
+        pass
 
     def tearDown(self):
         pass
