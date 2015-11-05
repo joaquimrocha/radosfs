@@ -66,6 +66,14 @@ class RadosFsTestBase(unittest.TestCase):
         self.assertEqual(file.remove(), 0)
         self.assertEqual(file.remove(), -errno.ENOENT)
 
+    def test_dirCreation(self):
+        self.addPools()
+        dir = radosfs.Dir(self.fs, '/my-dir')
+        self.assertFalse(dir.exists())
+        self.assertEqual(dir.create(), 0)
+        self.assertTrue(dir.exists())
+        self.assertEqual(dir.create(), -errno.EEXIST)
+
 def setupArguments():
     parser = argparse.ArgumentParser()
     # change the name of the 'optional arguments' label, although this should
