@@ -32,3 +32,5 @@ file(GLOB radosfs_python_sources "*.cc")
 add_library(radosfspy SHARED ${radosfs_python_sources})
 target_link_libraries(radosfspy radosfs ${Boost_PYTHON_LIBRARIES} ${PYTHON_LIBRARIES})
 
+install( TARGETS radosfspy LIBRARY DESTINATION ${PYTHON_SITE_PACKAGES} )
+install( PROGRAMS radosfs.py DESTINATION ${PYTHON_SITE_PACKAGES} )
