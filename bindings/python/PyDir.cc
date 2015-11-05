@@ -7,9 +7,11 @@
 
 #include "PyDir.hh"
 
-radosfs::PyDir::PyDir(PyFilesystem &radosFs, const py::str &path) : FsObj( &radosFs, py::extract<std::string>( path ) ), Dir( &radosFs, py::extract<std::string>( path ) ), PyFsObj( radosFs, path ) {}
+#include "radosfscommon.h"
 
-radosfs::PyDir::PyDir(PyFilesystem &radosFs, const py::str &path, bool cacheable) : FsObj( &radosFs, py::extract<std::string>( path ) ), Dir( &radosFs, py::extract<std::string>( path ), cacheable ), PyFsObj( radosFs, path ) {}
+radosfs::PyDir::PyDir(PyFilesystem &radosFs, const py::str &path) : FsObj( &radosFs, getDirPath( py::extract<std::string>( path ) ) ), Dir( &radosFs, py::extract<std::string>( path ) ), PyFsObj( radosFs, path ) {}
+
+radosfs::PyDir::PyDir(PyFilesystem &radosFs, const py::str &path, bool cacheable) : FsObj( &radosFs, getDirPath( py::extract<std::string>( path ) ) ), Dir( &radosFs, py::extract<std::string>( path ), cacheable ), PyFsObj( radosFs, path ) {}
 
 void radosfs::PyDir::export_bindings()
 {
