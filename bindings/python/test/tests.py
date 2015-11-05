@@ -50,6 +50,13 @@ class RadosFsTestBase(unittest.TestCase):
         self.assertEqual(self.fs.removeMetadataPool(self.metadataPool), 0)
         self.assertEqual(self.fs.removeDataPool(self.dataPool), 0)
 
+    def test_fileCreation(self):
+        self.addPools()
+        file = radosfs.File(self.fs, '/my-file')
+        self.assertFalse(file.exists())
+        self.assertEqual(file.create(), 0)
+        self.assertTrue(file.exists())
+        self.assertEqual(file.create(), -errno.EEXIST)
 
 def setupArguments():
     parser = argparse.ArgumentParser()
