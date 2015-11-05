@@ -74,6 +74,23 @@ class RadosFsTestBase(unittest.TestCase):
         self.assertTrue(dir.exists())
         self.assertEqual(dir.create(), -errno.EEXIST)
 
+    def test_dirRemoval(self):
+        self.addPools()
+        subdir = radosfs.Dir(self.fs, '/dir/subdir')
+        self.assertFalse(subdir.exists())
+        self.assertEqual(subdir.create(-1, True), 0)
+        self.assertTrue(subdir.exists())
+
+        dir = radosfs.Dir(self.fs, '/dir/')
+        self.assertTrue(dir.exists())
+        self.assertEqual(dir.remove(), -errno.ENOTEMPTY)
+        self.assertTrue(dir.exists())
+
+        self.assertEqual(subdir.remove(), 0)
+        self.assertFalse(subdir.exists())
+        self.assertEqual(dir.remove(), 0)
+        self.assertFalse(dir.exists())
+
 def setupArguments():
     parser = argparse.ArgumentParser()
     # change the name of the 'optional arguments' label, although this should
