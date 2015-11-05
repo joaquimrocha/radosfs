@@ -45,7 +45,7 @@ class RadosFsTestBase(unittest.TestCase):
         self.assertEqual(self.fs.addMetadataPool(self.metadataPool, '/'), 0)
         self.assertEqual(self.fs.addDataPool(self.dataPool, '/'), 0)
 
-    def testPoolsAdditionAndRemoval(self):
+    def test_poolsAdditionAndRemoval(self):
         self.addPools()
         self.assertEqual(self.fs.removeMetadataPool(self.metadataPool), 0)
         self.assertEqual(self.fs.removeDataPool(self.dataPool), 0)
