@@ -673,7 +673,9 @@ int
 FileIO::unlock()
 {
   if (unlockShared() != 0)
-    unlockExclusive();
+    return unlockExclusive();
+
+  return 0;
 }
 
 int
