@@ -59,10 +59,10 @@ BenchmarkMgr::~BenchmarkMgr()
       librados::IoCtx ioctx;
       if (cluster.ioctx_create((*it).c_str(), ioctx) == 0)
       {
-        librados::ObjectIterator oit;
-        for (oit = ioctx.objects_begin(); oit != ioctx.objects_end(); oit++)
+        librados::NObjectIterator oit;
+        for (oit = ioctx.nobjects_begin(); oit != ioctx.nobjects_end(); oit++)
         {
-          ioctx.remove((*oit).first);
+          ioctx.remove((*oit).get_oid());
         }
       }
     }

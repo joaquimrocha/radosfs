@@ -675,11 +675,10 @@ RadosFsChecker::checkInodeInThread(PoolSP pool, const std::string &inode,
 void
 RadosFsChecker::checkInodes(PoolSP pool, DiagnosticSP diagnostic)
 {
-  librados::ObjectIterator it;
-
-  for (it = pool->ioctx.objects_begin(); it != pool->ioctx.objects_end(); it++)
+  librados::NObjectIterator it;
+  for (it = pool->ioctx.nobjects_begin(); it != pool->ioctx.nobjects_end(); it++)
   {
-    const std::string &inode = (*it).first;
+    const std::string &inode = (*it).get_oid();
     checkInodeInThread(pool, inode, diagnostic);
   }
 }
