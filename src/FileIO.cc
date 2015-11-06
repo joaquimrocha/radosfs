@@ -733,7 +733,7 @@ FileIO::setAlignedChunkWriteOp(librados::ObjectWriteOperation &op,
   }
 
   op.remove();
-  op.set_op_flags(librados::OP_FAILOK);
+  op.set_op_flags2(librados::OP_FAILOK);
   op.create(false);
 
   std::map<std::string, librados::bufferlist>::iterator it;
@@ -1052,7 +1052,7 @@ makeChunkReadOp(bool hasAlignment, u_int64_t *size, int *statRet,
     // other ones so we retrieve the real data size which was set as an XAttr
     keys.insert(XATTR_LAST_CHUNK_SIZE);
     op.omap_get_vals_by_keys(keys, &omap, 0);
-    op.set_op_flags(librados::OP_FAILOK);
+    op.set_op_flags2(librados::OP_FAILOK);
   }
 
   return op;
