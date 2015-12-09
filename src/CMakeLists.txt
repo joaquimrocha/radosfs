@@ -19,7 +19,7 @@
 find_package( LibRados REQUIRED )
 find_package( Threads REQUIRED )
 find_package( Uuid REQUIRED )
-find_package( Boost REQUIRED COMPONENTS thread chrono )
+find_package( Boost REQUIRED COMPONENTS thread chrono system)
 
 set( CONF_DIR "/etc/${PROJECT_NAME}" )
 set( LOG_LEVEL_FILE_BASE_NAME loglevel )
