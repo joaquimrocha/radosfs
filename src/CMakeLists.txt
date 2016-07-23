@@ -38,23 +38,25 @@ add_custom_target(${LOG_LEVEL_FILE_BASE_NAME}_target
   ALL DEPENDS ${LOG_LEVEL_FILE_BASE_NAME}
 )
 
-add_library( radosfs SHARED
-             radosfscommon.cc radosfscommon.h
-             Filesystem.cc Filesystem.hh FilesystemPriv.hh
-             DirCache.cc DirCache.hh
-             radosfsdefines.h
-             hash64.c hash64.h
-             File.cc File.hh FilePriv.hh
-             Dir.cc Dir.hh DirPriv.hh
-             FsObj.cc FsObj.hh FsObjPriv.hh
-             FileIO.cc FileIO.hh
-             Logger.cc Logger.hh
-             Finder.cc Finder.hh
-             AsyncOp.cc AsyncOp.cc AsyncOpPriv.hh
-             FileInode.cc FileInode.hh FileInodePriv.hh
-             FileInlineBuffer.cc FileInlineBuffer.hh
-             Quota.cc Quota.hh QuotaPriv.hh
+list(APPEND radosfs_SOURCES 
+     radosfscommon.cc radosfscommon.h
+     Filesystem.cc Filesystem.hh FilesystemPriv.hh
+     DirCache.cc DirCache.hh
+     radosfsdefines.h
+     hash64.c hash64.h
+     File.cc File.hh FilePriv.hh
+     Dir.cc Dir.hh DirPriv.hh
+     FsObj.cc FsObj.hh FsObjPriv.hh
+     FileIO.cc FileIO.hh
+     Logger.cc Logger.hh
+     Finder.cc Finder.hh
+     AsyncOp.cc AsyncOp.cc AsyncOpPriv.hh
+     FileInode.cc FileInode.hh FileInodePriv.hh
+     FileInlineBuffer.cc FileInlineBuffer.hh
+     Quota.cc Quota.hh QuotaPriv.hh
 )
+
+add_library( radosfs SHARED ${radosfs_SOURCES} )
 
 include_directories( ${RADOS_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} )
 
@@ -80,3 +82,9 @@ install( FILES
 install( FILES
          ${CMAKE_CURRENT_BINARY_DIR}/${LOG_LEVEL_FILE_BASE_NAME}
          DESTINATION ${CONF_DIR} )
+
+# Unit test library
+add_library( radosfs-ut SHARED ${radosfs_SOURCES} )
+target_link_libraries( radosfs-ut ${RADOS_LIB} ${UUID_LIB} ${Boost_LIBRARIES} )
+set_target_properties( radosfs-ut PROPERTIES COMPILE_FLAGS "${UNIT_TEST_FLAGS}" )
+
