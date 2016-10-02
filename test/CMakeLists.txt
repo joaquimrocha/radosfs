@@ -26,8 +26,18 @@ include_directories( ${PROJECT_SOURCE_DIR}/src ${GTEST_INCLUDE_DIRS} ${RADOS_INC
 add_executable( run-tests tests.cc RadosFsTest.cc RadosFsTest.hh )
 target_link_libraries( run-tests ${GTEST_LIBRARIES} ${RADOS_LIB} radosfs ${Boost_LIBRARIES} )
 
+add_executable( unit-tests unit-tests.cc )
+target_link_libraries( unit-tests ${GTEST_LIBRARIES} ${RADOS_LIB} radosfs-ut ${Boost_LIBRARIES} )
+set_target_properties( unit-tests PROPERTIES COMPILE_FLAGS "${UNIT_TEST_FLAGS}" )
+
 add_test(
     NAME run-tests
     COMMAND run-tests
 )
+
+add_test(
+    NAME unit-tests
+    COMMAND unit-tests
+)
+
 endif (GTEST_FOUND)

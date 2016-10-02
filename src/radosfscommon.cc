@@ -904,7 +904,7 @@ makeFileChunkName(const std::string &filePath, size_t chunkIndex)
   if (chunkIndex == 0)
     return filePath;
 
-  char chunkNumHex[FILE_CHUNK_LENGTH];
+  char chunkNumHex[FILE_CHUNK_LENGTH + 1];
   sprintf(chunkNumHex, "%0*x", FILE_CHUNK_LENGTH, (unsigned int) chunkIndex);
 
   std::ostringstream stream;
@@ -1219,7 +1219,7 @@ int statAndGetXAttrs(librados::IoCtx &ctx, const std::string &obj,
 std::string
 fileSizeToHex(size_t num)
 {
-  char chunkNumHex[XATTR_FILE_SIZE_LENGTH];
+  char chunkNumHex[XATTR_FILE_SIZE_LENGTH + 1];
   sprintf(chunkNumHex, "%0*x", XATTR_FILE_SIZE_LENGTH, (unsigned int) num);
 
   return std::string(chunkNumHex, XATTR_FILE_SIZE_LENGTH);
