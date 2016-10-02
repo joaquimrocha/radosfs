@@ -904,7 +904,7 @@ makeFileChunkName(const std::string &filePath, size_t chunkIndex)
   if (chunkIndex == 0)
     return filePath;
 
-  char chunkNumHex[FILE_CHUNK_LENGTH];
+  char chunkNumHex[FILE_CHUNK_LENGTH + 1];
   sprintf(chunkNumHex, "%0*x", FILE_CHUNK_LENGTH, (unsigned int) chunkIndex);
 
   std::ostringstream stream;
